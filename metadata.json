@@ -1,0 +1,6 @@
+{
+  "name": "Cypher Guide",
+  "description": "Cypher Protocol Nation OS - A decentralized, non-custodial accommodation booking portal for the cypherpunk community. Integrated with Nostr identities, Bitcoin Lightning payments, and autonomous governance.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
