@@ -4,7 +4,7 @@ import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as Image
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, NostrIdentity, CoOwner } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
-import { isValidNpub, DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
+import { isValidNpub } from '../utils/kycAttestation';
 
 interface Props {
   identity: NostrIdentity | null;
@@ -440,17 +440,6 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     <ShieldCheck className="w-3.5 h-3.5 text-cyber-amber" />
                     🔒 Danh Sách Verifier Tin Tưởng (RFC-0006 KYC)
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!acceptedKycVerifiersInput.includes(DEMO_VERIFIER_NPUB_1)) {
-                        setAcceptedKycVerifiersInput(prev => prev ? `${prev}\n${DEMO_VERIFIER_NPUB_1}` : DEMO_VERIFIER_NPUB_1);
-                      }
-                    }}
-                    className="text-[9px] bg-cyber-amber/20 hover:bg-cyber-amber/40 text-cyber-amber px-2 py-0.5 rounded font-mono border border-cyber-amber/40 transition-all cursor-pointer"
-                  >
-                    + Thêm Demo Verifier
-                  </button>
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono leading-tight">
                   Nhập các mã npub của Verifier được Host tin tưởng (mỗi npub trên 1 dòng hoặc cách nhau bởi dấu phẩy). Hệ thống tự động kiểm tra bech32 checksum.

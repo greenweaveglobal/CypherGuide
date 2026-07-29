@@ -565,25 +565,30 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                                     ⚠️ Bị Khóa Đặt Phòng (RFC-0006)
                                   </div>
                                   <div className="leading-tight">{kycValidationError}</div>
-                                  <button
-                                    type="button"
-                                    disabled={isMintingAttestation}
-                                    onClick={() => handleMintDemoAttestation()}
-                                    className="w-full py-1.5 px-3 bg-cyber-amber hover:bg-cyber-amber/80 text-black font-bold text-[11px] rounded transition-all shadow-md"
-                                  >
-                                    {isMintingAttestation ? 'Đang tạo Attestation...' : '⚡ Cấp Demo KYC Attestation (Kind 30388)'}
-                                  </button>
+                                  {import.meta.env.DEV && (
+                                    <div className="pt-2 border-t border-danger/20">
+                                      <span className="text-[9px] text-cyber-amber block mb-1 uppercase font-bold">[DEV MODE ONLY - LOCAL TESTING]:</span>
+                                      <button
+                                        type="button"
+                                        disabled={isMintingAttestation}
+                                        onClick={() => handleMintDemoAttestation()}
+                                        className="w-full py-1.5 px-3 bg-cyber-amber/20 hover:bg-cyber-amber/40 text-cyber-amber font-bold text-[10px] rounded transition-all border border-cyber-amber/40"
+                                      >
+                                        {isMintingAttestation ? 'Đang tạo...' : '🧪 [DEV ONLY] Giả Lập Verifier Ký Attestation (Local Test)'}
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               )}
 
-                              {!kycValidationError && !kycAttestations.some(a => a.subjectNpub === identity.npub && listing.acceptedKycVerifiers?.includes(a.verifierNpub)) && (
+                              {import.meta.env.DEV && !kycValidationError && !kycAttestations.some(a => a.subjectNpub === identity.npub && listing.acceptedKycVerifiers?.includes(a.verifierNpub)) && (
                                 <button
                                   type="button"
                                   disabled={isMintingAttestation}
                                   onClick={() => handleMintDemoAttestation()}
-                                  className="w-full py-1.5 px-3 bg-cyber-amber/15 hover:bg-cyber-amber/30 text-cyber-amber border border-cyber-amber/30 rounded font-mono text-[10px] transition-all flex items-center justify-center gap-1"
+                                  className="w-full py-1.5 px-3 bg-cyber-amber/10 hover:bg-cyber-amber/25 text-cyber-amber border border-cyber-amber/30 rounded font-mono text-[9px] transition-all flex items-center justify-center gap-1"
                                 >
-                                  {isMintingAttestation ? 'Đang cấp...' : '+ Tạo Demo KYC Attestation (Kind 30388)'}
+                                  {isMintingAttestation ? 'Đang cấp...' : '🧪 [DEV ONLY] Giả Lập Verifier Ký Attestation (Local Test)'}
                                 </button>
                               )}
                             </div>
