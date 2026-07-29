@@ -218,10 +218,10 @@ ${docsContent}`;
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('/en*', (req, res) => {
-      const enIndexPath = path.join(distPath, 'en', 'index.html');
-      if (fs.existsSync(enIndexPath)) {
-        res.sendFile(enIndexPath);
+    app.get('/vi*', (req, res) => {
+      const viIndexPath = path.join(distPath, 'vi', 'index.html');
+      if (fs.existsSync(viIndexPath)) {
+        res.sendFile(viIndexPath);
       } else {
         res.sendFile(path.join(distPath, 'index.html'));
       }

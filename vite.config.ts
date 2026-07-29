@@ -15,7 +15,7 @@ export default defineConfig(() => {
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html'),
-          en: path.resolve(__dirname, 'en/index.html'),
+          vi: path.resolve(__dirname, 'vi/index.html'),
         },
         output: {
           manualChunks: {

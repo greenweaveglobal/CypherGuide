@@ -6,17 +6,17 @@
     <lastmod>2026-07-29</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="vi" href="https://cypherguide.org/" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://cypherguide.org/en" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cypherguide.org/" />
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cypherguide.org/vi" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://cypherguide.org/" />
   </url>
   <url>
-    <loc>https://cypherguide.org/en</loc>
+    <loc>https://cypherguide.org/vi</loc>
     <lastmod>2026-07-29</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="vi" href="https://cypherguide.org/" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://cypherguide.org/en" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cypherguide.org/" />
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cypherguide.org/vi" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://cypherguide.org/" />
   </url>
 </urlset>

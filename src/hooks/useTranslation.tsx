@@ -31,7 +31,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore localStorage errors
     }
-    return 'vi';
+    return 'en';
   });
 
   const setLocale = (newLocale: SupportedLocale) => {
