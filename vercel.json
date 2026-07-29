@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/en",
+      "destination": "/en/index.html"
+    },
+    {
+      "source": "/en/(.*)",
+      "destination": "/en/index.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

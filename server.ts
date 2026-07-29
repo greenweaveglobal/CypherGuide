@@ -218,6 +218,14 @@ ${docsContent}`;
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    app.get('/en*', (req, res) => {
+      const enIndexPath = path.join(distPath, 'en', 'index.html');
+      if (fs.existsSync(enIndexPath)) {
+        res.sendFile(enIndexPath);
+      } else {
+        res.sendFile(path.join(distPath, 'index.html'));
+      }
+    });
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
