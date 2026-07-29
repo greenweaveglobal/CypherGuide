@@ -20,8 +20,9 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | 0004 | Internationalization (i18n) cho giao diện | Draft | `src/components/*.tsx`, `src/locales/` |
 | 0005 | Trợ Lý Tra Cứu Dựa Trên Tài Liệu (Grounded Docs Assistant) | Draft | `src/components/DocsAssistant.tsx` |
 | 0006 | Lớp KYC Tùy Chọn (Optional Attestation Layer) | Draft | `utils/proofOfStay.ts` (mở rộng `proof_type`) |
+| 0007 | Mô Thức AI Phi Tập Trung (Decentralized AI over Mesh) | Draft (visionary) | `DocsAssistant.tsx`, `server.ts` (RFC-0005) |
 
-Số RFC tiếp theo: **0007**.
+Số RFC tiếp theo: **0008**.
 
 ## Quy ước đặt tên (đã thống nhất lại)
 
