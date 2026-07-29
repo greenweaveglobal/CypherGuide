@@ -6,7 +6,7 @@ import { Listing, NostrIdentity, Booking } from '../types';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
-import { sha256, signMessage } from '../utils/crypto';
+import { sha256, signMessage, hexToBytes } from '../utils/crypto';
 import { generateBolt11, isWebLNAvailable, payViaWebLN } from '../utils/lightning';
 import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../utils/depositEscrow';
@@ -15,6 +15,8 @@ import QrScannerModal from './QrScannerModal';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
 import { useTranslation } from '../hooks/useTranslation';
+import { validateKycAttestationForBooking, createKycAttestation, DEMO_VERIFIER_NPUB_1, DEMO_VERIFIER_HEX_1 } from '../utils/kycAttestation';
+import { nip19 } from 'nostr-tools';
 
 interface Props {
   listing: Listing;
@@ -28,6 +30,8 @@ interface Props {
 
 export default function ListingDetail({ listing, identity, onBack, onBookingSuccess, onAddReply, onAddLog }: Props) {
   const { t } = useTranslation();
+  const { kycAttestations, addKycAttestation } = useAppStore();
+
   const [step, setStep] = useState<'detail' | 'availability' | 'payment' | 'completed'>('detail');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -38,6 +42,10 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   const [paymentLog, setPaymentLog] = useState<string[]>([]);
   const [copiedInvoice, setCopiedInvoice] = useState(false);
   const [showQrScanner, setShowQrScanner] = useState(false);
+
+  // RFC-0006 KYC States
+  const [kycValidationError, setKycValidationError] = useState<string | null>(null);
+  const [isMintingAttestation, setIsMintingAttestation] = useState(false);
 
   const handleScanSuccess = async (scannedInvoice: string) => {
     setShowQrScanner(false);
@@ -90,8 +98,58 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
     setPaymentLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
 
+  const handleMintDemoAttestation = async (targetVerifierNpub?: string) => {
+    if (!identity) return;
+    setIsMintingAttestation(true);
+    try {
+      const verifierNpub = targetVerifierNpub || listing.acceptedKycVerifiers?.[0] || DEMO_VERIFIER_NPUB_1;
+      const mockVerifierIdentity: NostrIdentity = {
+        npub: verifierNpub,
+        nsec: nip19.nsecEncode(hexToBytes(DEMO_VERIFIER_HEX_1)),
+        pubKeyHex: DEMO_VERIFIER_HEX_1,
+        name: 'VASP Authorized Verifier Node',
+        privKeyHex: DEMO_VERIFIER_HEX_1
+      };
+      const att = await createKycAttestation(
+        identity.npub,
+        mockVerifierIdentity,
+        'FATF-TravelRule-2019',
+        365,
+        `https://verifier.org/revoke/${Math.random().toString(36).slice(2, 8)}`
+      );
+      addKycAttestation(att);
+      setKycValidationError(null);
+      onAddLog('relay', `📜 Verifier ${verifierNpub.slice(0, 14)}... đã ký KYC Attestation (Kind 30388) cho ${identity.npub.slice(0, 14)}...`, att.signature);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsMintingAttestation(false);
+    }
+  };
+
   const handleProceedToPayment = async () => {
     if (!isDateValid) return;
+    setKycValidationError(null);
+
+    // RFC-0006 KYC Validation Check
+    if (identity && listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0) {
+      const kycResult = await validateKycAttestationForBooking(
+        identity.npub,
+        kycAttestations,
+        listing.acceptedKycVerifiers,
+        totalPriceSats,
+        listing.kycThresholdSats
+      );
+
+      if (!kycResult.valid) {
+        setKycValidationError(kycResult.reason || 'Chưa đáp ứng yêu cầu KYC Attestation.');
+        onAddLog('governance', `❌ Khóa Thanh Toán: RFC-0006 KYC Attestation validation thất bại. Reason: ${kycResult.reason}`);
+        return;
+      }
+
+      onAddLog('governance', `✅ Khách hàng đáp ứng KYC Attestation từ Verifier: ${kycResult.matchedVerifier?.slice(0, 16)}...`);
+    }
+
     setStep('payment');
     
     addPaymentLog('Requesting Lightning Invoice from mesh routing node...');
@@ -298,6 +356,48 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                 </p>
               </section>
 
+              {/* RFC-0006 KYC Attestation Details Section */}
+              {listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
+                <section className="p-4 bg-cyber-amber/5 border border-cyber-amber/30 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-md font-bold text-cyber-amber flex items-center gap-2 font-mono">
+                      <ShieldCheck className="w-5 h-5 text-cyber-amber" />
+                      🔒 RFC-0006 Optional KYC Attestation Layer
+                    </h3>
+                    <span className="text-[10px] bg-cyber-amber/20 text-cyber-amber px-2.5 py-1 rounded font-mono font-bold border border-cyber-amber/40">
+                      1-of-N Verifier Match
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-text-secondary leading-relaxed font-mono">
+                    Host yêu cầu Khách đặt phòng sở hữu <strong>KYC Attestation Record (Kind 30388)</strong> còn hiệu lực, được xác nhận bởi ít nhất 1 trong số các Verifier được Host tin tưởng bên dưới:
+                  </p>
+
+                  <div className="space-y-2 pt-1">
+                    <div className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Danh sách Verifier Npubs được chấp nhận ({listing.acceptedKycVerifiers.length}):</div>
+                    <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {listing.acceptedKycVerifiers.map((verifierNpub, idx) => (
+                        <div key={idx} className="bg-black/60 border border-white/10 rounded-lg p-2 flex items-center justify-between font-mono text-xs">
+                          <span className="text-cyber-amber truncate mr-2" title={verifierNpub}>
+                            {verifierNpub.slice(0, 16)}...{verifierNpub.slice(-8)}
+                          </span>
+                          <span className="text-[9px] bg-success/20 text-success px-1.5 py-0.5 rounded border border-success/30 shrink-0">
+                            BECH32_OK
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {listing.kycThresholdSats !== undefined && listing.kycThresholdSats > 0 && (
+                    <div className="text-[11px] font-mono text-text-secondary bg-black/40 p-2 rounded border border-white/5 flex items-center justify-between">
+                      <span>Ngưỡng giá trị phòng bắt buộc KYC:</span>
+                      <span className="text-warning font-bold">{listing.kycThresholdSats.toLocaleString()} Sats</span>
+                    </div>
+                  )}
+                </section>
+              )}
+
               <section className="space-y-4 pt-4 border-t border-border">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <Users className="w-5 h-5 text-primary" /> {t('listingDetail.coOwnersTitle')}
@@ -439,15 +539,66 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                           {t('listingDetail.connectIdentityWarning')}
                         </div>
                       ) : (
-                        <Button 
-                          variant="primary" 
-                          className="w-full" 
-                          disabled={!isDateValid}
-                          onClick={handleProceedToPayment}
-                        >
-                          <Zap className="w-4 h-4 mr-2" />
-                          {t('listingDetail.continuePayment')}
-                        </Button>
+                        <div className="space-y-4">
+                          {/* RFC-0006 KYC Validation & Status Banner */}
+                          {listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t border-white/10">
+                              <div className="flex items-center justify-between text-xs font-mono">
+                                <span className="text-gray-400">Trạng thái KYC (RFC-0006):</span>
+                                {identity && kycAttestations.some(a => 
+                                  a.subjectNpub === identity.npub && 
+                                  listing.acceptedKycVerifiers?.includes(a.verifierNpub)
+                                ) ? (
+                                  <span className="text-success font-bold flex items-center gap-1">
+                                    <Check className="w-3.5 h-3.5" /> Khớp 1-in-N Verifier
+                                  </span>
+                                ) : (
+                                  <span className="text-cyber-amber font-bold flex items-center gap-1">
+                                    🔒 Chưa có Attestation
+                                  </span>
+                                )}
+                              </div>
+
+                              {kycValidationError && (
+                                <div className="p-3 bg-danger/15 border border-danger/30 rounded-lg text-xs font-mono text-danger space-y-2">
+                                  <div className="font-bold flex items-center gap-1">
+                                    ⚠️ Bị Khóa Đặt Phòng (RFC-0006)
+                                  </div>
+                                  <div className="leading-tight">{kycValidationError}</div>
+                                  <button
+                                    type="button"
+                                    disabled={isMintingAttestation}
+                                    onClick={() => handleMintDemoAttestation()}
+                                    className="w-full py-1.5 px-3 bg-cyber-amber hover:bg-cyber-amber/80 text-black font-bold text-[11px] rounded transition-all shadow-md"
+                                  >
+                                    {isMintingAttestation ? 'Đang tạo Attestation...' : '⚡ Cấp Demo KYC Attestation (Kind 30388)'}
+                                  </button>
+                                </div>
+                              )}
+
+                              {!kycValidationError && !kycAttestations.some(a => a.subjectNpub === identity.npub && listing.acceptedKycVerifiers?.includes(a.verifierNpub)) && (
+                                <button
+                                  type="button"
+                                  disabled={isMintingAttestation}
+                                  onClick={() => handleMintDemoAttestation()}
+                                  className="w-full py-1.5 px-3 bg-cyber-amber/15 hover:bg-cyber-amber/30 text-cyber-amber border border-cyber-amber/30 rounded font-mono text-[10px] transition-all flex items-center justify-center gap-1"
+                                >
+                                  {isMintingAttestation ? 'Đang cấp...' : '+ Tạo Demo KYC Attestation (Kind 30388)'}
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          <Button 
+                            variant="primary" 
+                            className="w-full" 
+                            disabled={!isDateValid}
+                            onClick={handleProceedToPayment}
+                          >
+                            <Zap className="w-4 h-4 mr-2" />
+                            {t('listingDetail.continuePayment')}
+                          </Button>
+                        </div>
                       )}
                     </div>
                   )}

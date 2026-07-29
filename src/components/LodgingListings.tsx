@@ -136,6 +136,15 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                       </button>
                     </div>
                   </div>
+
+                  {/* 🔒 KYC Badge (RFC-0006) */}
+                  {listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
+                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-black/90 backdrop-blur-md px-2 py-1 rounded border border-cyber-amber/60 text-cyber-amber shadow-lg">
+                      <span className="text-[10px] font-mono font-bold tracking-tight flex items-center gap-1">
+                        🔒 KYC REQUIRED ({listing.acceptedKycVerifiers.length} Verifier{listing.acceptedKycVerifiers.length > 1 ? 's' : ''})
+                      </span>
+                    </div>
+                  )}
                   
                   {/* Rating Tag */}
                   <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur px-2.5 py-1 rounded border border-white/5">

@@ -39,8 +39,25 @@ export interface Listing {
   maxGuests?: number;
   securitySpecs: string[]; // No-KYC, Starlink, Mesh backup, solar, etc.
   coOwners: CoOwner[];
+  acceptedKycVerifiers?: string[]; // RFC-0006 array of verifier npubs specified by host
+  kycThresholdSats?: number; // Optional amount threshold requiring KYC
   status: 'available' | 'occupied';
   reviews: Review[];
+}
+
+export interface KycAttestationRecord {
+  id: string;
+  subjectNpub: string;
+  verifierNpub: string;
+  verifierStandard: string; // e.g. "FATF-TravelRule-2019"
+  issuedAt: number; // timestamp in seconds
+  expiresAt?: number; // timestamp in seconds
+  revocationEndpoint?: string;
+  signature: string;
+  kind: number; // 30388
+  proofType: 'kyc_attestation';
+  version: string; // "1.0"
+  rawNostrEventJson?: string;
 }
 
 export interface Booking {

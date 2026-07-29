@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Listing, Booking, Proposal, NostrIdentity, P2PLog, Payout, PropertyDocument, GovernanceAct, ReferralRecord, NodeIncentiveRecord } from '../types';
+import { Listing, Booking, Proposal, NostrIdentity, P2PLog, Payout, PropertyDocument, GovernanceAct, ReferralRecord, NodeIncentiveRecord, KycAttestationRecord } from '../types';
 import { INITIAL_LISTINGS, INITIAL_PROPOSALS } from '../data';
 import { DataReconciler, IntegrityReport } from '../utils/reconciler';
+import { DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
 
 interface AppState {
   identity: NostrIdentity | null;
@@ -17,6 +18,11 @@ interface AppState {
   addBooking: (booking: Booking) => void;
   updateBookingStatus: (id: string, status: 'checked_in' | 'checked_out' | 'expired', proofOfStayHash?: string) => void;
   updateDepositStatus: (bookingId: string, guestStatus?: 'locked' | 'refunded' | 'forfeited', hostStatus?: 'locked' | 'refunded' | 'forfeited') => void;
+
+  // KYC Attestations (RFC-0006)
+  kycAttestations: KycAttestationRecord[];
+  addKycAttestation: (attestation: KycAttestationRecord) => void;
+  removeKycAttestation: (id: string) => void;
 
   // Referral Sats
   referrals: ReferralRecord[];
@@ -123,6 +129,15 @@ export const useAppStore = create<AppState>()(
           ...(guestStatus && { guestDepositStatus: guestStatus }),
           ...(hostStatus && { hostDepositStatus: hostStatus })
         } : b)
+      })),
+
+      // RFC-0006 KYC Attestations
+      kycAttestations: [],
+      addKycAttestation: (attestation) => set((state) => ({
+        kycAttestations: [attestation, ...state.kycAttestations.filter(a => a.id !== attestation.id)]
+      })),
+      removeKycAttestation: (id) => set((state) => ({
+        kycAttestations: state.kycAttestations.filter((a) => a.id !== id)
       })),
 
       referrals: [

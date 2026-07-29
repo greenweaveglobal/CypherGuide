@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, NostrIdentity, CoOwner } from '../types';
-import { signMessage, sha256 } from '../utils/crypto';
+import { signMessage, sha256, npubToHex } from '../utils/crypto';
+import { isValidNpub, DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
 
 interface Props {
   identity: NostrIdentity | null;
@@ -20,6 +21,8 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   const [locationCoords, setLocationCoords] = useState('');
   const [maxGuests, setMaxGuests] = useState('2');
   const [securitySpecs, setSecuritySpecs] = useState('Kết nối Cypherpunk, Thanh toán Bitcoin Lightning');
+  const [acceptedKycVerifiersInput, setAcceptedKycVerifiersInput] = useState('');
+  const [kycThresholdSatsInput, setKycThresholdSatsInput] = useState('0');
   const [imageUrl, setImageUrl] = useState('');
   const [nip94Urls, setNip94Urls] = useState<string[]>([]);
   const [coOwners, setCoOwners] = useState<CoOwner[]>([
@@ -119,6 +122,21 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       return;
     }
 
+    // Process RFC-0006 accepted KYC verifiers
+    const rawVerifiers = acceptedKycVerifiersInput
+      .split(/[\n,;\s]+/)
+      .map(v => v.trim())
+      .filter(v => v.length > 0);
+
+    for (const verifier of rawVerifiers) {
+      if (!isValidNpub(verifier)) {
+        setErrorMsg(`Mã Verifier npub "${verifier}" không hợp lệ (thất bại bech32 checksum). Vui lòng dán đúng định dạng npub1...!`);
+        return;
+      }
+    }
+
+    const kycThresholdSats = parseInt(kycThresholdSatsInput) || 0;
+
     setIsSubmitting(true);
 
     try {
@@ -149,6 +167,8 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         meshCoordinates: locationCoords,
         imagePrompt: 'Cypherpunk bunker',
         securitySpecs: securitySpecs.split(',').map(s => s.trim()),
+        acceptedKycVerifiers: rawVerifiers,
+        kycThresholdSats: kycThresholdSats,
         status: 'available',
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=600&q=80',
         images: signedImages,
@@ -411,6 +431,55 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   placeholder={t('hostReg.phSecurity')}
                   className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyber-green/50"
                 />
+              </div>
+
+              {/* RFC-0006: Optional KYC Verifiers Declaration */}
+              <div className="p-3 bg-cyber-amber/5 border border-cyber-amber/20 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] text-cyber-amber font-mono uppercase font-bold flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-cyber-amber" />
+                    🔒 Danh Sách Verifier Tin Tưởng (RFC-0006 KYC)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!acceptedKycVerifiersInput.includes(DEMO_VERIFIER_NPUB_1)) {
+                        setAcceptedKycVerifiersInput(prev => prev ? `${prev}\n${DEMO_VERIFIER_NPUB_1}` : DEMO_VERIFIER_NPUB_1);
+                      }
+                    }}
+                    className="text-[9px] bg-cyber-amber/20 hover:bg-cyber-amber/40 text-cyber-amber px-2 py-0.5 rounded font-mono border border-cyber-amber/40 transition-all cursor-pointer"
+                  >
+                    + Thêm Demo Verifier
+                  </button>
+                </div>
+                <p className="text-[9px] text-gray-400 font-mono leading-tight">
+                  Nhập các mã npub của Verifier được Host tin tưởng (mỗi npub trên 1 dòng hoặc cách nhau bởi dấu phẩy). Hệ thống tự động kiểm tra bech32 checksum.
+                </p>
+                <textarea
+                  rows={2}
+                  value={acceptedKycVerifiersInput}
+                  onChange={(e) => setAcceptedKycVerifiersInput(e.target.value)}
+                  placeholder="npub1... (Gõ tay free-text, không chọn dropdown)"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs font-mono text-cyber-amber focus:outline-none focus:border-cyber-amber/50 placeholder:text-gray-600"
+                />
+
+                <div>
+                  <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
+                    Ngưỡng Đặt Phòng Bắt Buộc KYC (Sats)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={kycThresholdSatsInput}
+                    onChange={(e) => setKycThresholdSatsInput(e.target.value)}
+                    placeholder="0 = Bắt buộc cho mọi tổng giá trị đặt phòng"
+                    className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs font-mono text-white focus:outline-none focus:border-cyber-amber/50"
+                  />
+                  <span className="text-[8px] text-gray-500 font-mono block mt-0.5">
+                    (0 = Bắt buộc KYC cho mọi booking. Nhập số Sats để chỉ bắt buộc KYC khi booking vượt ngưỡng giá trị này).
+                  </span>
+                </div>
               </div>
             </div>
           </div>

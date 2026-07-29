@@ -72,6 +72,27 @@ Proof-of-Stay (người dùng tự ký cho chính mình). App nào cần kiểm 
 `proof_type=kyc_attestation`, `subject_npub` khớp, `pubkey` (verifier) nằm trong danh
 sách verifier họ tin tưởng, và `expires_at` chưa qua hạn.
 
+### Danh sách verifier tin tưởng — do từng host tự khai báo, không có registry trung tâm
+
+Không có danh sách verifier "được duyệt" nào của Cypher Guide. Mỗi listing tự khai báo
+verifier họ chấp nhận:
+
+- Trường mới trên `Listing`: `acceptedKycVerifiers: string[]` — mảng npub do host tự
+  nhập tay (không phải chọn từ dropdown/danh sách gợi ý), validate bằng đúng logic
+  bech32 checksum đã có sẵn trong `crypto.ts` (tái dùng, không viết hàm mới).
+- Host có thể khai nhiều verifier cùng lúc (khách có attestation từ 1-trong-N là đủ) —
+  vì các host khác nhau, hoặc cùng một host tại các thời điểm khác nhau, có thể tin
+  các verifier khác nhau.
+- App phía khách kiểm tra: `event.pubkey` (verifier đã ký attestation) có nằm trong
+  `listing.acceptedKycVerifiers` của listing đang đặt hay không — chữ ký hợp lệ về mặt
+  mật mã nhưng verifier không nằm trong danh sách của listing đó thì **không tính**.
+- Ngưỡng áp dụng (`amount_sats` tối thiểu cần attestation) cũng là tham số riêng của
+  từng listing, không phải cấu hình toàn giao thức.
+
+Điều này áp đúng nguyên tắc "mỗi ứng dụng tự diễn giải" (RFC-0003) xuống tới tận cấp
+**từng host**, không chỉ từng app — giống cách trình duyệt tự duy trì danh sách CA tin
+cậy cho HTTPS, ở đây mỗi host tự duy trì danh sách verifier của riêng họ.
+
 ### Vì sao cần trường thu hồi/hết hạn
 
 Khác với Proof-of-Stay (badge quá khứ, không cần thu hồi), một attestation KYC có thể
@@ -81,9 +102,9 @@ Phương án B có thêm `expires_at`/`revocation_endpoint` mà Proof-of-Stay kh
 ## Đánh đổi bảo mật / phi tập trung
 
 - **Không có registry trung tâm nào quyết định verifier nào "hợp lệ"** — đúng tinh thần
-  permissionless, nhưng nghĩa là mỗi app tự phải duy trì danh sách verifier họ tin tưởng
-  (giống cách trình duyệt tự duy trì danh sách CA tin cậy cho HTTPS) — không giải quyết
-  trong RFC này, để ngỏ cho từng app.
+  permissionless. Cụ thể hóa ở mục Thiết kế: mỗi **host** (không phải mỗi app) tự khai
+  báo danh sách verifier họ tin (`listing.acceptedKycVerifiers`, tự nhập tay, không có
+  gợi ý/duyệt trước) — giống cách trình duyệt tự duy trì danh sách CA tin cậy cho HTTPS.
 - **Verifier là điểm tập trung thật** cho riêng dữ liệu KYC — chấp nhận được vì đây là
   lớp hoàn toàn tùy chọn, tách biệt khỏi Layer 2 lõi; ai không tương tác với verifier nào
   thì không bị ảnh hưởng, danh tính gốc vẫn ẩn danh như cũ.

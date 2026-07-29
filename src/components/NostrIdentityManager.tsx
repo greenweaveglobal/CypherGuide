@@ -551,6 +551,68 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                         </div>
                       </div>
 
+                      {/* RFC-0006 Optional KYC Attestation Layer (Kind 30388) */}
+                      <div className="pt-3 border-t border-cyber-amber/20 font-mono">
+                        <div className="p-3 bg-black/60 rounded-xl border border-cyber-amber/30 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cyber-amber/20 pb-2">
+                            <div className="flex items-center gap-2">
+                              <Award className="w-4 h-4 text-cyber-amber shrink-0" />
+                              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                RFC-0006 KYC Attestation Records (Kind 30388)
+                              </span>
+                            </div>
+                            <span className="text-[9px] bg-cyber-amber/20 text-cyber-amber px-2 py-0.5 rounded border border-cyber-amber/40">
+                              {useAppStore.getState().kycAttestations.filter(a => identity && a.subjectNpub === identity.npub).length} Records
+                            </span>
+                          </div>
+
+                          <p className="text-[10px] text-gray-400 leading-snug">
+                            Chứng nhận định danh (Attestation) ký bởi Verifier được ủy quyền. Được lưu trữ dưới dạng Nostr Event Kind 30388 kèm trường thu hồi và hết hạn.
+                          </p>
+
+                          {useAppStore.getState().kycAttestations.filter(a => identity && a.subjectNpub === identity.npub).length === 0 ? (
+                            <div className="text-[10px] text-gray-500 italic p-2 bg-black/40 rounded text-center border border-white/5">
+                              Chưa có KYC Attestation nào được liên kết với nPub này.
+                            </div>
+                          ) : (
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {useAppStore.getState().kycAttestations.filter(a => identity && a.subjectNpub === identity.npub).map((att) => (
+                                <div key={att.id} className="p-2.5 bg-black/70 rounded-lg border border-white/10 space-y-1.5">
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-cyber-amber font-bold flex items-center gap-1">
+                                      📜 Kind {att.kind} ({att.verifierStandard})
+                                    </span>
+                                    <span className="text-success font-mono font-bold">
+                                      {att.expiresAt ? `Hết hạn: ${new Date(att.expiresAt * 1000).toLocaleDateString()}` : 'Vĩnh viễn'}
+                                    </span>
+                                  </div>
+
+                                  <div className="text-[9px] text-gray-400 truncate font-mono">
+                                    <span className="text-gray-500">Verifier:</span> {att.verifierNpub}
+                                  </div>
+
+                                  <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[9px]">
+                                    <span className="text-gray-500 truncate max-w-[180px]">SIG: {att.signature.slice(0, 16)}...</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (att.rawNostrEventJson) {
+                                          navigator.clipboard.writeText(att.rawNostrEventJson);
+                                          setStatusMsg({ message: 'Đã sao chép Raw Nostr Event Kind 30388 (JSON)!', type: 'success' });
+                                        }
+                                      }}
+                                      className="text-cyber-blue hover:underline flex items-center gap-0.5"
+                                    >
+                                      <Copy className="w-2.5 h-2.5" /> Copy JSON
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Expandable Explanation & Logic Formula */}
                       <AnimatePresence>
                         {showAuditDetails && (
