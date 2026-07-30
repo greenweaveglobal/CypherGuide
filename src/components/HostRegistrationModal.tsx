@@ -20,7 +20,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   const [priceSats, setPriceSats] = useState('150000');
   const [locationCoords, setLocationCoords] = useState('');
   const [maxGuests, setMaxGuests] = useState('2');
-  const [securitySpecs, setSecuritySpecs] = useState('Kết nối Cypherpunk, Thanh toán Bitcoin Lightning');
+  const [securitySpecs, setSecuritySpecs] = useState(t('hostReg.defaultSecuritySpecs'));
   const [acceptedKycVerifiersInput, setAcceptedKycVerifiersInput] = useState('');
   const [kycThresholdSatsInput, setKycThresholdSatsInput] = useState('0');
   const [imageUrl, setImageUrl] = useState('');

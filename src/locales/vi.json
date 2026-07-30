@@ -733,6 +733,7 @@
     "gpsCoords": "Tọa độ GPS / Plus Code *",
     "phGps": "Vd: 7P28+3Q, Sài Gòn",
     "securitySpecs": "Tiện ích an ninh (Cách nhau bởi dấu phẩy)",
+    "defaultSecuritySpecs": "Kết nối Cypherpunk, Thanh toán Bitcoin Lightning",
     "phSecurity": "Vd: Lồng Faraday, Starlink, Mesh backup",
     "multisigConfig": "Cấu hình Multisig / Cổ phần LN *",
     "multisigDesc": "Tiền đặt phòng sẽ được tự động chia tỷ lệ & định tuyến thẳng vào các địa chỉ Lightning theo thiết lập này.",

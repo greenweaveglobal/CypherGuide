@@ -733,6 +733,7 @@
     "gpsCoords": "GPS Coordinates / Plus Code *",
     "phGps": "E.g.: 7P28+3Q, Saigon",
     "securitySpecs": "Security Amenities (Comma separated)",
+    "defaultSecuritySpecs": "Cypherpunk Connection, Bitcoin Lightning Payment",
     "phSecurity": "E.g.: Faraday Cage, Starlink, Mesh backup",
     "multisigConfig": "Multisig / LN Share Configuration *",
     "multisigDesc": "Booking payments will be automatically split & routed directly to Lightning addresses based on this setup.",
