@@ -10,6 +10,7 @@ Chào mừng các Cypherpunk Developer đến với dự án **Cypher Guide** �
 2. **Cryptographic Verification**: Mọi thông điệp, bình luận, phiếu bầu quản trị, và chứng nhận lưu trú phải được ký bằng Schnorr / Nostr Event Signatures (Event Kind 1, Kind 4 Direct Message, NIP-04 / NIP-44 NWC).
 3. **Double-Entry & Self-Healing Reconciliation**: Dữ liệu local lưu trên Zustand store & localStorage phải đi qua `DataReconciler.heal()` và `DataReconciler.verifyIntegrity()` để đảm bảo toàn vẹn.
 4. **BFT Insurance Fund & 2-of-3 Escrow**: Giải quyết tranh chấp thông qua nhóm Trọng tài BFT (Quorum 2/3 chữ ký) và khóa tiền đặt cọc bằng hợp đồng Timelock / Multisig Escrow.
+5. **Continuous i18n First**: Mọi tính năng UI mới thêm sau khi i18n đã hoàn thành phải tự chạy qua `t()` ngay từ đầu, không đợi audit riêng phát hiện ra.
 
 ---
 

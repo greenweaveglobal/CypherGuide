@@ -21,8 +21,9 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | 0005 | Trợ Lý Tra Cứu Dựa Trên Tài Liệu (Grounded Docs Assistant) | Draft | `src/components/DocsAssistant.tsx` |
 | 0006 | Lớp KYC Tùy Chọn (Optional Attestation Layer) | Draft | `utils/proofOfStay.ts` (mở rộng `proof_type`) |
 | 0007 | Mô Thức AI Phi Tập Trung (Decentralized AI over Mesh) | Draft (visionary) | `DocsAssistant.tsx`, `server.ts` (RFC-0005) |
+| 0008 | Lưu Trú Dựa Trên Tùy Tâm (Dana-Based Stay) | Draft | `types.ts`, `ListingDetail.tsx`, `depositEscrow.ts` |
 
-Số RFC tiếp theo: **0008**.
+Số RFC tiếp theo: **0009**.
 
 ## Quy ước đặt tên (đã thống nhất lại)
 

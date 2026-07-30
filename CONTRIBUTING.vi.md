@@ -17,6 +17,7 @@ Chào mừng bạn đến với dự án **Cypher Guide** — Giao thức đặt
 2. **Cryptographic Verification**: Mọi thông điệp, bình luận, phiếu bầu quản trị, và chứng nhận lưu trú phải được ký bằng Schnorr / Nostr Event Signatures (`nostr-tools`, `@noble/curves`).
 3. **NUT-11 2-of-3 Multisig Escrow**: Tiền cọc được khóa bằng hợp đồng P2PK 2-of-3 giữa Khách, Chủ nhà và Trọng tài từ `DEFAULT_ARBITRATOR_POOL`.
 4. **Self-Healing Reconciliation**: Dữ liệu local lưu trên Zustand store & localStorage phải đi qua `DataReconciler.heal()` và `DataReconciler.verifyIntegrity()` để đảm bảo toàn vẹn.
+5. **Continuous i18n First**: Mọi tính năng UI mới thêm sau khi i18n đã hoàn thành phải tự chạy qua `t()` ngay từ đầu, không đợi audit riêng phát hiện ra.
 
 ---
 

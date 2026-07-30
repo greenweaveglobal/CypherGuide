@@ -742,7 +742,14 @@
     "sharePercent": "Share (%) *",
     "signingBtn": "SIGNING...",
     "signAndBroadcast": "DIGITALLY SIGN & BROADCAST",
-    "defaultCoOwnerName": "Property Host"
+    "defaultCoOwnerName": "Property Host",
+    "kycVerifierListTitle": "🔒 Trusted Verifiers List (RFC-0006 KYC)",
+    "kycVerifierListDesc": "Enter Host-trusted Verifier npubs (one per line or comma-separated). The system automatically verifies the bech32 checksum.",
+    "phKycVerifiers": "npub1... (Free-text input, no dropdown selection)",
+    "kycThresholdLabel": "Mandatory KYC Booking Threshold (Sats)",
+    "phKycThreshold": "0 = Mandatory for all booking values",
+    "kycThresholdHint": "(0 = Mandatory KYC for all bookings. Enter Sats amount to enforce KYC only when booking exceeds this threshold).",
+    "errInvalidVerifierNpub": "Verifier npub code \"{verifier}\" is invalid (bech32 checksum failed). Please paste valid npub1... format!"
   },
   "booking": {
     "title": "Cypherpunk Booking (Lightning)",

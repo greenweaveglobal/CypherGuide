@@ -17,6 +17,7 @@ Welcome to **Cypher Guide** — A decentralized P2P hospitality protocol powered
 2. **Cryptographic Verification**: All payload messages, reviews, governance acts, and stay badges MUST be signed with Schnorr signatures (`nostr-tools`, `@noble/curves`).
 3. **NUT-11 2-of-3 Multisig Escrow**: Security deposits are locked under NUT-11 P2PK 2-of-3 contracts between Guest, Host, and an active Arbitrator from `DEFAULT_ARBITRATOR_POOL`.
 4. **Self-Healing Reconciliation**: Local data persisted in Zustand/localStorage must pass `DataReconciler.heal()` and `DataReconciler.verifyIntegrity()` checks.
+5. **Continuous i18n First**: All new UI features added after i18n completion must use `t()` from the start, without waiting for a separate audit to catch missing translations.
 
 ---
 

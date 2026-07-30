@@ -742,7 +742,14 @@
     "sharePercent": "Cổ phần (%) *",
     "signingBtn": "ĐANG KÝ...",
     "signAndBroadcast": "KÝ ĐIỆN TỬ & PHÁT SÓNG",
-    "defaultCoOwnerName": "Chủ nhà"
+    "defaultCoOwnerName": "Chủ nhà",
+    "kycVerifierListTitle": "🔒 Danh Sách Verifier Tin Tưởng (RFC-0006 KYC)",
+    "kycVerifierListDesc": "Nhập các mã npub của Verifier được Host tin tưởng (mỗi npub trên 1 dòng hoặc cách nhau bởi dấu phẩy). Hệ thống tự động kiểm tra bech32 checksum.",
+    "phKycVerifiers": "npub1... (Gõ tay free-text, không chọn dropdown)",
+    "kycThresholdLabel": "Ngưỡng Đặt Phòng Bắt Buộc KYC (Sats)",
+    "phKycThreshold": "0 = Bắt buộc cho mọi tổng giá trị đặt phòng",
+    "kycThresholdHint": "(0 = Bắt buộc KYC cho mọi booking. Nhập số Sats để chỉ bắt buộc KYC khi booking vượt ngưỡng giá trị này).",
+    "errInvalidVerifierNpub": "Mã Verifier npub \"{verifier}\" không hợp lệ (thất bại bech32 checksum). Vui lòng dán đúng định dạng npub1...!"
   },
   "booking": {
     "title": "Đặt chỗ Cypherpunk (Lightning)",

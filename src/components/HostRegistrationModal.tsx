@@ -130,7 +130,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
 
     for (const verifier of rawVerifiers) {
       if (!isValidNpub(verifier)) {
-        setErrorMsg(`Mã Verifier npub "${verifier}" không hợp lệ (thất bại bech32 checksum). Vui lòng dán đúng định dạng npub1...!`);
+        setErrorMsg(t('hostReg.errInvalidVerifierNpub', { verifier }));
         return;
       }
     }
@@ -438,23 +438,23 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-cyber-amber font-mono uppercase font-bold flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-cyber-amber" />
-                    🔒 Danh Sách Verifier Tin Tưởng (RFC-0006 KYC)
+                    {t('hostReg.kycVerifierListTitle')}
                   </label>
                 </div>
                 <p className="text-[9px] text-gray-400 font-mono leading-tight">
-                  Nhập các mã npub của Verifier được Host tin tưởng (mỗi npub trên 1 dòng hoặc cách nhau bởi dấu phẩy). Hệ thống tự động kiểm tra bech32 checksum.
+                  {t('hostReg.kycVerifierListDesc')}
                 </p>
                 <textarea
                   rows={2}
                   value={acceptedKycVerifiersInput}
                   onChange={(e) => setAcceptedKycVerifiersInput(e.target.value)}
-                  placeholder="npub1... (Gõ tay free-text, không chọn dropdown)"
+                  placeholder={t('hostReg.phKycVerifiers')}
                   className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs font-mono text-cyber-amber focus:outline-none focus:border-cyber-amber/50 placeholder:text-gray-600"
                 />
 
                 <div>
                   <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
-                    Ngưỡng Đặt Phòng Bắt Buộc KYC (Sats)
+                    {t('hostReg.kycThresholdLabel')}
                   </label>
                   <input
                     type="number"
@@ -462,11 +462,11 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     step="1000"
                     value={kycThresholdSatsInput}
                     onChange={(e) => setKycThresholdSatsInput(e.target.value)}
-                    placeholder="0 = Bắt buộc cho mọi tổng giá trị đặt phòng"
+                    placeholder={t('hostReg.phKycThreshold')}
                     className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs font-mono text-white focus:outline-none focus:border-cyber-amber/50"
                   />
                   <span className="text-[8px] text-gray-500 font-mono block mt-0.5">
-                    (0 = Bắt buộc KYC cho mọi booking. Nhập số Sats để chỉ bắt buộc KYC khi booking vượt ngưỡng giá trị này).
+                    {t('hostReg.kycThresholdHint')}
                   </span>
                 </div>
               </div>
