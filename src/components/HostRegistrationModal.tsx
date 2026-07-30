@@ -474,47 +474,151 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
           </div>
 
           {/* Cổ đông Multisig (Co-Owners) */}
-          <div className="pt-4 mt-6 border-t border-white/5 space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <label className="text-[10px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1 text-cyber-blue"><Zap className="w-3 h-3"/> {t('hostReg.multisigConfig')}</label>
-                <p className="text-[9px] text-gray-500 font-mono">{t('hostReg.multisigDesc')}</p>
-              </div>
-              <button type="button" onClick={addCoOwner} className="text-[10px] bg-cyber-blue/10 text-cyber-blue hover:bg-cyber-blue/20 px-3 py-1.5 rounded border border-cyber-blue/30 font-mono transition-colors">
-                {t('hostReg.addCoOwner')}
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {coOwners.map((owner, idx) => (
-                <div key={idx} className="p-3 bg-black/40 border border-white/10 rounded-lg relative group">
-                  {coOwners.length > 1 && (
-                    <button type="button" onClick={() => removeCoOwner(idx)} className="absolute top-2 right-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                  <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-12 sm:col-span-4">
-                      <label className="text-[9px] text-gray-500 font-mono uppercase block mb-1">{t('hostReg.nameOrAlias')}</label>
-                      <input required type="text" value={owner.name} onChange={e => handleCoOwnerChange(idx, 'name', e.target.value)} placeholder="CypherPunk" className="w-full bg-transparent border-b border-white/10 p-1 text-xs text-white focus:outline-none focus:border-cyber-blue/50" />
+          {(() => {
+            const totalShares = coOwners.reduce((sum, owner) => sum + (Number(owner.share) || 0), 0);
+            const isTotalValid = totalShares === 100;
+
+            return (
+              <div className="pt-4 mt-6 border-t border-white/5 space-y-4">
+                {/* Section Header */}
+                <div className="p-3.5 bg-cyber-blue/5 border border-cyber-blue/20 rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <label className="text-xs text-cyber-blue font-mono uppercase font-bold flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-cyber-blue shrink-0" />
+                        {t('hostReg.multisigConfig')}
+                      </label>
+                      <p className="text-[10px] text-gray-400 font-mono leading-relaxed">
+                        {t('hostReg.multisigDesc')}
+                      </p>
                     </div>
-                    <div className="col-span-12 sm:col-span-8">
-                      <label className="text-[9px] text-gray-500 font-mono uppercase block mb-1">Npub (Nostr ID)</label>
-                      <input required type="text" value={owner.npub} onChange={e => handleCoOwnerChange(idx, 'npub', e.target.value)} placeholder="npub1..." className="w-full bg-transparent border-b border-white/10 p-1 text-xs text-gray-400 font-mono focus:outline-none focus:border-cyber-blue/50" />
-                    </div>
-                    <div className="col-span-12 sm:col-span-9">
-                      <label className="text-[9px] text-gray-500 font-mono uppercase block mb-1">{t('hostReg.lnAddress')}</label>
-                      <input required type="text" value={owner.lightningAddress} onChange={e => handleCoOwnerChange(idx, 'lightningAddress', e.target.value)} placeholder="user@getalby.com" className="w-full bg-transparent border-b border-white/10 p-1 text-xs text-cyber-blue font-mono focus:outline-none focus:border-cyber-blue/50" />
-                    </div>
-                    <div className="col-span-12 sm:col-span-3">
-                      <label className="text-[9px] text-gray-500 font-mono uppercase block mb-1">{t('hostReg.sharePercent')}</label>
-                      <input required type="number" min="1" max="100" value={owner.share} onChange={e => handleCoOwnerChange(idx, 'share', Number(e.target.value))} className="w-full bg-transparent border-b border-white/10 p-1 text-xs text-cyber-amber font-mono font-bold focus:outline-none focus:border-cyber-amber/50" />
+                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                      <span className={`text-[10px] font-mono font-bold px-2 py-1 rounded border ${
+                        isTotalValid 
+                          ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/30' 
+                          : 'bg-cyber-amber/10 text-cyber-amber border-cyber-amber/30'
+                      }`}>
+                        {isTotalValid 
+                          ? t('hostReg.totalShareValid') 
+                          : t('hostReg.totalShareInvalid', { total: totalShares })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={addCoOwner}
+                        className="inline-flex items-center gap-1 text-[10px] bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue px-3 py-1.5 rounded-lg border border-cyber-blue/30 font-mono font-bold transition-all shrink-0 whitespace-nowrap shadow-sm active:scale-95"
+                      >
+                        <Plus className="w-3 h-3" />
+                        {t('hostReg.addCoOwner')}
+                      </button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+
+                {/* Co-Owners Cards List */}
+                <div className="space-y-3">
+                  {coOwners.map((owner, idx) => (
+                    <div 
+                      key={idx} 
+                      className="p-3.5 bg-black/60 border border-white/10 rounded-xl space-y-3 relative group transition-all hover:border-white/20"
+                    >
+                      {/* Card Sub-Header */}
+                      <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                        <span className="text-[10px] font-mono font-bold text-gray-400 uppercase flex items-center gap-1.5">
+                          <Users className="w-3 h-3 text-cyber-blue" />
+                          {t('hostReg.coOwnerTitle', { index: idx + 1 })}
+                          {idx === 0 && (
+                            <span className="text-[8px] px-1.5 py-0.5 bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/30 rounded font-semibold ml-1">
+                              {t('hostReg.defaultCoOwnerName')}
+                            </span>
+                          )}
+                        </span>
+                        {coOwners.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeCoOwner(idx)}
+                            className="p-1 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
+                            title="Delete Co-Owner"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Input Controls Grid */}
+                      <div className="grid grid-cols-12 gap-3">
+                        {/* Name / Alias */}
+                        <div className="col-span-12 sm:col-span-7">
+                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
+                            {t('hostReg.nameOrAlias')}
+                          </label>
+                          <input
+                            required
+                            type="text"
+                            value={owner.name}
+                            onChange={e => handleCoOwnerChange(idx, 'name', e.target.value)}
+                            placeholder="CypherPunk"
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyber-blue/50 placeholder:text-gray-600"
+                          />
+                        </div>
+
+                        {/* Share (%) */}
+                        <div className="col-span-12 sm:col-span-5">
+                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
+                            {t('hostReg.sharePercent')}
+                          </label>
+                          <div className="relative">
+                            <input
+                              required
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={owner.share}
+                              onChange={e => handleCoOwnerChange(idx, 'share', Number(e.target.value))}
+                              className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-cyber-amber font-mono font-bold focus:outline-none focus:border-cyber-amber/50 pr-7"
+                            />
+                            <span className="absolute right-2.5 top-1.5 text-xs text-cyber-amber font-mono font-bold select-none pointer-events-none">
+                              %
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Lightning Address */}
+                        <div className="col-span-12">
+                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1">
+                            <Zap className="w-2.5 h-2.5 text-cyber-blue" />
+                            {t('hostReg.lnAddress')}
+                          </label>
+                          <input
+                            required
+                            type="text"
+                            value={owner.lightningAddress}
+                            onChange={e => handleCoOwnerChange(idx, 'lightningAddress', e.target.value)}
+                            placeholder="user@getalby.com"
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-cyber-blue font-mono focus:outline-none focus:border-cyber-blue/50 placeholder:text-gray-600"
+                          />
+                        </div>
+
+                        {/* Npub (Nostr ID) */}
+                        <div className="col-span-12">
+                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
+                            Npub (Nostr ID)
+                          </label>
+                          <input
+                            required
+                            type="text"
+                            value={owner.npub}
+                            onChange={e => handleCoOwnerChange(idx, 'npub', e.target.value)}
+                            placeholder="npub1..."
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 font-mono focus:outline-none focus:border-cyber-blue/50 placeholder:text-gray-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="pt-4 border-t border-white/5 flex justify-end gap-3 mt-6">
             <button
