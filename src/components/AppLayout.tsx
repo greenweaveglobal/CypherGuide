@@ -18,14 +18,14 @@ interface AppLayoutProps {
 }
 
 const TABS = [
-  { id: 'lodgings', label: 'Lưu Trú', icon: BookOpen },
-  { id: 'trips', label: 'Chuyến Đi', icon: Compass },
-  { id: 'host', label: 'Chủ Nhà', icon: Home },
-  { id: 'messages', label: 'Tin Nhắn', icon: Terminal },
-  { id: 'governance', label: 'Quản Trị', icon: Landmark },
-  { id: 'identity', label: 'Mật Mã', icon: Shield },
-  { id: 'mesh', label: 'Mạng Lưới', icon: Network },
-  { id: 'guide', label: 'Sổ Tay', icon: HelpCircle },
+  { id: 'lodgings', icon: BookOpen },
+  { id: 'trips', icon: Compass },
+  { id: 'host', icon: Home },
+  { id: 'messages', icon: Terminal },
+  { id: 'governance', icon: Landmark },
+  { id: 'identity', icon: Shield },
+  { id: 'mesh', icon: Network },
+  { id: 'guide', icon: HelpCircle },
 ];
 
 export default function AppLayout({ children, activeTab, setActiveTab, identity, bookings, onAddLog }: AppLayoutProps) {

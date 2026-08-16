@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import { Button } from './ui/Button';
@@ -12,6 +12,7 @@ import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../utils/depositEscrow';
 import { DEFAULT_ARBITRATOR_POOL } from '../utils/insuranceFund';
 import QrScannerModal from './QrScannerModal';
+import StillnessRitual from './StillnessRitual';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
 import { useTranslation } from '../hooks/useTranslation';
@@ -46,6 +47,48 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   // RFC-0006 KYC States
   const [kycValidationError, setKycValidationError] = useState<string | null>(null);
   const [isMintingAttestation, setIsMintingAttestation] = useState(false);
+
+  // RFC-0010 Stillness Ritual State
+  const [showStillnessModal, setShowStillnessModal] = useState<boolean>(false);
+
+  const handleProceedDanaBooking = async () => {
+    if (!identity) return;
+    try {
+      const hostNpub = listing.coOwners[0]?.npub || identity.npub || '';
+      const bookingPayload = JSON.stringify({
+        listingId: listing.id,
+        guest: identity.npub,
+        dates: { checkIn, checkOut },
+        priceModel: 'dana'
+      });
+      const signature = await signMessage(bookingPayload, identity);
+      const hash = await sha256(bookingPayload + signature);
+
+      const newBooking: Booking = {
+        id: `bk_dana_${Date.now()}`,
+        listingId: listing.id,
+        listingTitle: listing.title,
+        guestNpub: identity.npub,
+        hostNpub: hostNpub,
+        startDate: checkIn,
+        endDate: checkOut,
+        nights: effectiveNights,
+        totalPriceSats: 0,
+        donationSats: 0,
+        status: 'paid',
+        invoiceBolt11: 'dana_offering_confirmed',
+        paymentHash: hash,
+        paidAt: new Date().toISOString()
+      };
+
+      onBookingSuccess(newBooking);
+      onAddLog('lock', t('listingDetail.bookingProofLog'));
+      onAddLog('governance', `[Dana RFC-0008] Confirmed retreat stay intent for ${listing.title}. Voluntary donation model active.`);
+      setStep('completed');
+    } catch (e) {
+      console.error('Dana booking error', e);
+    }
+  };
 
   const handleScanSuccess = async (scannedInvoice: string) => {
     setShowQrScanner(false);
@@ -119,7 +162,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       );
       addKycAttestation(att);
       setKycValidationError(null);
-      onAddLog('relay', `📜 Verifier ${verifierNpub.slice(0, 14)}... đã ký KYC Attestation (Kind 30388) cho ${identity.npub.slice(0, 14)}...`, att.signature);
+      onAddLog('relay', t('listingDetail.kycLogAttestationSigned', { verifier: verifierNpub.slice(0, 14), subject: identity.npub.slice(0, 14) }), att.signature);
     } catch (err) {
       console.error(err);
     } finally {
@@ -142,12 +185,12 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       );
 
       if (!kycResult.valid) {
-        setKycValidationError(kycResult.reason || 'Chưa đáp ứng yêu cầu KYC Attestation.');
-        onAddLog('governance', `❌ Khóa Thanh Toán: RFC-0006 KYC Attestation validation thất bại. Reason: ${kycResult.reason}`);
+        setKycValidationError(kycResult.reason || t('listingDetail.kycDefaultReason'));
+        onAddLog('governance', t('listingDetail.kycLogPaymentLocked', { reason: kycResult.reason }));
         return;
       }
 
-      onAddLog('governance', `✅ Khách hàng đáp ứng KYC Attestation từ Verifier: ${kycResult.matchedVerifier?.slice(0, 16)}...`);
+      onAddLog('governance', t('listingDetail.kycLogVerified', { verifier: kycResult.matchedVerifier?.slice(0, 16) }));
     }
 
     setStep('payment');
@@ -329,11 +372,18 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
             </div>
             <div className="flex flex-col md:items-end">
               <span className="text-sm font-mono text-text-secondary uppercase mb-1">{t('listingDetail.pricePerNight')}</span>
-              <div className="flex items-center gap-2 text-warning">
-                <Coins className="w-6 h-6" />
-                <span className="text-3xl font-bold font-mono">{listing.priceSats.toLocaleString()}</span>
-                <span className="text-sm font-bold mt-1">Sats</span>
-              </div>
+              {listing.priceModel === 'dana' ? (
+                <div className="flex items-center gap-2 text-amber-400">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                  <span className="text-2xl font-bold font-mono">{t('listingDetail.danaPriceLabel')}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-warning">
+                  <Coins className="w-6 h-6" />
+                  <span className="text-3xl font-bold font-mono">{listing.priceSats.toLocaleString()}</span>
+                  <span className="text-sm font-bold mt-1">Sats</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -357,24 +407,28 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
               </section>
 
               {/* RFC-0006 KYC Attestation Details Section */}
+              {/* RFC-0006 Optional KYC Attestation Layer Card */}
               {listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
                 <section className="p-4 bg-cyber-amber/5 border border-cyber-amber/30 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-md font-bold text-cyber-amber flex items-center gap-2 font-mono">
                       <ShieldCheck className="w-5 h-5 text-cyber-amber" />
-                      🔒 RFC-0006 Optional KYC Attestation Layer
+                      {t('listingDetail.kycLayerTitle')}
                     </h3>
                     <span className="text-[10px] bg-cyber-amber/20 text-cyber-amber px-2.5 py-1 rounded font-mono font-bold border border-cyber-amber/40">
-                      1-of-N Verifier Match
+                      {t('listingDetail.kycVerifierMatch')}
                     </span>
                   </div>
 
-                  <p className="text-xs text-text-secondary leading-relaxed font-mono">
-                    Host yêu cầu Khách đặt phòng sở hữu <strong>KYC Attestation Record (Kind 30388)</strong> còn hiệu lực, được xác nhận bởi ít nhất 1 trong số các Verifier được Host tin tưởng bên dưới:
-                  </p>
+                  <p 
+                    className="text-xs text-text-secondary leading-relaxed font-mono"
+                    dangerouslySetInnerHTML={{ __html: t('listingDetail.kycHostRequirement') }}
+                  />
 
                   <div className="space-y-2 pt-1">
-                    <div className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Danh sách Verifier Npubs được chấp nhận ({listing.acceptedKycVerifiers.length}):</div>
+                    <div className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
+                      {t('listingDetail.kycAcceptedVerifiers', { count: listing.acceptedKycVerifiers.length })}
+                    </div>
                     <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
                       {listing.acceptedKycVerifiers.map((verifierNpub, idx) => (
                         <div key={idx} className="bg-black/60 border border-white/10 rounded-lg p-2 flex items-center justify-between font-mono text-xs">
@@ -391,7 +445,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
 
                   {listing.kycThresholdSats !== undefined && listing.kycThresholdSats > 0 && (
                     <div className="text-[11px] font-mono text-text-secondary bg-black/40 p-2 rounded border border-white/5 flex items-center justify-between">
-                      <span>Ngưỡng giá trị phòng bắt buộc KYC:</span>
+                      <span>{t('listingDetail.kycThreshold')}</span>
                       <span className="text-warning font-bold">{listing.kycThresholdSats.toLocaleString()} Sats</span>
                     </div>
                   )}
@@ -544,17 +598,17 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                           {listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
                             <div className="space-y-2 pt-2 border-t border-white/10">
                               <div className="flex items-center justify-between text-xs font-mono">
-                                <span className="text-gray-400">Trạng thái KYC (RFC-0006):</span>
+                                <span className="text-gray-400">{t('listingDetail.kycStatus')}</span>
                                 {identity && kycAttestations.some(a => 
                                   a.subjectNpub === identity.npub && 
                                   listing.acceptedKycVerifiers?.includes(a.verifierNpub)
                                 ) ? (
                                   <span className="text-success font-bold flex items-center gap-1">
-                                    <Check className="w-3.5 h-3.5" /> Khớp 1-in-N Verifier
+                                    <Check className="w-3.5 h-3.5" /> {t('listingDetail.kycMatched')}
                                   </span>
                                 ) : (
                                   <span className="text-cyber-amber font-bold flex items-center gap-1">
-                                    🔒 Chưa có Attestation
+                                    {t('listingDetail.kycMissing')}
                                   </span>
                                 )}
                               </div>
@@ -562,7 +616,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                               {kycValidationError && (
                                 <div className="p-3 bg-danger/15 border border-danger/30 rounded-lg text-xs font-mono text-danger space-y-2">
                                   <div className="font-bold flex items-center gap-1">
-                                    ⚠️ Bị Khóa Đặt Phòng (RFC-0006)
+                                    {t('listingDetail.kycLocked')}
                                   </div>
                                   <div className="leading-tight">{kycValidationError}</div>
                                   {import.meta.env.DEV && (
@@ -574,7 +628,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                                         onClick={() => handleMintDemoAttestation()}
                                         className="w-full py-1.5 px-3 bg-cyber-amber/20 hover:bg-cyber-amber/40 text-cyber-amber font-bold text-[10px] rounded transition-all border border-cyber-amber/40"
                                       >
-                                        {isMintingAttestation ? 'Đang tạo...' : '🧪 [DEV ONLY] Giả Lập Verifier Ký Attestation (Local Test)'}
+                                        {isMintingAttestation ? t('listingDetail.kycMinting') : t('listingDetail.kycMockMintBtn')}
                                       </button>
                                     </div>
                                   )}
@@ -588,21 +642,64 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                                   onClick={() => handleMintDemoAttestation()}
                                   className="w-full py-1.5 px-3 bg-cyber-amber/10 hover:bg-cyber-amber/25 text-cyber-amber border border-cyber-amber/30 rounded font-mono text-[9px] transition-all flex items-center justify-center gap-1"
                                 >
-                                  {isMintingAttestation ? 'Đang cấp...' : '🧪 [DEV ONLY] Giả Lập Verifier Ký Attestation (Local Test)'}
+                                  {isMintingAttestation ? t('listingDetail.kycMinting') : t('listingDetail.kycMockMintBtn')}
                                 </button>
                               )}
                             </div>
                           )}
 
-                          <Button 
-                            variant="primary" 
-                            className="w-full" 
-                            disabled={!isDateValid}
-                            onClick={handleProceedToPayment}
-                          >
-                            <Zap className="w-4 h-4 mr-2" />
-                            {t('listingDetail.continuePayment')}
-                          </Button>
+                          {/* RFC-0008 & RFC-0010: Dana & Stillness Preparation Card */}
+                          {listing.priceModel === 'dana' ? (
+                            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2.5">
+                              <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400">
+                                <Sparkles className="w-4 h-4 text-amber-400" />
+                                {t('listingDetail.danaBadge')}
+                              </div>
+                              <p className="text-[11px] font-sans text-gray-300 leading-relaxed">
+                                {t('listingDetail.danaExplainer')}
+                              </p>
+                              
+                              <button
+                                type="button"
+                                onClick={() => setShowStillnessModal(true)}
+                                className="w-full py-2 px-3 bg-neutral-900/80 hover:bg-neutral-900 border border-amber-500/40 hover:border-amber-500/70 text-amber-400 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
+                              >
+                                <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400/30" />
+                                {t('listingDetail.launchStillnessBtn')}
+                              </button>
+
+                              <Button 
+                                variant="primary" 
+                                className="w-full bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold" 
+                                disabled={!isDateValid}
+                                onClick={handleProceedDanaBooking}
+                              >
+                                <Check className="w-4 h-4 mr-1.5 text-neutral-950" />
+                                {t('listingDetail.confirmDanaIntent')}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowStillnessModal(true)}
+                                className="w-full py-1.5 px-3 bg-neutral-900/60 hover:bg-neutral-900 border border-amber-500/20 hover:border-amber-500/40 text-amber-400/90 rounded-lg text-[11px] font-mono flex items-center justify-center gap-1.5 transition-colors"
+                              >
+                                <Flower2 className="w-3.5 h-3.5 text-amber-400" />
+                                {t('listingDetail.launchStillnessBtn')}
+                              </button>
+
+                              <Button 
+                                variant="primary" 
+                                className="w-full" 
+                                disabled={!isDateValid}
+                                onClick={handleProceedToPayment}
+                              >
+                                <Zap className="w-4 h-4 mr-2" />
+                                {t('listingDetail.continuePayment')}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -766,6 +863,13 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
           </div>
         </CardContent>
       </Card>
+
+      {/* RFC-0010 Zen Stillness Ritual Modal */}
+      <StillnessRitual
+        isOpen={showStillnessModal}
+        onClose={() => setShowStillnessModal(false)}
+        listingTitle={listing.title}
+      />
     </div>
   );
 }

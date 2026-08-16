@@ -35,7 +35,8 @@ export interface Listing {
   imageUrl: string;
   images?: Nip94Image[]; // NIP-94 Signed Images
   meshCoordinates: string; // e.g., "mesh:10.77:106.69"
-  priceSats: number; // Sats per night
+  priceSats: number; // Sats per night (or 0 for dana)
+  priceModel?: 'fixed' | 'dana'; // RFC-0008: 'fixed' by default or 'dana' (voluntary offering / retreat)
   maxGuests?: number;
   securitySpecs: string[]; // No-KYC, Starlink, Mesh backup, solar, etc.
   coOwners: CoOwner[];
@@ -76,6 +77,9 @@ export interface Booking {
   secretCode?: string; // local access token
   paidAt?: string;
   proofOfStayHash?: string; // NFT hash minted on checkout
+  // RFC-0008 Dana stay donations
+  donationSats?: number;
+  donationTxProof?: string;
   // 2-Way Refundable Escrow Deposit
   guestDepositSats?: number;
   hostDepositSats?: number;

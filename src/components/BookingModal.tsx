@@ -173,7 +173,7 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
       handlePaymentComplete();
     } else {
       setPaymentLog(prev => [...prev, t('booking.nwcLogError', { error: result.error })]);
-      setErrorMsg(result.error || 'Thanh toán NWC thất bại');
+      setErrorMsg(result.error || t('booking.errNwcFailed'));
       setIsPaying(false);
     }
   };
@@ -203,7 +203,7 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
       handlePaymentComplete();
     } else {
       setPaymentLog(prev => [...prev, t('booking.cashuLogError', { error: result.error })]);
-      setErrorMsg(result.error || 'Token không hợp lệ');
+      setErrorMsg(result.error || t('booking.errInvalidToken'));
       setIsPaying(false);
     }
   };

@@ -558,7 +558,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                             <div className="flex items-center gap-2">
                               <Award className="w-4 h-4 text-cyber-amber shrink-0" />
                               <span className="text-xs font-bold text-white uppercase tracking-wider">
-                                RFC-0006 KYC Attestation Records (Kind 30388)
+                                {t('identity.kycRecordsTitle')}
                               </span>
                             </div>
                             <span className="text-[9px] bg-cyber-amber/20 text-cyber-amber px-2 py-0.5 rounded border border-cyber-amber/40">
@@ -567,12 +567,12 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                           </div>
 
                           <p className="text-[10px] text-gray-400 leading-snug">
-                            Chứng nhận định danh (Attestation) ký bởi Verifier được ủy quyền. Được lưu trữ dưới dạng Nostr Event Kind 30388 kèm trường thu hồi và hết hạn.
+                            {t('identity.kycRecordsDesc')}
                           </p>
 
                           {useAppStore.getState().kycAttestations.filter(a => identity && a.subjectNpub === identity.npub).length === 0 ? (
                             <div className="text-[10px] text-gray-500 italic p-2 bg-black/40 rounded text-center border border-white/5">
-                              Chưa có KYC Attestation nào được liên kết với nPub này.
+                              {t('identity.kycNoRecords')}
                             </div>
                           ) : (
                             <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -583,7 +583,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                                       📜 Kind {att.kind} ({att.verifierStandard})
                                     </span>
                                     <span className="text-success font-mono font-bold">
-                                      {att.expiresAt ? `Hết hạn: ${new Date(att.expiresAt * 1000).toLocaleDateString()}` : 'Vĩnh viễn'}
+                                      {att.expiresAt ? t('identity.kycExpires', { date: new Date(att.expiresAt * 1000).toLocaleDateString() }) : t('identity.kycPermanent')}
                                     </span>
                                   </div>
 
@@ -598,7 +598,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                                       onClick={() => {
                                         if (att.rawNostrEventJson) {
                                           navigator.clipboard.writeText(att.rawNostrEventJson);
-                                          setStatusMsg({ message: 'Đã sao chép Raw Nostr Event Kind 30388 (JSON)!', type: 'success' });
+                                          setStatusMsg({ message: t('identity.kycCopiedRawJson'), type: 'success' });
                                         }
                                       }}
                                       className="text-cyber-blue hover:underline flex items-center gap-0.5"

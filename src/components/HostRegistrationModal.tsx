@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check } from 'lucide-react';
+import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, NostrIdentity, CoOwner } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
@@ -17,6 +17,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [priceModel, setPriceModel] = useState<'fixed' | 'dana'>('fixed');
   const [priceSats, setPriceSats] = useState('150000');
   const [locationCoords, setLocationCoords] = useState('');
   const [maxGuests, setMaxGuests] = useState('2');
@@ -162,7 +163,8 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         id: listingId,
         title,
         description,
-        priceSats: parseInt(priceSats),
+        priceSats: priceModel === 'dana' ? 0 : parseInt(priceSats) || 0,
+        priceModel: priceModel,
         maxGuests: parseInt(maxGuests),
         meshCoordinates: locationCoords,
         imagePrompt: 'Cypherpunk bunker',
@@ -384,19 +386,66 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <label className="text-[10px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1"><Coins className="w-3 h-3"/> {t('hostReg.pricePerNight')}</label>
-                  <input
-                    required
-                    type="number"
-                    min="1"
-                    value={priceSats}
-                    onChange={(e) => setPriceSats(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-cyber-amber font-bold focus:outline-none focus:border-cyber-amber/50"
-                  />
+              {/* RFC-0008 Pricing Model Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-gray-400 font-mono uppercase block">
+                  {t('hostReg.priceModelLabel')}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPriceModel('fixed')}
+                    className={`py-2 px-3 rounded-lg border text-xs font-mono text-left transition-all ${
+                      priceModel === 'fixed'
+                        ? 'bg-cyber-amber/20 border-cyber-amber text-cyber-amber font-bold'
+                        : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Coins className="w-3.5 h-3.5" />
+                      <span>{t('hostReg.priceModelFixed')}</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPriceModel('dana')}
+                    className={`py-2 px-3 rounded-lg border text-xs font-mono text-left transition-all ${
+                      priceModel === 'dana'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-400 font-bold'
+                        : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>{t('hostReg.priceModelDana')}</span>
+                    </div>
+                  </button>
                 </div>
               </div>
+
+              {priceModel === 'fixed' ? (
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="text-[10px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1"><Coins className="w-3 h-3"/> {t('hostReg.pricePerNight')}</label>
+                    <input
+                      required={priceModel === 'fixed'}
+                      type="number"
+                      min="1"
+                      value={priceSats}
+                      onChange={(e) => setPriceSats(e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-cyber-amber font-bold focus:outline-none focus:border-cyber-amber/50"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-mono text-amber-400 space-y-1">
+                  <div className="font-bold">{t('listingDetail.danaBadge')}</div>
+                  <p className="text-[11px] text-gray-300">
+                    {t('listingDetail.danaExplainer')}
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="text-[10px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1"><Users className="w-3 h-3"/> {t('hostReg.maxGuests')}</label>
@@ -477,27 +526,33 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
           {(() => {
             const totalShares = coOwners.reduce((sum, owner) => sum + (Number(owner.share) || 0), 0);
             const isTotalValid = totalShares === 100;
+            const barColors = ['bg-cyber-blue', 'bg-cyber-amber', 'bg-cyber-green', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500'];
 
             return (
               <div className="pt-4 mt-6 border-t border-white/5 space-y-4">
-                {/* Section Header */}
-                <div className="p-3.5 bg-cyber-blue/5 border border-cyber-blue/20 rounded-xl space-y-3">
+                {/* Section Header Card */}
+                <div className="p-4 bg-gradient-to-r from-cyber-blue/10 via-black/40 to-black/60 border border-cyber-blue/30 rounded-xl space-y-3.5 shadow-lg">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <label className="text-xs text-cyber-blue font-mono uppercase font-bold flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-cyber-blue shrink-0" />
+                    <div className="space-y-1">
+                      <label className="text-xs text-cyber-blue font-mono uppercase font-bold flex items-center gap-1.5 tracking-wider">
+                        <Zap className="w-4 h-4 text-cyber-blue shrink-0 animate-pulse" />
                         {t('hostReg.multisigConfig')}
                       </label>
-                      <p className="text-[10px] text-gray-400 font-mono leading-relaxed">
+                      <p className="text-[10px] text-gray-400 font-mono leading-relaxed max-w-xl">
                         {t('hostReg.multisigDesc')}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                      <span className={`text-[10px] font-mono font-bold px-2 py-1 rounded border ${
+                    <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border shadow-sm ${
                         isTotalValid 
-                          ? 'bg-cyber-green/10 text-cyber-green border-cyber-green/30' 
-                          : 'bg-cyber-amber/10 text-cyber-amber border-cyber-amber/30'
+                          ? 'bg-cyber-green/15 text-cyber-green border-cyber-green/40' 
+                          : 'bg-cyber-amber/15 text-cyber-amber border-cyber-amber/40'
                       }`}>
+                        {isTotalValid ? (
+                          <CheckCircle2 className="w-3 h-3 text-cyber-green shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-3 h-3 text-cyber-amber shrink-0" />
+                        )}
                         {isTotalValid 
                           ? t('hostReg.totalShareValid') 
                           : t('hostReg.totalShareInvalid', { total: totalShares })}
@@ -505,51 +560,88 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                       <button
                         type="button"
                         onClick={addCoOwner}
-                        className="inline-flex items-center gap-1 text-[10px] bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue px-3 py-1.5 rounded-lg border border-cyber-blue/30 font-mono font-bold transition-all shrink-0 whitespace-nowrap shadow-sm active:scale-95"
+                        className="inline-flex items-center gap-1.5 text-[10px] bg-cyber-blue/20 hover:bg-cyber-blue/30 text-cyber-blue px-3 py-1.5 rounded-lg border border-cyber-blue/40 font-mono font-bold transition-all shrink-0 whitespace-nowrap shadow-sm active:scale-95"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-3.5 h-3.5" />
                         {t('hostReg.addCoOwner')}
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Visual Allocation Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-[9px] font-mono text-gray-400">
+                      <span>Allocation Breakdown:</span>
+                      <span className={isTotalValid ? 'text-cyber-green font-bold' : 'text-cyber-amber font-bold'}>
+                        {totalShares}% / 100%
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-black/80 rounded-full overflow-hidden flex p-0.5 border border-white/10 gap-0.5">
+                      {coOwners.map((owner, idx) => {
+                        const shareVal = Number(owner.share) || 0;
+                        if (shareVal <= 0) return null;
+                        const colorClass = barColors[idx % barColors.length];
+                        return (
+                          <div
+                            key={idx}
+                            style={{ width: `${Math.min(shareVal, 100)}%` }}
+                            className={`h-full ${colorClass} rounded-sm transition-all duration-300`}
+                            title={`${owner.name || `Co-Owner #${idx + 1}`}: ${shareVal}%`}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
 
                 {/* Co-Owners Cards List */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {coOwners.map((owner, idx) => (
                     <div 
                       key={idx} 
-                      className="p-3.5 bg-black/60 border border-white/10 rounded-xl space-y-3 relative group transition-all hover:border-white/20"
+                      className="p-4 bg-black/70 border border-white/10 hover:border-cyber-blue/30 rounded-xl space-y-4 relative group transition-all shadow-md"
                     >
-                      {/* Card Sub-Header */}
-                      <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                        <span className="text-[10px] font-mono font-bold text-gray-400 uppercase flex items-center gap-1.5">
-                          <Users className="w-3 h-3 text-cyber-blue" />
-                          {t('hostReg.coOwnerTitle', { index: idx + 1 })}
+                      {/* Card Header Bar */}
+                      <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono font-bold text-cyber-blue bg-cyber-blue/10 border border-cyber-blue/30 px-2 py-0.5 rounded-md uppercase flex items-center gap-1">
+                            <Users className="w-3 h-3 text-cyber-blue" />
+                            {t('hostReg.coOwnerTitle', { index: idx + 1 })}
+                          </span>
                           {idx === 0 && (
-                            <span className="text-[8px] px-1.5 py-0.5 bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/30 rounded font-semibold ml-1">
+                            <span className="text-[9px] px-2 py-0.5 bg-cyber-green/10 text-cyber-green border border-cyber-green/30 rounded-md font-mono font-semibold">
                               {t('hostReg.defaultCoOwnerName')}
                             </span>
                           )}
-                        </span>
-                        {coOwners.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeCoOwner(idx)}
-                            className="p-1 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
-                            title="Delete Co-Owner"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                          <span className="text-xs font-mono font-bold text-white ml-1 truncate max-w-[150px] sm:max-w-xs">
+                            {owner.name || t('hostReg.coOwnerUnassigned')}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-cyber-amber bg-cyber-amber/10 border border-cyber-amber/30 px-2.5 py-0.5 rounded-md">
+                            {owner.share || 0}%
+                          </span>
+                          {coOwners.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeCoOwner(idx)}
+                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                              title="Delete Co-Owner"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Input Controls Grid */}
-                      <div className="grid grid-cols-12 gap-3">
-                        {/* Name / Alias */}
-                        <div className="col-span-12 sm:col-span-7">
-                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
-                            {t('hostReg.nameOrAlias')}
+                      {/* Input Controls 2x2 Responsive Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* 1. Name / Alias */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-300 font-mono uppercase font-semibold flex items-center gap-1.5">
+                            <User className="w-3 h-3 text-cyber-blue shrink-0" />
+                            {t('hostReg.coOwnerNameLabel')}
                           </label>
                           <input
                             required
@@ -557,14 +649,18 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                             value={owner.name}
                             onChange={e => handleCoOwnerChange(idx, 'name', e.target.value)}
                             placeholder="CypherPunk"
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyber-blue/50 placeholder:text-gray-600"
+                            className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyber-blue/60 focus:ring-1 focus:ring-cyber-blue/30 placeholder:text-gray-600 transition-all"
                           />
+                          <p className="text-[9px] text-gray-500 font-mono">
+                            {t('hostReg.coOwnerNameHint')}
+                          </p>
                         </div>
 
-                        {/* Share (%) */}
-                        <div className="col-span-12 sm:col-span-5">
-                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
-                            {t('hostReg.sharePercent')}
+                        {/* 2. Share (%) */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-300 font-mono uppercase font-semibold flex items-center gap-1.5">
+                            <PieChart className="w-3 h-3 text-cyber-amber shrink-0" />
+                            {t('hostReg.coOwnerShareLabel')}
                           </label>
                           <div className="relative">
                             <input
@@ -574,19 +670,22 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                               max="100"
                               value={owner.share}
                               onChange={e => handleCoOwnerChange(idx, 'share', Number(e.target.value))}
-                              className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-cyber-amber font-mono font-bold focus:outline-none focus:border-cyber-amber/50 pr-7"
+                              className="w-full bg-black/60 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-xs text-cyber-amber font-mono font-bold focus:outline-none focus:border-cyber-amber/60 focus:ring-1 focus:ring-cyber-amber/30 transition-all"
                             />
-                            <span className="absolute right-2.5 top-1.5 text-xs text-cyber-amber font-mono font-bold select-none pointer-events-none">
+                            <span className="absolute right-3 top-2 text-xs text-cyber-amber font-mono font-bold select-none pointer-events-none">
                               %
                             </span>
                           </div>
+                          <p className="text-[9px] text-gray-500 font-mono">
+                            {t('hostReg.coOwnerShareHint')}
+                          </p>
                         </div>
 
-                        {/* Lightning Address */}
-                        <div className="col-span-12">
-                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1">
-                            <Zap className="w-2.5 h-2.5 text-cyber-blue" />
-                            {t('hostReg.lnAddress')}
+                        {/* 3. Lightning Address */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-300 font-mono uppercase font-semibold flex items-center gap-1.5">
+                            <Zap className="w-3 h-3 text-cyber-blue shrink-0" />
+                            {t('hostReg.coOwnerLnLabel')}
                           </label>
                           <input
                             required
@@ -594,14 +693,18 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                             value={owner.lightningAddress}
                             onChange={e => handleCoOwnerChange(idx, 'lightningAddress', e.target.value)}
                             placeholder="user@getalby.com"
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-cyber-blue font-mono focus:outline-none focus:border-cyber-blue/50 placeholder:text-gray-600"
+                            className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-cyber-blue font-mono focus:outline-none focus:border-cyber-blue/60 focus:ring-1 focus:ring-cyber-blue/30 placeholder:text-gray-600 transition-all"
                           />
+                          <p className="text-[9px] text-gray-500 font-mono">
+                            {t('hostReg.coOwnerLnHint')}
+                          </p>
                         </div>
 
-                        {/* Npub (Nostr ID) */}
-                        <div className="col-span-12">
-                          <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
-                            Npub (Nostr ID)
+                        {/* 4. Nostr Public Key (npub) */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-300 font-mono uppercase font-semibold flex items-center gap-1.5">
+                            <Key className="w-3 h-3 text-gray-400 shrink-0" />
+                            {t('hostReg.coOwnerNpubLabel')}
                           </label>
                           <input
                             required
@@ -609,8 +712,11 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                             value={owner.npub}
                             onChange={e => handleCoOwnerChange(idx, 'npub', e.target.value)}
                             placeholder="npub1..."
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-gray-300 font-mono focus:outline-none focus:border-cyber-blue/50 placeholder:text-gray-600"
+                            className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 font-mono focus:outline-none focus:border-cyber-blue/60 focus:ring-1 focus:ring-cyber-blue/30 placeholder:text-gray-600 transition-all"
                           />
+                          <p className="text-[9px] text-gray-500 font-mono">
+                            {t('hostReg.coOwnerNpubHint')}
+                          </p>
                         </div>
                       </div>
                     </div>

@@ -22,8 +22,10 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | 0006 | Lớp KYC Tùy Chọn (Optional Attestation Layer) | Draft | `utils/proofOfStay.ts` (mở rộng `proof_type`) |
 | 0007 | Mô Thức AI Phi Tập Trung (Decentralized AI over Mesh) | Draft (visionary) | `DocsAssistant.tsx`, `server.ts` (RFC-0005) |
 | 0008 | Lưu Trú Dựa Trên Tùy Tâm (Dana-Based Stay) | Draft | `types.ts`, `ListingDetail.tsx`, `depositEscrow.ts` |
+| 0009 | AI Phi Tập Trung Chạy Trên Thiết Bị Ngoại Biên (Decentralized AI on Edge Devices) | Draft (visionary) | `MeshNeighborhood.tsx` (RFC-0007 mở rộng) |
+| 0010 | Nghi Thức Tĩnh Tâm — Vòng Tròn, Nén Nhang, 369 Giây (Zen Stillness Ritual) | Draft | `StillnessRitual.tsx` (mới), `ListingDetail.tsx` |
 
-Số RFC tiếp theo: **0009**.
+Số RFC tiếp theo: **0011**.
 
 ## Quy ước đặt tên (đã thống nhất lại)
 

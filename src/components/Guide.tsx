@@ -1,9 +1,11 @@
-import React from 'react';
-import { HelpCircle, Terminal, KeyRound, Landmark, Zap, RefreshCw, ShieldCheck, Award, Share2, Cpu, Coins, Sparkles, Network } from 'lucide-react';
+import React, { useState } from 'react';
+import { HelpCircle, Terminal, KeyRound, Landmark, Zap, RefreshCw, ShieldCheck, Award, Share2, Cpu, Coins, Sparkles, Network, Flame, Flower2 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
+import StillnessRitual from './StillnessRitual';
 
 export default function Guide() {
   const { t } = useTranslation();
+  const [showRitual, setShowRitual] = useState<boolean>(false);
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-12 font-mono">
@@ -168,6 +170,32 @@ export default function Guide() {
         </div>
       </div>
 
+      {/* RFC-0010 Zen Stillness Ritual Section */}
+      <div className="p-6 bg-gradient-to-br from-amber-500/10 via-neutral-950 to-neutral-950 border border-amber-500/30 rounded-2xl space-y-4 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-mono text-amber-400 font-bold">
+              <Flame className="w-4 h-4 text-amber-400 fill-amber-400/30" />
+              {t('stillness.protocolTitle')}
+            </div>
+            <h3 className="text-base font-bold text-white">
+              {t('stillness.ensoConceptTitle')}
+            </h3>
+            <p className="text-xs text-gray-400 leading-relaxed max-w-xl">
+              {t('stillness.guideDescription')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowRitual(true)}
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-amber-500/20 shrink-0"
+          >
+            <Flower2 className="w-4 h-4" />
+            {t('stillness.openRitual')}
+          </button>
+        </div>
+      </div>
+
       {/* Protocol DNA Philosophy */}
       <div className="p-6 bg-surface-hover border border-border rounded-2xl space-y-2">
         <div className="flex items-center gap-2 text-xs font-mono text-primary font-bold">
@@ -178,6 +206,12 @@ export default function Guide() {
           {t('guide.philosophyQuote')}
         </p>
       </div>
+
+      {/* Stillness Ritual Modal */}
+      <StillnessRitual
+        isOpen={showRitual}
+        onClose={() => setShowRitual(false)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap, Sparkles } from 'lucide-react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import HostRegistrationModal from './HostRegistrationModal';
 import { Card, CardContent } from './ui/Card';
@@ -137,8 +137,18 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                     </div>
                   </div>
 
+                  {/* Dana Badge (RFC-0008) */}
+                  {listing.priceModel === 'dana' && (
+                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-amber-950/90 backdrop-blur-md px-2.5 py-1 rounded border border-amber-500/60 text-amber-400 shadow-lg">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span className="text-[10px] font-mono font-bold tracking-tight">
+                        DANA / VOLUNTARY
+                      </span>
+                    </div>
+                  )}
+
                   {/* 🔒 KYC Badge (RFC-0006) */}
-                  {listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
+                  {listing.priceModel !== 'dana' && listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
                     <div className="absolute top-3 left-3 flex items-center gap-1 bg-black/90 backdrop-blur-md px-2 py-1 rounded border border-cyber-amber/60 text-cyber-amber shadow-lg">
                       <span className="text-[10px] font-mono font-bold tracking-tight flex items-center gap-1">
                         🔒 KYC REQUIRED ({listing.acceptedKycVerifiers.length} Verifier{listing.acceptedKycVerifiers.length > 1 ? 's' : ''})
@@ -190,13 +200,24 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
 
                   <div className="mt-5 pt-4 border-t border-border/30 flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[9px] text-text-disabled font-mono uppercase tracking-tighter opacity-50">Base_Rate / Cycle</span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <Zap className="w-3.5 h-3.5 text-warning opacity-80" />
-                        <span className="text-sm font-bold font-mono text-white tracking-tighter">
-                          {listing.priceSats.toLocaleString()} <span className="text-[10px] text-warning/70">SATS</span>
-                        </span>
-                      </div>
+                      <span className="text-[9px] text-text-disabled font-mono uppercase tracking-tighter opacity-50">
+                        {listing.priceModel === 'dana' ? 'Pricing Model' : 'Base_Rate / Cycle'}
+                      </span>
+                      {listing.priceModel === 'dana' ? (
+                        <div className="flex items-center gap-1.5 mt-0.5 text-amber-400">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="text-sm font-bold font-mono tracking-tighter">
+                            DANA
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Zap className="w-3.5 h-3.5 text-warning opacity-80" />
+                          <span className="text-sm font-bold font-mono text-white tracking-tighter">
+                            {listing.priceSats.toLocaleString()} <span className="text-[10px] text-warning/70">SATS</span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-3">
