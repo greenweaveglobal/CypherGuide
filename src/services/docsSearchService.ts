@@ -25,6 +25,22 @@ const RFC_KNOWLEDGE_BASE: Record<string, { vi: string; en: string }> = {
   i18n: {
     vi: "Theo **RFC-0004 (Đa Ngôn Ngữ & Bản Địa Hóa - i18n)**, Cypher Guide hỗ trợ giao diện đa ngôn ngữ linh hoạt (mặc định là Tiếng Việt và Tiếng Anh) với cấu trúc tệp JSON bản địa hóa tĩnh.",
     en: "According to **RFC-0004 (Internationalization - i18n)**, Cypher Guide supports dynamic multi-language interface (defaulting to Vietnamese and English) with static JSON localization files."
+  },
+  dana: {
+    vi: "Theo **RFC-0008 (Lưu Trú Dựa Trên Tùy Tâm - Dana-Based Stay)**, các homestay hoặc thiền viện có thể đăng ký mô hình `priceModel: 'dana'`, không thu phí cố định ban đầu và cho phép khách lưu trú gửi cúng dường tự nguyện sau kỳ nghỉ.",
+    en: "According to **RFC-0008 (Dana-Based Stay)**, retreats and monasteries can operate under `priceModel: 'dana'` without upfront fixed pricing, enabling voluntary Lightning offerings after the stay."
+  },
+  edgeAI: {
+    vi: "Theo **RFC-0009 (AI Phi Tập Trung Chạy Trên Thiết Bị Ngoại Biên)**, đây là tầm nhìn tách biệt node LoRa (chỉ truyền tải dữ liệu) và thiết bị biên mạnh hơn (SBC/Raspberry Pi/điện thoại) để chạy mô hình ngôn ngữ nhỏ (SLM) hoàn toàn cục bộ không cần internet.",
+    en: "According to **RFC-0009 (Decentralized AI on Edge Devices)**, this visionary spec separates LoRa transport nodes from compute-capable edge devices (SBCs/phones) running small quantized language models locally without cloud APIs."
+  },
+  stillness: {
+    vi: "Theo **RFC-0010 (Nghi Thức Tĩnh Tâm - Zen Stillness Ritual)**, nghi thức 369 giây cùng vòng tròn Ensō (0), nén nhang (1) và chuông Keisu đồng thau được thiết kế thuần túy client-side, chủ động từ chối phát hành Proof-of-Stillness hay gamification để giữ trọn tinh thần buông bỏ vô ngã.",
+    en: "According to **RFC-0010 (Zen Stillness Ritual)**, the 369-second ritual with Ensō (0), incense (1), and Keisu bronze bell is strictly client-side and deliberately refuses proof generation or gamification to honor non-attachment."
+  },
+  boundary: {
+    vi: "Theo **RFC-0011 (Ranh Giới Tài Chính Hóa - Financialization Boundary Principle)**, mọi hành vi trước khi sinh proof/uy tín/phí phải vượt qua 3 bài kiểm tra: 1. Khả năng xác minh khách quan (Verifiability), 2. Phục vụ tính toàn vẹn giao thức (Protocol-purpose), 3. Tương thích ý nghĩa gốc phi giao dịch (Original-meaning).",
+    en: "According to **RFC-0011 (Financialization Boundary Principle)**, any behavior must pass 3 tests before generating proofs, reputation, or fee effects: 1. Verifiability Test, 2. Protocol-Purpose Test, and 3. Original-Meaning Test."
   }
 };
 
@@ -46,6 +62,18 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
   }
   if (qLower.includes('i18n') || qLower.includes('ngôn ngữ') || qLower.includes('language') || qLower.includes('rfc-0004')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.i18n.en : RFC_KNOWLEDGE_BASE.i18n.vi, success: true };
+  }
+  if (qLower.includes('dana') || qLower.includes('tùy tâm') || qLower.includes('rfc-0008')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.dana.en : RFC_KNOWLEDGE_BASE.dana.vi, success: true };
+  }
+  if (qLower.includes('edge') || qLower.includes('ngoại biên') || qLower.includes('rfc-0009')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.edgeAI.en : RFC_KNOWLEDGE_BASE.edgeAI.vi, success: true };
+  }
+  if (qLower.includes('stillness') || qLower.includes('tĩnh tâm') || qLower.includes('enso') || qLower.includes('nhang') || qLower.includes('rfc-0010')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.stillness.en : RFC_KNOWLEDGE_BASE.stillness.vi, success: true };
+  }
+  if (qLower.includes('boundary') || qLower.includes('financialization') || qLower.includes('tài chính hóa') || qLower.includes('ranh giới') || qLower.includes('rfc-0011')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.boundary.en : RFC_KNOWLEDGE_BASE.boundary.vi, success: true };
   }
 
   return {
