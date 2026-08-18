@@ -1,36 +1,31 @@
-# Hướng Dẫn Đóng Góp Phát Triển Cypher Guide (Cypher Protocol v1.1)
+# Contributing to Cypher Guide / Hướng Dẫn Đóng Góp
 
-Chào mừng các Cypherpunk Developer đến với dự án **Cypher Guide** — Giao thức đặt phòng lưu trú P2P phi tập trung, bảo mật mật mã và thanh toán qua Lightning Network & Nostr.
-
----
-
-## 1. Nguyên Tắc Cốt Lõi (Core Principles)
-
-1. **No-KYC & Zero Trust**: Mọi tương tác người dùng phải dựa trên cặp khóa Nostr (bech32 `npub` / `nsec` & hex `pubkey` / `privKey`). Không sử dụng Server tập trung, không thu thập thông tin cá nhân.
-2. **Cryptographic Verification**: Mọi thông điệp, bình luận, phiếu bầu quản trị, và chứng nhận lưu trú phải được ký bằng Schnorr / Nostr Event Signatures (Event Kind 1, Kind 4 Direct Message, NIP-04 / NIP-44 NWC).
-3. **Double-Entry & Self-Healing Reconciliation**: Dữ liệu local lưu trên Zustand store & localStorage phải đi qua `DataReconciler.heal()` và `DataReconciler.verifyIntegrity()` để đảm bảo toàn vẹn.
-4. **BFT Insurance Fund & 2-of-3 Escrow**: Giải quyết tranh chấp thông qua nhóm Trọng tài BFT (Quorum 2/3 chữ ký) và khóa tiền đặt cọc bằng hợp đồng Timelock / Multisig Escrow.
-5. **Continuous i18n First**: Mọi tính năng UI mới thêm sau khi i18n đã hoàn thành phải tự chạy qua `t()` ngay từ đầu, không đợi audit riêng phát hiện ra.
+Welcome to **Cypher Guide** — a sovereign, non-custodial P2P hospitality protocol powered by Bitcoin Lightning Network, Cashu Ecash, and Nostr.
 
 ---
 
-## 2. Quy Trình Hợp Nhất & Phát Triển (Branch Strategy)
+### 🌐 Select Language / Chọn Ngôn Ngữ:
 
-* **Main Branch**: Bản phát hành chính thức đã qua kiểm toán (Audit Clean).
-* **Feature Branches**:
-  * `feature/bft-insurance-schnorr`: Tích hợp chữ ký Schnorr thật từ `nostr-tools` cho phiếu bầu trọng tài.
-  * `feature/host-dashboard-proof-of-stay`: Giao diện quản lý Chủ nhà, tiền ký quỹ và Bằng chứng lưu trú.
-* Khi hợp nhất (Merge): Bắt buộc kiểm tra `lint_applet` và `compile_applet` đạt kết quả Build thành công.
+- 🇻🇳 **Tiếng Việt (Bản chuẩn gốc)**: [`CONTRIBUTING.vi.md`](./CONTRIBUTING.vi.md)
+- 🇬🇧 **English (Full synchronized guide)**: [`CONTRIBUTING.en.md`](./CONTRIBUTING.en.md)
 
 ---
 
-## 3. Cấu Trúc Dự Án (Project Anatomy)
+## Quick Reference / Tóm Tắt Nhanh
 
-* `/src/utils/crypto.ts`: Mã hóa NWC AES-GCM-256, ký tin nhắn Nostr, kiểm tra chữ ký Schnorr (`nostr-tools`).
-* `/src/utils/governanceSchema.ts`: Schema Zod & Xác thực chữ ký Nostr Event cho GovernanceAct.
-* `/src/utils/reconciler.ts`: Động cơ đồng thuận & Tự chữa lành dữ liệu (DataReconciler).
-* `/src/utils/depositEscrow.ts`: Quản lý tiền cọc 2-of-3 Multisig / Timelock Escrow.
-* `/src/utils/proofOfStay.ts`: Tạo và kiểm tra Bằng chứng lưu trú (Proof of Stay).
-* `/src/utils/dynamicFee.ts`: Tính phí giao thức động (Dynamic Protocol Fee).
-* `/src/components/HostDashboard.tsx`: Bảng điều khiển Chủ nhà.
-* `/src/components/GovernancePanel.tsx`: Quản trị Quỹ bảo hiểm BFT & Đề xuất cộng đồng.
+### 1. Core Principles / Nguyên Tắc Cốt Lõi
+- **No-KYC & Zero Trust**: Nostr `npub`/`nsec` keypairs only. No centralized databases.
+- **BIP-340 Schnorr Signatures**: All reviews, bookings, governance acts, and stays are cryptographically signed.
+- **NUT-11 2-of-3 Multisig Escrow**: Non-custodial arbitrator escrow for guest security deposits.
+- **RFC-0011 Boundary Principle**: New proofs or reputation metrics must pass the 3-test boundary checklist.
+
+### 2. Code Verification / Kiểm Tra Code
+Before submitting any Pull Request:
+```bash
+npm run lint
+npm run build
+```
+Both checks must complete with zero errors.
+
+### 3. Documentation Synchronicity / Đồng Bộ Tài Liệu
+All RFCs and architectural documents exist in paired `.md` / `.vi.md` (Vietnamese source of truth) and `.en.md` (English translation). Always update both versions in the same PR.

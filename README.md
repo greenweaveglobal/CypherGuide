@@ -69,7 +69,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/cypherguide.git
+git clone https://github.com/greenweave/cypherguide.git
 cd cypherguide
 
 # Copy example environment variables
