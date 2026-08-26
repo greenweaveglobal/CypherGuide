@@ -37,6 +37,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const [showAuditDetails, setShowAuditDetails] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
   const [copiedKeys, setCopiedKeys] = useState(false);
+  const [showExtModal, setShowExtModal] = useState(false);
 
   const handleSyncProfile = async () => {
     if (!identity) return;
@@ -210,9 +211,9 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                         fullWidth 
                         variant={isNip07Available() ? "primary" : "ghost"} 
                         size="lg" 
-                        className={`gap-2 text-xs sm:text-sm ${!isNip07Available() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`gap-2 text-xs sm:text-sm ${!isNip07Available() ? 'border border-border/40 hover:border-primary/50 text-text-secondary hover:text-white' : ''}`}
                         title={t('identity.nip07Tooltip')}
-                        onClick={isNip07Available() ? handleNip07Login : undefined}
+                        onClick={isNip07Available() ? handleNip07Login : () => setShowExtModal(true)}
                       >
                         <LogIn className="w-5 h-5 shrink-0" /> {t('identity.connectExtension')}
                       </Button>
@@ -886,6 +887,76 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
           </AnimatePresence>
         </CardContent>
       </Card>
+
+      {/* NIP-07 / Mobile Signer Info Modal */}
+      <AnimatePresence>
+        {showExtModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-surface border border-primary/40 rounded-2xl p-6 shadow-2xl font-mono space-y-4"
+            >
+              <div className="flex items-start justify-between gap-2 border-b border-border/40 pb-3">
+                <div className="flex items-center gap-2 text-primary">
+                  <ShieldCheck className="w-5 h-5 shrink-0" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    {t('identity.nip07ModalTitle')}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setShowExtModal(false)}
+                  className="text-text-secondary hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
+                <p>{t('identity.nip07ModalDesc')}</p>
+                <div className="p-3 bg-black/40 border border-primary/20 rounded-xl space-y-2 text-text-primary text-[11px]">
+                  <p className="text-warning font-semibold">📱 {t('identity.nip07MobileNote')}</p>
+                  <p className="text-primary/90 text-[10px]">⚡ {t('identity.nip07RemoteSignerNote')}</p>
+                </div>
+              </div>
+
+              <div className="pt-2 space-y-2">
+                <Button 
+                  fullWidth 
+                  variant="primary" 
+                  onClick={() => {
+                    setShowExtModal(false);
+                    setStep('generate');
+                  }}
+                  className="gap-2 text-xs"
+                >
+                  <PlusIcon className="w-4 h-4 shrink-0" /> {t('identity.createNew')}
+                </Button>
+                <Button 
+                  fullWidth 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowExtModal(false);
+                    setImportMode(true);
+                  }}
+                  className="gap-2 text-xs"
+                >
+                  <Download className="w-4 h-4 shrink-0" /> {t('identity.importNsec')}
+                </Button>
+                <Button 
+                  fullWidth 
+                  variant="ghost" 
+                  onClick={() => setShowExtModal(false)}
+                  className="text-xs text-text-secondary"
+                >
+                  {t('identity.back')}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
