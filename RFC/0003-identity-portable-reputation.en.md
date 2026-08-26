@@ -151,3 +151,31 @@ outside the project read the same schema.
 ## Discussion
 
 (Open.)
+
+## Addendum (2026-08-26): Mobile signing gap (NIP-46)
+
+**Context:** Core Principle #1 in `CONTRIBUTING.md` ("No-KYC & Zero Trust") requires every
+interaction to be based on a Nostr keypair — but it doesn't specify **how** that key gets
+signed, only that it must belong to the user. In the current live implementation at
+`cypherguide.org`, the login screen offers 3 options: create a new identity, **enter NSEC
+directly**, or connect via extension (NIP-07).
+
+The problem: **NIP-07 (browser extension) doesn't work in mobile browsers** — there's no
+Alby/nos2x for mobile Chrome/Safari. As a result, on mobile, the only realistic remaining
+option is pasting NSEC directly into the app — exactly the behavior the wider Nostr
+community (not just CypherGuide users) is publicly warning against, since it forces users
+to trust the client's code every single time instead of trusting a separate, dedicated
+signer.
+
+**This is not a flaw in RFC-0003's principle** — "identity is your npub, owned by no
+server" still holds regardless of how signing happens. This is a gap at the
+**implementation layer**, specifically missing support for **NIP-46 (remote signer /
+"bunker")** — the model where the private key lives inside a dedicated signing app (e.g.
+Amber on Android, nsec.app), and CypherGuide only sends a signing request over the
+connection, never receiving or storing the raw NSEC.
+
+**Noted, no committed date:** Adding NIP-46 mobile login support is the right direction to
+close this gap, consistent with the "User Ownership" principle already stated in
+RFC-0003. No concrete timeline exists yet — this addendum exists solely to record that the
+issue was raised publicly by the community (Nostr discussion, 2026-08-26) so it doesn't
+get lost in a reply that scrolls away.

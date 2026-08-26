@@ -41,6 +41,10 @@ const RFC_KNOWLEDGE_BASE: Record<string, { vi: string; en: string }> = {
   boundary: {
     vi: "Theo **RFC-0011 (Ranh Giới Tài Chính Hóa - Financialization Boundary Principle)**, mọi hành vi trước khi sinh proof/uy tín/phí phải vượt qua 3 bài kiểm tra: 1. Khả năng xác minh khách quan (Verifiability), 2. Phục vụ tính toàn vẹn giao thức (Protocol-purpose), 3. Tương thích ý nghĩa gốc phi giao dịch (Original-meaning).",
     en: "According to **RFC-0011 (Financialization Boundary Principle)**, any behavior must pass 3 tests before generating proofs, reputation, or fee effects: 1. Verifiability Test, 2. Protocol-Purpose Test, and 3. Original-Meaning Test."
+  },
+  nip46: {
+    vi: "Theo **RFC-0003 Phụ lục (Addendum 2026-08-26 - Mobile signing gap / NIP-46)**: Trên trình duyệt di động hiện thiếu hỗ trợ NIP-07 (extension), dẫn tới nguy cơ người dùng phải dán NSEC trực tiếp. Dự án ghi nhận hướng đi đúng là hỗ trợ NIP-46 (remote signer / bunker như Amber, nsec.app) để ký giao dịch từ xa mà không làm lộ NSEC thô.",
+    en: "According to **RFC-0003 Addendum (2026-08-26 - Mobile signing gap / NIP-46)**: Mobile browsers lack NIP-07 extension support, risking users pasting raw NSEC. The recognized path forward is implementing NIP-46 (remote signers / bunkers like Amber or nsec.app) to sign remotely without exposing raw NSEC."
   }
 };
 
@@ -74,6 +78,9 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
   }
   if (qLower.includes('boundary') || qLower.includes('financialization') || qLower.includes('tài chính hóa') || qLower.includes('ranh giới') || qLower.includes('rfc-0011')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.boundary.en : RFC_KNOWLEDGE_BASE.boundary.vi, success: true };
+  }
+  if (qLower.includes('nip-46') || qLower.includes('nip46') || qLower.includes('bunker') || qLower.includes('remote signer') || qLower.includes('amber') || qLower.includes('mobile signing')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.nip46.en : RFC_KNOWLEDGE_BASE.nip46.vi, success: true };
   }
 
   return {

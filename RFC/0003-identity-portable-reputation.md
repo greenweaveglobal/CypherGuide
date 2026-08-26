@@ -148,3 +148,30 @@ dùng ngoài dự án cùng đọc chung schema.
 ## Thảo luận
 
 (Mở.)
+
+## Addendum (2026-08-26): Khoảng trống ký khóa trên di động (NIP-46)
+
+**Bối cảnh:** Nguyên tắc cốt lõi số 1 trong `CONTRIBUTING.md` ("No-KYC & Zero Trust")
+quy định mọi tương tác dựa trên cặp khóa Nostr — nhưng không quy định **cách** khóa đó
+được ký, chỉ quy định rằng nó phải là khóa của người dùng. Trên thực tế triển khai hiện
+tại tại `cypherguide.org`, màn hình đăng nhập cho 3 lựa chọn: tạo danh tính mới, **nhập
+trực tiếp NSEC**, hoặc kết nối extension (NIP-07).
+
+Vấn đề: **NIP-07 (browser extension) không hoạt động trên trình duyệt di động** — không
+có Alby/nos2x cho Chrome/Safari mobile. Hệ quả là trên di động, lựa chọn thực tế duy nhất
+còn lại là dán NSEC trực tiếp vào app — đúng hành vi mà cộng đồng Nostr rộng hơn (không
+chỉ người dùng CypherGuide) đang công khai cảnh báo là rủi ro, vì nó buộc người dùng tin
+tưởng mã nguồn client mỗi lần thay vì tin tưởng một signer riêng biệt, độc lập.
+
+**Đây không phải một khiếm khuyết của nguyên tắc trong RFC-0003** — "danh tính là npub
+của bạn, không thuộc về server nào" vẫn đúng dù ký bằng cách nào. Đây là khoảng trống ở
+**tầng triển khai (implementation)**, cụ thể là thiếu hỗ trợ **NIP-46 (remote
+signer / "bunker")** — mô hình nơi khóa riêng nằm trong một ứng dụng ký chuyên biệt
+(ví dụ Amber trên Android, nsec.app), CypherGuide chỉ gửi yêu cầu ký qua kết nối, không
+bao giờ nhận hay lưu trữ NSEC thô.
+
+**Ghi nhận, không cam kết ngày:** Bổ sung hỗ trợ đăng nhập qua NIP-46 cho di động là
+hướng đúng để đóng khoảng trống này, phù hợp với chính nguyên tắc "User Ownership" đã
+nêu trong RFC-0003. Chưa có timeline cụ thể — addendum này chỉ để ghi nhận vấn đề đã
+được cộng đồng nêu ra công khai (thảo luận trên Nostr, 26/08/2026) và tránh nó bị quên
+lãng trong một reply rồi trôi mất.

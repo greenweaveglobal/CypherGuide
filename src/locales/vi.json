@@ -768,7 +768,7 @@
     "phSecurity": "Vd: Lồng Faraday, Starlink, Mesh backup",
     "multisigConfig": "Cấu hình Multisig / Cổ phần LN *",
     "multisigDesc": "Tiền đặt phòng sẽ được tự động chia tỷ lệ & định tuyến thẳng vào các địa chỉ Lightning theo thiết lập này.",
-    "addCoOwner": "+ Thêm Cổ Đông",
+    "addCoOwner": "Thêm Cổ Đông",
     "nameOrAlias": "Tên / Bí danh",
     "lnAddress": "Địa chỉ Lightning (LN Address) *",
     "sharePercent": "Cổ phần (%) *",

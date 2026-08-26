@@ -215,7 +215,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-panel max-w-2xl w-full border border-white/10 rounded-2xl p-6 relative my-8"
+        className="glass-panel max-w-2xl w-full border border-white/10 rounded-2xl p-4 sm:p-6 relative my-4 sm:my-8"
       >
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white">
           <X className="w-5 h-5" />
@@ -531,7 +531,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
             return (
               <div className="pt-4 mt-6 border-t border-white/5 space-y-4">
                 {/* Section Header Card */}
-                <div className="p-4 bg-gradient-to-r from-cyber-blue/10 via-black/40 to-black/60 border border-cyber-blue/30 rounded-xl space-y-3.5 shadow-lg">
+                <div className="p-3.5 sm:p-4 bg-gradient-to-r from-cyber-blue/10 via-black/40 to-black/60 border border-cyber-blue/30 rounded-xl space-y-3.5 shadow-lg">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1">
                       <label className="text-xs text-cyber-blue font-mono uppercase font-bold flex items-center gap-1.5 tracking-wider">
@@ -542,8 +542,8 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                         {t('hostReg.multisigDesc')}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border shadow-sm ${
+                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border shadow-sm shrink-0 whitespace-nowrap ${
                         isTotalValid 
                           ? 'bg-cyber-green/15 text-cyber-green border-cyber-green/40' 
                           : 'bg-cyber-amber/15 text-cyber-amber border-cyber-amber/40'
@@ -562,8 +562,8 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                         onClick={addCoOwner}
                         className="inline-flex items-center gap-1.5 text-[10px] bg-cyber-blue/20 hover:bg-cyber-blue/30 text-cyber-blue px-3 py-1.5 rounded-lg border border-cyber-blue/40 font-mono font-bold transition-all shrink-0 whitespace-nowrap shadow-sm active:scale-95"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        {t('hostReg.addCoOwner')}
+                        <Plus className="w-3.5 h-3.5 shrink-0" />
+                        <span>{t('hostReg.addCoOwner')}</span>
                       </button>
                     </div>
                   </div>
@@ -599,34 +599,37 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   {coOwners.map((owner, idx) => (
                     <div 
                       key={idx} 
-                      className="p-4 bg-black/70 border border-white/10 hover:border-cyber-blue/30 rounded-xl space-y-4 relative group transition-all shadow-md"
+                      className="p-3.5 sm:p-4 bg-black/70 border border-white/10 hover:border-cyber-blue/30 rounded-xl space-y-4 relative group transition-all shadow-md"
                     >
                       {/* Card Header Bar */}
-                      <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono font-bold text-cyber-blue bg-cyber-blue/10 border border-cyber-blue/30 px-2 py-0.5 rounded-md uppercase flex items-center gap-1">
-                            <Users className="w-3 h-3 text-cyber-blue" />
-                            {t('hostReg.coOwnerTitle', { index: idx + 1 })}
+                      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
+                          <span className="text-[10px] font-mono font-bold text-cyber-blue bg-cyber-blue/10 border border-cyber-blue/30 px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shrink-0 whitespace-nowrap">
+                            <Users className="w-3 h-3 text-cyber-blue shrink-0" />
+                            <span>{t('hostReg.coOwnerTitle', { index: idx + 1 })}</span>
                           </span>
                           {idx === 0 && (
-                            <span className="text-[9px] px-2 py-0.5 bg-cyber-green/10 text-cyber-green border border-cyber-green/30 rounded-md font-mono font-semibold">
+                            <span className="text-[9px] px-1.5 py-0.5 bg-cyber-green/10 text-cyber-green border border-cyber-green/30 rounded-md font-mono font-semibold shrink-0 whitespace-nowrap">
                               {t('hostReg.defaultCoOwnerName')}
                             </span>
                           )}
-                          <span className="text-xs font-mono font-bold text-white ml-1 truncate max-w-[150px] sm:max-w-xs">
+                          <span 
+                            className="text-xs font-mono font-bold text-white truncate min-w-0 flex-1"
+                            title={owner.name || t('hostReg.coOwnerUnassigned')}
+                          >
                             {owner.name || t('hostReg.coOwnerUnassigned')}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-cyber-amber bg-cyber-amber/10 border border-cyber-amber/30 px-2.5 py-0.5 rounded-md">
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                          <span className="text-xs font-mono font-bold text-cyber-amber bg-cyber-amber/10 border border-cyber-amber/30 px-2 sm:px-2.5 py-0.5 rounded-md whitespace-nowrap shadow-sm">
                             {owner.share || 0}%
                           </span>
                           {coOwners.length > 1 && (
                             <button
                               type="button"
                               onClick={() => removeCoOwner(idx)}
-                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
                               title="Delete Co-Owner"
                             >
                               <Trash2 className="w-4 h-4" />

@@ -768,7 +768,7 @@
     "phSecurity": "E.g.: Faraday Cage, Starlink, Mesh backup",
     "multisigConfig": "Multisig / LN Share Configuration *",
     "multisigDesc": "Booking payments will be automatically split & routed directly to Lightning addresses based on this setup.",
-    "addCoOwner": "+ Add Co-Owner",
+    "addCoOwner": "Add Co-Owner",
     "nameOrAlias": "Name / Alias",
     "lnAddress": "Lightning Address (LN Address) *",
     "sharePercent": "Share (%) *",
