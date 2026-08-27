@@ -4,7 +4,7 @@ import { X, Heart, Zap, Coins, Check, Copy, CookingPot, Edit2, Save, Banknote, S
 import { useTranslation } from '../hooks/useTranslation';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
-import { generateBolt11, isWebLNAvailable, payViaWebLN, isSimulatedInvoice } from '../utils/lightning';
+import { generateBolt11, isWebLNAvailable, payViaWebLN, isSimulatedInvoice, resolveLightningAddressToInvoice } from '../utils/lightning';
 import { generateCashuToken, redeemCashuToken } from '../utils/cashu';
 import { payInvoiceViaNWC, getNWCConnectionString } from '../utils/nwc';
 import { QRCodeSVG } from 'qrcode.react';
@@ -86,23 +86,18 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
     try {
       onAddLog('lightning', `${t('donate.resolvingLiveInvoice')} (${devLnAddress})`);
       
-      // Gọi endpoint LNURL resolve trên server
-      const res = await fetch(`/api/lightning/resolve-invoice?address=${encodeURIComponent(devLnAddress)}&amount=${amount}`);
-      const data = await res.json();
+      // Multi-tier resilient resolver (Vercel API / Express -> Browser Direct LNURL -> Safe local fallback)
+      const res = await resolveLightningAddressToInvoice(devLnAddress, amount);
+      setInvoice(res.invoice);
+      setIsRealInvoice(res.isReal);
 
-      if (res.ok && data.success && data.invoice) {
-        setInvoice(data.invoice);
-        setIsRealInvoice(true);
-        onAddLog('lightning', `Đã phân giải thành công Hóa đơn Lightning thật từ LNURL ${devLnAddress} cho ${amount} Sats!`);
+      if (res.isReal) {
+        onAddLog('lightning', `Đã phân giải thành công Hóa đơn Lightning thật từ ${devLnAddress} cho ${amount} Sats!`);
       } else {
-        // Fallback sang simulated invoice nếu ví offline hoặc domain chưa cấu hình LNURL
-        const fallbackInv = generateBolt11(amount, 'Donation to Developer V4V');
-        setInvoice(fallbackInv);
-        setIsRealInvoice(false);
         onAddLog('lightning', t('donate.logCreateInvoice', { amount }));
       }
     } catch (err: any) {
-      // Fallback an toàn
+      // Fallback an toàn tuyệt đối, không bao giờ để crash JSON parser
       const fallbackInv = generateBolt11(amount, 'Donation to Developer V4V');
       setInvoice(fallbackInv);
       setIsRealInvoice(false);
@@ -248,46 +243,46 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                     title="Chỉnh sửa ví nhận quyên góp"
                   >
                     <Edit2 className="w-3 h-3" />
-                    <span>Sửa</span>
+                    <span>{t('donate.editBtn')}</span>
                   </button>
                 )}
               </div>
 
               {isEditingAddress ? (
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
+                  <input
+                    type="text"
+                    value={tempAddress}
+                    onChange={(e) => setTempAddress(e.target.value)}
+                    className="w-full bg-black/70 border border-primary/50 rounded-lg px-3 py-2 text-xs text-white font-mono outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                    placeholder="user@walletofsatoshi.com"
+                  />
                   <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={tempAddress}
-                      onChange={(e) => setTempAddress(e.target.value)}
-                      className="bg-black/60 border border-primary/50 rounded-lg px-3 py-1.5 text-xs text-white font-mono outline-none flex-1 focus:border-primary focus:ring-1 focus:ring-primary/40"
-                      placeholder="ten_vi@domain.com"
-                    />
                     <Button 
                       size="sm"
                       variant="primary"
                       onClick={handleSaveAddress}
                       disabled={isSavingAddress}
-                      className="text-xs gap-1 py-1.5 px-3"
+                      className="flex-1 text-xs gap-1.5 py-2 font-mono font-bold justify-center"
                     >
-                      {isSavingAddress ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      {isSavingAddress ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                       <span>{t('donate.saveAddressBtn')}</span>
                     </Button>
                     <Button 
                       size="sm"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() => {
                         setIsEditingAddress(false);
                         setTempAddress(devLnAddress);
                         setErrorMsg('');
                       }}
-                      className="text-xs py-1.5 px-2 text-text-secondary"
+                      className="text-xs py-2 px-3 text-text-secondary font-mono hover:text-white"
                     >
                       {t('donate.backBtn')}
                     </Button>
                   </div>
-                  <p className="text-[10px] font-mono text-primary/80">
-                    💡 Địa chỉ sau khi lưu sẽ lập tức đồng bộ trên toàn bộ máy chủ và mọi phiên duyệt (kể cả tab ẩn danh).
+                  <p className="text-[10px] font-mono text-primary/80 leading-relaxed">
+                    💡 {t('donate.editTip')}
                   </p>
                 </div>
               ) : (

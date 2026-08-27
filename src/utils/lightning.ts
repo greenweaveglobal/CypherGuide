@@ -103,6 +103,80 @@ export function isWebLNAvailable(): boolean {
   return typeof window !== 'undefined' && typeof window.webln !== 'undefined';
 }
 
+// Multi-tier robust resolver for Lightning Address (Server API -> Direct Browser LNURL -> Local Fallback)
+export async function resolveLightningAddressToInvoice(
+  address: string,
+  amountSats: number
+): Promise<{ invoice: string; isReal: boolean; error?: string }> {
+  const cleanAddress = address.trim().toLowerCase();
+  
+  if (!cleanAddress || !cleanAddress.includes('@')) {
+    return {
+      invoice: generateBolt11(amountSats, 'Donation V4V'),
+      isReal: false
+    };
+  }
+
+  // Tier 1: Try Server API endpoint with safe JSON check
+  try {
+    const res = await fetch(`/api/lightning/resolve-invoice?address=${encodeURIComponent(cleanAddress)}&amount=${amountSats}`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000)
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      const data = await res.json();
+      if (data.success && data.invoice) {
+        return { invoice: data.invoice, isReal: true };
+      }
+    }
+  } catch (e) {
+    // Silent fail over to Tier 2
+  }
+
+  // Tier 2: Direct Client-Side LNURL-pay fetch (Wallet of Satoshi, Blink, Strike have open CORS)
+  try {
+    const [username, domain] = cleanAddress.split('@');
+    if (username && domain) {
+      const metaRes = await fetch(`https://${domain}/.well-known/lnurlp/${username}`, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(4000)
+      });
+      
+      if (metaRes.ok) {
+        const metadata = await metaRes.json();
+        if (metadata.status !== 'ERROR' && metadata.callback) {
+          const millisats = amountSats * 1000;
+          const callbackUrl = new URL(metadata.callback);
+          callbackUrl.searchParams.set('amount', millisats.toString());
+          callbackUrl.searchParams.set('comment', 'Donation V4V Cypher Guide');
+
+          const invoiceRes = await fetch(callbackUrl.toString(), {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(4000)
+          });
+
+          if (invoiceRes.ok) {
+            const invoiceData = await invoiceRes.json();
+            if (invoiceData.status !== 'ERROR' && invoiceData.pr) {
+              return { invoice: invoiceData.pr, isReal: true };
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Silent fail over to local fallback
+  }
+
+  // Tier 3: Seamless Local Simulated Invoice fallback (prevents any application crash)
+  return {
+    invoice: generateBolt11(amountSats, `Donation to ${cleanAddress}`),
+    isReal: false
+  };
+}
+
 // Pay via WebLN (safe handling: isolates simulated demo invoices from triggering real wallet errors)
 export async function payViaWebLN(invoice: string): Promise<{ success: boolean; preimage?: string; error?: string }> {
   // If invoice is a generated simulated invoice, do NOT send to real wallet extension to prevent checksum errors

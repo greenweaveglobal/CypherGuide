@@ -494,7 +494,9 @@
     "simInvoiceBadge": "🛠 Hóa đơn thử nghiệm mô phỏng (Test/Demo Mode)",
     "resolvingLiveInvoice": "Đang kết nối cổng LNURL lấy hóa đơn Lightning thật...",
     "invalidAddressFormat": "Định dạng địa chỉ Lightning không hợp lệ (ví dụ: user@domain.com)",
-    "syncedNetworkNotice": "🌐 Địa chỉ nhận quyên góp chính thức đồng bộ toàn mạng lưới"
+    "syncedNetworkNotice": "🌐 Địa chỉ nhận quyên góp chính thức của mạng lưới",
+    "editBtn": "Sửa",
+    "editTip": "Địa chỉ sau khi lưu sẽ đồng bộ trên toàn bộ máy chủ và các phiên duyệt."
   },
   "governance": {
     "title": "Cơ Chế Quản Trị Đa Chữ Ký (Multisig Governance)",

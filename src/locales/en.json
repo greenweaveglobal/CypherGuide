@@ -494,7 +494,9 @@
     "simInvoiceBadge": "🛠 Simulated Invoice (Local Dev / Offline Mode)",
     "resolvingLiveInvoice": "Querying LNURL node for live BOLT11 invoice...",
     "invalidAddressFormat": "Invalid Lightning address format (e.g., user@domain.com)",
-    "syncedNetworkNotice": "🌐 Network-synchronized official donation endpoint"
+    "syncedNetworkNotice": "🌐 Official network donation endpoint",
+    "editBtn": "Edit",
+    "editTip": "Address will sync across all server nodes and browser sessions."
   },
   "governance": {
     "title": "Multisig Governance Engine",
