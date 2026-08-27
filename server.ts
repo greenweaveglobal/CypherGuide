@@ -217,7 +217,7 @@ ${docsContent}`;
       console.error("Error reading protocol config:", e);
     }
     return {
-      devLnAddress: "dev@cypherlodge.io",
+      devLnAddress: "solidsleep11@walletofsatoshi.com",
       updatedAt: Date.now(),
       updatedBy: "system"
     };
