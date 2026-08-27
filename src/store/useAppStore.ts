@@ -68,6 +68,8 @@ interface AppState {
 
   devLnAddress: string;
   setDevLnAddress: (address: string) => void;
+  fetchProtocolConfig: () => Promise<void>;
+  updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string }>;
 
   resetStore: () => void;
 }
@@ -77,6 +79,41 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       devLnAddress: 'dev@cypherlodge.io',
       setDevLnAddress: (address) => set({ devLnAddress: address }),
+
+      fetchProtocolConfig: async () => {
+        try {
+          const res = await fetch('/api/protocol/config');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.devLnAddress && typeof data.devLnAddress === 'string') {
+              set({ devLnAddress: data.devLnAddress });
+            }
+          }
+        } catch (e) {
+          // Ignore offline / dev fallback
+        }
+      },
+
+      updateDevLnAddress: async (address: string, npub?: string) => {
+        try {
+          const res = await fetch('/api/protocol/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ devLnAddress: address, npub })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            set({ devLnAddress: data.devLnAddress });
+            return { success: true };
+          } else {
+            return { success: false, error: data.error || 'Failed to update configuration on server' };
+          }
+        } catch (e: any) {
+          // If server call fails, still update locally as fallback
+          set({ devLnAddress: address });
+          return { success: false, error: e.message || 'Network error' };
+        }
+      },
 
       identity: null,
       setIdentity: (identity) => set({ identity }),

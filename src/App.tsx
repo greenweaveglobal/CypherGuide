@@ -30,7 +30,7 @@ export default function App() {
     payouts, addPayout,
     documents, addDocument,
     logs, addLog, resetStore,
-    checkIntegrity
+    checkIntegrity, fetchProtocolConfig
   } = useAppStore();
 
   const [selectedListingForBooking, setSelectedListingForBooking] = useState<Listing | null>(null);
@@ -42,8 +42,9 @@ export default function App() {
   };
 
   React.useEffect(() => {
-    // Cypher Travel: Tự động đối soát hạ tầng Cypher Protocol khi khởi động
+    // Cypher Travel: Tự động đối soát hạ tầng Cypher Protocol & đồng bộ cấu hình mạng lưới
     checkIntegrity();
+    fetchProtocolConfig();
 
     // Tự động ghi nhận mã giới thiệu từ URL (?ref=npub...)
     if (typeof window !== 'undefined') {

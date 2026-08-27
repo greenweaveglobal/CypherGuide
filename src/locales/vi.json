@@ -484,9 +484,17 @@
     "errPaymentRejected": "Thanh toán bị từ chối.",
     "errInstallWallet": "Vui lòng cài đặt tiện ích ví Lightning (như Alby) hoặc quét mã QR bằng điện thoại.",
     "logNoWebLNErr": "Lỗi: Không tìm thấy WebLN/NWC",
-    "unauthorized": "Tài khoản không được ủy quyền.",
+    "unauthorized": "Tài khoản không được ủy quyền. Chỉ Admin/Guardian dự án mới có quyền đổi ví nhận quyên góp.",
     "backBtn": "Quay lại",
-    "processing": "Đang xử lý..."
+    "processing": "Đang xử lý...",
+    "saveSuccess": "Đã lưu và đồng bộ ví donate lên máy chủ toàn mạng lưới!",
+    "saveAddressBtn": "Lưu địa chỉ ví",
+    "saving": "Đang lưu...",
+    "realInvoiceBadge": "⚡ Hóa đơn Lightning thật từ LNURL (Live Wallet)",
+    "simInvoiceBadge": "🛠 Hóa đơn thử nghiệm mô phỏng (Test/Demo Mode)",
+    "resolvingLiveInvoice": "Đang kết nối cổng LNURL lấy hóa đơn Lightning thật...",
+    "invalidAddressFormat": "Định dạng địa chỉ Lightning không hợp lệ (ví dụ: user@domain.com)",
+    "syncedNetworkNotice": "🌐 Địa chỉ nhận quyên góp chính thức đồng bộ toàn mạng lưới"
   },
   "governance": {
     "title": "Cơ Chế Quản Trị Đa Chữ Ký (Multisig Governance)",

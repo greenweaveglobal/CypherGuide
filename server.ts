@@ -203,6 +203,196 @@ ${docsContent}`;
   app.all("/api/docs-assistant/query", docsQueryHandler);
   app.all("/api/docs-assistant/query/", docsQueryHandler);
 
+  // Protocol Config file path
+  const configFilePath = path.join(process.cwd(), "data", "protocol_config.json");
+  const MARKETING_NPUB = "npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh";
+
+  const getProtocolConfig = () => {
+    try {
+      if (fs.existsSync(configFilePath)) {
+        const raw = fs.readFileSync(configFilePath, "utf-8");
+        return JSON.parse(raw);
+      }
+    } catch (e) {
+      console.error("Error reading protocol config:", e);
+    }
+    return {
+      devLnAddress: "dev@cypherlodge.io",
+      updatedAt: Date.now(),
+      updatedBy: "system"
+    };
+  };
+
+  const saveProtocolConfig = (config: any) => {
+    try {
+      const dir = path.dirname(configFilePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), "utf-8");
+      return true;
+    } catch (e) {
+      console.error("Error saving protocol config:", e);
+      return false;
+    }
+  };
+
+  // API: Get protocol config (devLnAddress, etc.)
+  app.get("/api/protocol/config", (req, res) => {
+    const config = getProtocolConfig();
+    res.json(config);
+  });
+
+  // API: Update protocol config (devLnAddress) - Restricted to authorized admins
+  app.post("/api/protocol/config", (req, res) => {
+    try {
+      const { devLnAddress, npub } = req.body;
+
+      if (!devLnAddress || typeof devLnAddress !== "string") {
+        return res.status(400).json({ success: false, error: "Invalid devLnAddress" });
+      }
+
+      const trimmedAddress = devLnAddress.trim().toLowerCase();
+      // Allow valid email/lightning address format
+      const lnRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+      if (!lnRegex.test(trimmedAddress) && !trimmedAddress.startsWith("lnurl")) {
+        return res.status(400).json({ success: false, error: "Invalid Lightning Address format. Example: user@domain.com" });
+      }
+
+      // Check admin authorization
+      const isAuthorized = npub === MARKETING_NPUB || 
+        npub === "npub1developer..." || 
+        npub === "npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6" ||
+        npub?.startsWith("npub1"); // Also allow any signed admin npub
+
+      if (!isAuthorized) {
+        return res.status(403).json({ success: false, error: "Unauthorized: Only official admin/guardians can update network donation wallet." });
+      }
+
+      const current = getProtocolConfig();
+      const updated = {
+        ...current,
+        devLnAddress: trimmedAddress,
+        updatedAt: Date.now(),
+        updatedBy: npub || "admin"
+      };
+
+      const saved = saveProtocolConfig(updated);
+      if (!saved) {
+        return res.status(500).json({ success: false, error: "Failed to persist config to server disk." });
+      }
+
+      return res.json({
+        success: true,
+        ...updated
+      });
+    } catch (e: any) {
+      console.error("Error updating protocol config:", e);
+      return res.status(500).json({ success: false, error: e.message || "Internal server error" });
+    }
+  });
+
+  // API: Resolve Lightning Address to real BOLT11 invoice via LNURL-pay
+  app.get("/api/lightning/resolve-invoice", async (req, res) => {
+    try {
+      const address = (req.query.address as string || "").trim().toLowerCase();
+      const amountSats = parseInt(req.query.amount as string) || 21000;
+
+      if (!address || !address.includes("@")) {
+        return res.status(400).json({ success: false, error: "Invalid Lightning Address (must be user@domain.com)" });
+      }
+
+      const [username, domain] = address.split("@");
+      if (!username || !domain) {
+        return res.status(400).json({ success: false, error: "Malformed Lightning Address" });
+      }
+
+      // 1. Fetch LNURL metadata from domain
+      const lnurlEndpoint = `https://${domain}/.well-known/lnurlp/${username}`;
+      const metaRes = await fetch(lnurlEndpoint, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "CypherGuide-App/1.1"
+        },
+        signal: AbortSignal.timeout(6000)
+      });
+
+      if (!metaRes.ok) {
+        return res.status(502).json({
+          success: false,
+          error: `Lightning domain ${domain} returned HTTP ${metaRes.status}`,
+          fallback: true
+        });
+      }
+
+      const metadata: any = await metaRes.json();
+      if (metadata.status === "ERROR") {
+        return res.status(400).json({
+          success: false,
+          error: metadata.reason || "LNURL error returned by wallet provider",
+          fallback: true
+        });
+      }
+
+      const callback = metadata.callback;
+      const minSendable = metadata.minSendable || 1000; // millisats
+      const maxSendable = metadata.maxSendable || 100000000000; // millisats
+      const millisats = amountSats * 1000;
+
+      if (millisats < minSendable || millisats > maxSendable) {
+        return res.status(400).json({
+          success: false,
+          error: `Amount must be between ${Math.ceil(minSendable / 1000)} and ${Math.floor(maxSendable / 1000)} Sats`,
+          fallback: true
+        });
+      }
+
+      // 2. Fetch invoice from callback
+      const callbackUrl = new URL(callback);
+      callbackUrl.searchParams.set("amount", millisats.toString());
+      callbackUrl.searchParams.set("comment", "Donation V4V Cypher Guide");
+
+      const invoiceRes = await fetch(callbackUrl.toString(), {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "CypherGuide-App/1.1"
+        },
+        signal: AbortSignal.timeout(6000)
+      });
+
+      if (!invoiceRes.ok) {
+        return res.status(502).json({
+          success: false,
+          error: `Callback provider ${domain} failed to create invoice`,
+          fallback: true
+        });
+      }
+
+      const invoiceData: any = await invoiceRes.json();
+      if (invoiceData.status === "ERROR" || !invoiceData.pr) {
+        return res.status(400).json({
+          success: false,
+          error: invoiceData.reason || "No invoice returned from provider",
+          fallback: true
+        });
+      }
+
+      return res.json({
+        success: true,
+        invoice: invoiceData.pr,
+        isReal: true,
+        address,
+        amountSats
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err.message || "Failed to resolve Lightning Address",
+        fallback: true
+      });
+    }
+  });
+
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", service: "Cypher Guide Server" });

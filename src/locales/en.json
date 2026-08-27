@@ -484,9 +484,17 @@
     "errPaymentRejected": "Payment rejected.",
     "errInstallWallet": "Please install a Lightning wallet extension (like Alby) or scan the QR code with your phone.",
     "logNoWebLNErr": "Error: WebLN/NWC not found",
-    "unauthorized": "Unauthorized account.",
+    "unauthorized": "Unauthorized account. Only verified project guardian/admin can update donation wallet.",
     "backBtn": "Back",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "saveSuccess": "Donation address updated and synced across the network!",
+    "saveAddressBtn": "Save Address",
+    "saving": "Saving...",
+    "realInvoiceBadge": "⚡ Live LNURL Invoice (Connected to Wallet Node)",
+    "simInvoiceBadge": "🛠 Simulated Invoice (Local Dev / Offline Mode)",
+    "resolvingLiveInvoice": "Querying LNURL node for live BOLT11 invoice...",
+    "invalidAddressFormat": "Invalid Lightning address format (e.g., user@domain.com)",
+    "syncedNetworkNotice": "🌐 Network-synchronized official donation endpoint"
   },
   "governance": {
     "title": "Multisig Governance Engine",

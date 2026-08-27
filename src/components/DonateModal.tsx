@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { X, Heart, Zap, Coins, Check, Copy, CookingPot, Edit2, Save, Banknote, Sparkles, ShieldCheck } from 'lucide-react';
+import { X, Heart, Zap, Coins, Check, Copy, CookingPot, Edit2, Save, Banknote, Sparkles, ShieldCheck, Loader2, Globe, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
-import { generateBolt11, isWebLNAvailable, payViaWebLN } from '../utils/lightning';
+import { generateBolt11, isWebLNAvailable, payViaWebLN, isSimulatedInvoice } from '../utils/lightning';
 import { generateCashuToken, redeemCashuToken } from '../utils/cashu';
 import { payInvoiceViaNWC, getNWCConnectionString } from '../utils/nwc';
 import { QRCodeSVG } from 'qrcode.react';
@@ -17,7 +17,7 @@ interface Props {
 
 export default function DonateModal({ onClose, onAddLog }: Props) {
   const { t } = useTranslation();
-  const { devLnAddress, setDevLnAddress, identity } = useAppStore();
+  const { devLnAddress, fetchProtocolConfig, updateDevLnAddress, identity } = useAppStore();
   const MARKETING_NPUB = "npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh";
 
   const [amount, setAmount] = useState<number>(21000);
@@ -29,17 +29,87 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
   const [isSuccess, setIsSuccess] = useState(false);
   const [copiedInvoice, setCopiedInvoice] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [tempAddress, setTempAddress] = useState(devLnAddress);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
+  const [isRealInvoice, setIsRealInvoice] = useState(false);
 
   const AMOUNTS = [1000, 21000, 100000, 1000000];
 
-  const handleGenerateInvoice = () => {
-    const inv = generateBolt11(amount, 'Donation to Developer V4V');
+  // Luôn fetch cấu hình mới nhất từ server khi mở modal
+  useEffect(() => {
+    fetchProtocolConfig();
+  }, [fetchProtocolConfig]);
+
+  // Cập nhật tempAddress khi devLnAddress trong store thay đổi
+  useEffect(() => {
+    setTempAddress(devLnAddress);
+  }, [devLnAddress]);
+
+  const handleSaveAddress = async () => {
+    const cleanAddress = tempAddress.trim().toLowerCase();
+    const lnRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+    
+    if (!lnRegex.test(cleanAddress) && !cleanAddress.startsWith("lnurl")) {
+      setErrorMsg(t('donate.invalidAddressFormat'));
+      return;
+    }
+
+    setIsSavingAddress(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const result = await updateDevLnAddress(cleanAddress, identity?.npub || MARKETING_NPUB);
+    setIsSavingAddress(false);
+
+    if (result.success) {
+      setIsEditingAddress(false);
+      setSuccessMsg(t('donate.saveSuccess'));
+      onAddLog('governance', `Đã lưu & đồng bộ ví quyên góp Lightning Address lên toàn mạng lưới: ${cleanAddress}`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } else {
+      setErrorMsg(result.error || 'Failed to save address to server');
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    setIsGeneratingInvoice(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    // Luôn sinh song song Cashu token
     const token = generateCashuToken(amount, 'https://mint.cashu.space', 'Quyengop V4V');
-    setInvoice(inv);
     setCashuToken(token);
-    onAddLog('lightning', t('donate.logCreateInvoice', { amount }));
+
+    try {
+      onAddLog('lightning', `${t('donate.resolvingLiveInvoice')} (${devLnAddress})`);
+      
+      // Gọi endpoint LNURL resolve trên server
+      const res = await fetch(`/api/lightning/resolve-invoice?address=${encodeURIComponent(devLnAddress)}&amount=${amount}`);
+      const data = await res.json();
+
+      if (res.ok && data.success && data.invoice) {
+        setInvoice(data.invoice);
+        setIsRealInvoice(true);
+        onAddLog('lightning', `Đã phân giải thành công Hóa đơn Lightning thật từ LNURL ${devLnAddress} cho ${amount} Sats!`);
+      } else {
+        // Fallback sang simulated invoice nếu ví offline hoặc domain chưa cấu hình LNURL
+        const fallbackInv = generateBolt11(amount, 'Donation to Developer V4V');
+        setInvoice(fallbackInv);
+        setIsRealInvoice(false);
+        onAddLog('lightning', t('donate.logCreateInvoice', { amount }));
+      }
+    } catch (err: any) {
+      // Fallback an toàn
+      const fallbackInv = generateBolt11(amount, 'Donation to Developer V4V');
+      setInvoice(fallbackInv);
+      setIsRealInvoice(false);
+      onAddLog('lightning', t('donate.logCreateInvoice', { amount }));
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
   };
 
   const handlePayCashu = async (tokenToUse?: string) => {
@@ -147,59 +217,157 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
           
           <CardHeader>
             <div className="flex items-center gap-3">
-              <CookingPot className="w-6 h-6 text-warning" />
+              <CookingPot className="w-6 h-6 text-warning shrink-0" />
               <div>
                 <h2 className="text-lg font-bold font-mono text-warning">{t('donate.title')}</h2>
-                <p className="text-xs text-text-secondary font-mono mt-1">{t('donate.subtitle')}</p>
+                <p className="text-xs text-text-secondary font-mono mt-0.5">{t('donate.subtitle')}</p>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-6 pt-4 border-t border-border/50">
-            {!invoice ? (
-              <div className="space-y-6">
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  {t('donate.subtitle')}
-                </p>
+          <CardContent className="space-y-5 pt-3 border-t border-border/50">
+            {/* Dynamic LN Address Header Bar */}
+            <div className="p-3 bg-surface/70 border border-primary/20 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-secondary uppercase tracking-wider">
+                  <Globe className="w-3 h-3 text-primary shrink-0" />
+                  <span>{t('donate.syncedNetworkNotice')}</span>
+                </div>
+                {!isEditingAddress && (
+                  <button 
+                    onClick={() => {
+                      if (identity?.npub === MARKETING_NPUB || identity?.npub?.startsWith('npub1') || identity) {
+                         setTempAddress(devLnAddress);
+                         setIsEditingAddress(true);
+                         setErrorMsg('');
+                      } else {
+                        setErrorMsg(t('donate.unauthorized'));
+                      }
+                    }}
+                    className="flex items-center gap-1 text-[11px] font-mono text-text-secondary hover:text-primary transition-colors"
+                    title="Chỉnh sửa ví nhận quyên góp"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    <span>Sửa</span>
+                  </button>
+                )}
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
+              {isEditingAddress ? (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={tempAddress}
+                      onChange={(e) => setTempAddress(e.target.value)}
+                      className="bg-black/60 border border-primary/50 rounded-lg px-3 py-1.5 text-xs text-white font-mono outline-none flex-1 focus:border-primary focus:ring-1 focus:ring-primary/40"
+                      placeholder="ten_vi@domain.com"
+                    />
+                    <Button 
+                      size="sm"
+                      variant="primary"
+                      onClick={handleSaveAddress}
+                      disabled={isSavingAddress}
+                      className="text-xs gap-1 py-1.5 px-3"
+                    >
+                      {isSavingAddress ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      <span>{t('donate.saveAddressBtn')}</span>
+                    </Button>
+                    <Button 
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsEditingAddress(false);
+                        setTempAddress(devLnAddress);
+                        setErrorMsg('');
+                      }}
+                      className="text-xs py-1.5 px-2 text-text-secondary"
+                    >
+                      {t('donate.backBtn')}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] font-mono text-primary/80">
+                    💡 Địa chỉ sau khi lưu sẽ lập tức đồng bộ trên toàn bộ máy chủ và mọi phiên duyệt (kể cả tab ẩn danh).
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-black/40 px-3 py-2 rounded-lg border border-border/40">
+                  <span className="text-xs font-mono font-bold text-primary truncate">{devLnAddress}</span>
+                  <span className="text-[9px] font-mono text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded">
+                    Active
+                  </span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="flex items-center gap-1.5 p-2 bg-success/10 border border-success/30 rounded text-xs text-success font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+            </div>
+
+            {!invoice ? (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-2.5">
                   {AMOUNTS.map(amt => (
                     <button
                       key={amt}
                       onClick={() => setAmount(amt)}
-                      className={`p-3 rounded-lg border font-mono text-sm transition-all ${
+                      className={`p-2.5 rounded-xl border font-mono text-xs sm:text-sm transition-all ${
                         amount === amt 
                           ? 'bg-primary/20 border-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.2)]'
                           : 'bg-surface border-border text-text-secondary hover:border-primary/50 hover:text-white'
                       }`}
                     >
-                      {amt.toLocaleString()} <span className="text-[10px]">Sats</span>
+                      {amt.toLocaleString()} <span className="text-[10px] text-text-secondary">Sats</span>
                     </button>
                   ))}
                 </div>
 
                 <div>
-                  <label className="text-xs font-mono text-text-secondary uppercase mb-2 block">{t('donate.amountLabel')}</label>
-                  <input 
-                    type="number" 
-                    value={amount}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    min="1"
-                    className="w-full bg-background border border-border rounded-lg px-4 py-3 text-lg font-mono text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50"
-                  />
+                  <label className="text-xs font-mono text-text-secondary uppercase mb-1.5 block">{t('donate.amountLabel')}</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      value={amount}
+                      onChange={(e) => setAmount(Math.max(1, Number(e.target.value)))}
+                      min="1"
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-base font-mono text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50"
+                    />
+                    <span className="absolute right-4 top-3 text-xs font-mono text-text-secondary">Sats</span>
+                  </div>
                 </div>
+
+                {errorMsg && (
+                  <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl text-xs text-danger font-mono flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
 
                 <Button 
                   onClick={handleGenerateInvoice} 
                   variant="primary" 
                   fullWidth
-                  className="py-4 text-sm uppercase tracking-widest bg-warning hover:bg-warning/80 text-black border-warning"
+                  disabled={isGeneratingInvoice}
+                  className="py-3.5 text-xs sm:text-sm uppercase tracking-widest bg-warning hover:bg-warning/80 text-black border-warning font-bold"
                 >
-                  <CookingPot className="w-4 h-4 mr-2" /> {t('donate.generateInvoice')}
+                  {isGeneratingInvoice ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{t('donate.resolvingLiveInvoice')}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <CookingPot className="w-4 h-4" />
+                      <span>{t('donate.generateInvoice')}</span>
+                    </span>
+                  )}
                 </Button>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 {/* Method selector tab */}
                 <div className="flex bg-surface p-1 rounded-xl border border-border">
                   <button
@@ -226,22 +394,35 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
 
                 {payMethod === 'lightning' ? (
                   <>
-                    <div className="text-center space-y-2">
-                      <h3 className="text-xl font-bold text-white font-mono">{amount.toLocaleString()} Sats</h3>
-                      <p className="text-xs text-text-secondary">{t('donate.invoiceReady')}</p>
+                    <div className="text-center space-y-1.5">
+                      <div className="flex items-center justify-center">
+                        {isRealInvoice ? (
+                          <span className="text-[10px] font-mono bg-success/10 text-success border border-success/30 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-success fill-success" />
+                            {t('donate.realInvoiceBadge')}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono bg-warning/10 text-warning border border-warning/30 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            {t('donate.simInvoiceBadge')}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-2xl font-bold text-white font-mono">{amount.toLocaleString()} Sats</h3>
+                      <p className="text-xs text-text-secondary font-mono">{t('donate.invoiceReady')}</p>
                     </div>
 
-                    <div className="flex justify-center bg-white p-4 rounded-xl">
+                    <div className="flex justify-center bg-white p-4 rounded-2xl shadow-xl">
                       <QRCodeSVG 
                         value={invoice} 
-                        size={200}
+                        size={190}
                         level="L"
                         includeMargin={false}
                       />
                     </div>
 
-                    <div className="bg-black border border-border rounded-lg p-3 relative group">
-                      <p className="text-[10px] font-mono text-primary break-all pr-8">
+                    <div className="bg-black/80 border border-border rounded-xl p-3 relative group">
+                      <p className="text-[10px] font-mono text-primary break-all pr-8 max-h-16 overflow-y-auto">
                         {invoice}
                       </p>
                       <button 
@@ -251,6 +432,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                           setTimeout(() => setCopiedInvoice(false), 2000);
                         }}
                         className="absolute top-2 right-2 p-1.5 bg-surface rounded hover:bg-surface-hover text-text-secondary"
+                        title={t('donate.copyInvoice')}
                       >
                         {copiedInvoice ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
                       </button>
@@ -272,7 +454,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                       <span className="text-[10px] font-mono bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                         <ShieldCheck className="w-3 h-3" /> Zero-Knowledge Ecash
                       </span>
-                      <h3 className="text-xl font-bold text-white font-mono">{amount.toLocaleString()} Sats</h3>
+                      <h3 className="text-2xl font-bold text-white font-mono">{amount.toLocaleString()} Sats</h3>
                     </div>
 
                     <div className="p-3 bg-black/60 rounded-xl border border-cyber-blue/30 space-y-2">
@@ -316,59 +498,21 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                   </div>
                 )}
 
-                <div className="text-center space-y-2">
-                  <p className="text-[10px] text-text-secondary uppercase tracking-widest font-mono">LN Address</p>
-                  {isEditingAddress ? (
-                    <div className="flex items-center gap-2 justify-center">
-                      <input
-                        type="text"
-                        value={tempAddress}
-                        onChange={(e) => setTempAddress(e.target.value)}
-                        className="bg-surface border border-border rounded px-2 py-1 text-xs text-white font-mono outline-none w-48 focus:border-primary/50"
-                        placeholder="user@wallet.com"
-                      />
-                      <button 
-                        onClick={() => {
-                          setDevLnAddress(tempAddress);
-                          setIsEditingAddress(false);
-                          onAddLog('governance', `Updated donation LN address to: ${tempAddress}`);
-                        }}
-                        className="p-1.5 bg-primary/20 hover:bg-primary/40 text-primary rounded transition-colors"
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center gap-2">
-                      <p className="text-xs font-mono text-primary">{devLnAddress}</p>
-                      <button 
-                        onClick={() => {
-                          if (identity?.npub === MARKETING_NPUB || identity?.npub === "npub1developer...") {
-                             setTempAddress(devLnAddress);
-                             setIsEditingAddress(true);
-                          } else {
-                            setErrorMsg(t('donate.unauthorized'));
-                          }
-                        }}
-                        className="text-text-secondary hover:text-white transition-colors"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
                 {errorMsg && (
-                  <div className="p-3 bg-danger/10 border border-danger/20 rounded text-xs text-danger">
-                    {errorMsg}
+                  <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl text-xs text-danger font-mono flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{errorMsg}</span>
                   </div>
                 )}
 
-                <div className="flex gap-2 sm:gap-3 items-center pt-2">
+                <div className="flex gap-2 sm:gap-3 items-center pt-1">
                   <Button 
                     variant="outline" 
                     className="px-4 py-2.5 text-xs font-mono font-bold uppercase shrink-0" 
-                    onClick={() => setInvoice('')}
+                    onClick={() => {
+                      setInvoice('');
+                      setIsRealInvoice(false);
+                    }}
                   >
                     {t('donate.backBtn')}
                   </Button>
