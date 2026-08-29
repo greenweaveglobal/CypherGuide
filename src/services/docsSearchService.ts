@@ -43,8 +43,8 @@ const RFC_KNOWLEDGE_BASE: Record<string, { vi: string; en: string }> = {
     en: "According to **RFC-0011 (Financialization Boundary Principle)**, any behavior must pass 3 tests before generating proofs, reputation, or fee effects: 1. Verifiability Test, 2. Protocol-Purpose Test, and 3. Original-Meaning Test."
   },
   nip46: {
-    vi: "Theo **RFC-0003 Phụ lục (Addendum 2026-08-26 - Mobile signing gap / NIP-46)**: Trên trình duyệt di động hiện thiếu hỗ trợ NIP-07 (extension), dẫn tới nguy cơ người dùng phải dán NSEC trực tiếp. Dự án ghi nhận hướng đi đúng là hỗ trợ NIP-46 (remote signer / bunker như Amber, nsec.app) để ký giao dịch từ xa mà không làm lộ NSEC thô.",
-    en: "According to **RFC-0003 Addendum (2026-08-26 - Mobile signing gap / NIP-46)**: Mobile browsers lack NIP-07 extension support, risking users pasting raw NSEC. The recognized path forward is implementing NIP-46 (remote signers / bunkers like Amber or nsec.app) to sign remotely without exposing raw NSEC."
+    vi: "Theo **RFC-0003 Phụ lục (Addendum 2026-08-26 & Cập nhật 2026-08-28)**: Trình duyệt di động hệ thống (Chrome/Safari) thiếu NIP-07 extension, nhưng **trình duyệt tích hợp trong các app ví Nostr (như Amethyst)** đã tự động tiêm `window.nostr` cho phép dùng NIP-07 trực tiếp trên di động không cần dán NSEC. Đối với trình duyệt thông thường, hướng đi dài hạn vẫn là hỗ trợ NIP-46 (remote signer / bunker như Amber, nsec.app).",
+    en: "According to **RFC-0003 Addendum (2026-08-26 & 2026-08-28 Update)**: Standard mobile browsers lack NIP-07, but **built-in in-app browsers inside mobile Nostr wallets (like Amethyst)** inject `window.nostr`, allowing full NIP-07 signing directly on mobile without raw NSEC. For standard browsers, the long-term roadmap remains NIP-46 (remote signers / bunkers like Amber, nsec.app)."
   }
 };
 

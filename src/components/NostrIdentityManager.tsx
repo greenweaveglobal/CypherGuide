@@ -24,6 +24,14 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const bookings = useAppStore((state) => state.bookings);
 
   const [step, setStep] = useState<'connect' | 'generate' | 'backup' | 'verify' | 'ready'>(identity ? 'ready' : 'connect');
+
+  React.useEffect(() => {
+    if (identity) {
+      setStep('ready');
+    } else {
+      setStep('connect');
+    }
+  }, [identity]);
   
   // Generation states
   const [name, setName] = useState('');
@@ -94,6 +102,9 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const handleVerify = () => {
     setStatusMsg(null);
     if (tempIdentity && verifyNsec === tempIdentity.nsec) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('nip07_explicitly_logged_out');
+      }
       onIdentityChange(tempIdentity);
       onAddLog('relay', t('sysLogs.createdKeys', { name: tempIdentity.name }));
       setStep('ready');
@@ -119,6 +130,9 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
         pubKeyHex: pk, 
         privKeyHex: Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('')
       };
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('nip07_explicitly_logged_out');
+      }
       onIdentityChange(imported);
       onAddLog('relay', t('sysLogs.importedSecretKey', { npub: npub.slice(0, 16) }));
       setStep('ready');
@@ -130,6 +144,9 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const handleNip07Login = async () => {
     setStatusMsg(null);
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('nip07_explicitly_logged_out');
+      }
       const nip07Id = await loginWithNip07();
       onIdentityChange(nip07Id);
       onAddLog('relay', t('sysLogs.connectedNip07', { npub: nip07Id.npub.slice(0, 16) }));
@@ -141,6 +158,9 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
 
   const handleDisconnect = () => {
     if (window.confirm(t('identity.confirmLogout'))) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('nip07_explicitly_logged_out', 'true');
+      }
       onAddLog('relay', t('sysLogs.loggedOut'));
       onIdentityChange(null);
       setStep('connect');

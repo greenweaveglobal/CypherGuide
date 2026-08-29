@@ -179,3 +179,28 @@ close this gap, consistent with the "User Ownership" principle already stated in
 RFC-0003. No concrete timeline exists yet — this addendum exists solely to record that the
 issue was raised publicly by the community (Nostr discussion, 2026-08-26) so it doesn't
 get lost in a reply that scrolls away.
+
+## Update (2026-08-28): NIP-07 works on mobile via in-app built-in browsers in Nostr wallet apps
+
+**Context:** The 2026-08-26 Addendum noted that "NIP-07 (browser extension) doesn't work in
+mobile browsers" — while this holds true for default system browsers (mobile Chrome/Safari),
+**an important practical case was omitted**.
+
+**Discovery:** Many mobile Nostr wallet applications (such as Amethyst) come with their
+own **built-in in-app browser** (distinct from the system browser). When a user opens
+`cypherguide.org` directly within this in-app browser, the host app acts as the "extension"
+— automatically injecting `window.nostr` into the webpage. This allows NIP-07 to function
+**completely** on mobile: the login screen bypasses the "Create New / Import NSEC / Connect Extension"
+step, recognizing the logged-in wallet identity directly without pasting NSEC.
+
+**Significance:** This does not eliminate the need for NIP-46 support (which remains necessary
+since not all users open links via in-app browsers instead of default browsers) — but it represents
+an **immediately available supplemental solution** without waiting for NIP-46 implementation.
+UI/guidance should be updated: *"If you are on mobile, try opening CypherGuide through the
+built-in browser in your Nostr wallet app (e.g., Amethyst) to use NIP-07 immediately — if unavailable,
+use NSEC temporarily while NIP-46 is in development."*
+
+**Source credit:** Discovered through real-world community experience (2026-08-28), rather than
+official Amethyst documentation — further verification is needed to determine if this behavior is
+consistent across other Nostr mobile apps (Primal, Damus...) or unique to Amethyst.
+

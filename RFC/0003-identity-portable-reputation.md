@@ -175,3 +175,28 @@ hướng đúng để đóng khoảng trống này, phù hợp với chính nguy
 nêu trong RFC-0003. Chưa có timeline cụ thể — addendum này chỉ để ghi nhận vấn đề đã
 được cộng đồng nêu ra công khai (thảo luận trên Nostr, 26/08/2026) và tránh nó bị quên
 lãng trong một reply rồi trôi mất.
+
+## Cập nhật (2026-08-28): NIP-07 hoạt động trên di động qua trình duyệt tích hợp trong app ví Nostr
+
+**Bối cảnh:** Addendum ngày 2026-08-26 ghi rằng "NIP-07 (browser extension) không hoạt động
+trên trình duyệt di động" — điều này đúng với trình duyệt hệ thống (Chrome/Safari mobile),
+nhưng **cần bổ sung một trường hợp quan trọng đã bị bỏ sót**.
+
+**Phát hiện:** Nhiều app ví Nostr trên di động (ví dụ Amethyst) có sẵn **trình duyệt tích
+hợp riêng trong app** (không phải trình duyệt hệ thống). Khi người dùng mở
+`cypherguide.org` qua đúng trình duyệt tích hợp đó, chính ứng dụng ví đóng vai trò
+"extension" — tự tiêm `window.nostr` vào trang, cho phép NIP-07 hoạt động **đầy đủ** trên
+di động: màn hình đăng nhập bỏ qua bước "Tạo mới / Nhập NSEC / Kết nối Extension", nhận
+diện thẳng danh tính đã đăng nhập sẵn trong ví, không cần dán NSEC.
+
+**Ý nghĩa:** Đây không thay thế nhu cầu hỗ trợ NIP-46 (vẫn cần, vì không phải ai cũng biết
+mở qua trình duyệt tích hợp thay vì trình duyệt hệ thống mặc định) — nhưng là một **giải
+pháp bổ sung có sẵn ngay bây giờ**, không cần chờ NIP-46 hoàn thiện. Nên cập nhật UI/hướng
+dẫn: *"Nếu đang dùng di động, thử mở CypherGuide qua trình duyệt tích hợp trong ví Nostr
+của bạn (ví dụ Amethyst) để dùng NIP-07 ngay — nếu không có, dùng NSEC tạm trong lúc chờ
+NIP-46."*
+
+**Ghi nhận nguồn:** Phát hiện qua trải nghiệm thực tế của cộng đồng (2026-08-28), không
+phải từ tài liệu kỹ thuật chính thức của Amethyst — cần xác minh thêm liệu hành vi này có
+nhất quán trên các app ví Nostr khác (Primal, Damus...) hay chỉ riêng Amethyst.
+
