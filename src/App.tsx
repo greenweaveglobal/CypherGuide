@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, Terminal } from 'lucide-react';
+import { HelpCircle, Terminal, AlertTriangle, Trash2, X } from 'lucide-react';
 import { Listing, Booking, Proposal, Payout } from './types';
 
 import NostrIdentityManager from './components/NostrIdentityManager';
@@ -35,6 +35,7 @@ export default function App() {
 
   const [selectedListingForBooking, setSelectedListingForBooking] = useState<Listing | null>(null);
   const [activeTab, setActiveTab] = useState<'lodgings' | 'governance' | 'identity' | 'trips' | 'messages' | 'mesh' | 'guide' | 'host'>('guide');
+  const [showResetModal, setShowResetModal] = useState(false);
 
   const handleTabChange = (tab: any) => {
     setSelectedListingForBooking(null);
@@ -156,11 +157,15 @@ export default function App() {
   };
 
   const handleResetData = () => {
-    if (confirm(t('logs.resetConfirm'))) {
+    setShowResetModal(true);
+  };
+
+  const handleConfirmReset = () => {
+    if (typeof window !== 'undefined') {
       localStorage.clear();
-      resetStore();
-      window.location.reload();
     }
+    resetStore();
+    window.location.reload();
   };
 
   return (
@@ -303,7 +308,53 @@ export default function App() {
         </div>
       </div>
 
-      
+      {/* In-App Reset Confirmation Modal */}
+      <AnimatePresence>
+        {showResetModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-surface border border-rose-500/40 rounded-2xl p-6 shadow-2xl font-mono space-y-4"
+            >
+              <div className="flex items-start justify-between gap-2 border-b border-border/40 pb-3">
+                <div className="flex items-center gap-2 text-rose-400">
+                  <AlertTriangle className="w-5 h-5 shrink-0" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    {t('logs.clearLocalData')}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setShowResetModal(false)}
+                  className="text-text-secondary hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
+                <p>{t('logs.resetConfirm')}</p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                <button
+                  onClick={handleConfirmReset}
+                  className="flex-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-all"
+                >
+                  <Trash2 className="w-4 h-4 shrink-0" /> {t('logs.clearLocalData')}
+                </button>
+                <button
+                  onClick={() => setShowResetModal(false)}
+                  className="flex-1 bg-surface-active hover:bg-surface-active/80 text-text-secondary hover:text-white border border-border py-2.5 px-4 rounded-xl text-xs flex items-center justify-center transition-all"
+                >
+                  {t('identity.cancelBtn')}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 }

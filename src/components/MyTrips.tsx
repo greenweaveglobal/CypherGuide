@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { Compass, Calendar, History, Shield, PenTool, CheckCircle2, Star } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Compass, Calendar, History, Shield, PenTool, CheckCircle2, Star, AlertCircle, X } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Booking, Listing, NostrIdentity, Review } from '../types';
 import { signMessage, sha256 } from '../utils/crypto';
@@ -23,6 +23,7 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
   const [reviewingBookingId, setReviewingBookingId] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
+  const [checkOutBooking, setCheckOutBooking] = useState<Booking | null>(null);
 
   if (!identity) {
     return (
@@ -38,23 +39,22 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
   const activeTrips = myBookings.filter(b => b.status === 'paid' || b.status === 'checked_in');
   const pastTrips = myBookings.filter(b => b.status === 'checked_out' || b.status === 'expired');
 
-  const handleCheckOut = async (booking: Booking) => {
-    if (confirm(t('myTrips.confirmCheckOut', { title: booking.listingTitle }))) {
-      const posRecord = await createProofOfStay(
-        booking.id,
-        identity,
-        booking.hostNpub || identity.npub,
-        Date.parse(booking.startDate) || Date.now() - 86400000,
-        Date.now()
-      );
-      
-      const proofHash = `${posRecord.proofHash.slice(0, 8)}...${posRecord.proofHash.slice(-8)}`;
-      
-      onUpdateBookingStatus(booking.id, 'checked_out', proofHash);
-      onAddLog('lock', t('myTrips.logCheckOut', { title: booking.listingTitle }));
-      onAddLog('lightning', t('myTrips.logRefund', { sats: (Math.floor(booking.totalPriceSats * 0.10)).toLocaleString() }));
-      onAddLog('relay', t('myTrips.logProof', { hash: proofHash }), posRecord.proofHash);
-    }
+  const executeCheckOut = async (booking: Booking) => {
+    const posRecord = await createProofOfStay(
+      booking.id,
+      identity,
+      booking.hostNpub || identity.npub,
+      Date.parse(booking.startDate) || Date.now() - 86400000,
+      Date.now()
+    );
+    
+    const proofHash = `${posRecord.proofHash.slice(0, 8)}...${posRecord.proofHash.slice(-8)}`;
+    
+    onUpdateBookingStatus(booking.id, 'checked_out', proofHash);
+    onAddLog('lock', t('myTrips.logCheckOut', { title: booking.listingTitle }));
+    onAddLog('lightning', t('myTrips.logRefund', { sats: (Math.floor(booking.totalPriceSats * 0.10)).toLocaleString() }));
+    onAddLog('relay', t('myTrips.logProof', { hash: proofHash }), posRecord.proofHash);
+    setCheckOutBooking(null);
   };
 
   const handleSubmitReview = async (e: React.FormEvent, booking: Booking) => {
@@ -126,7 +126,7 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
                     <Button
                       fullWidth
                       variant="danger"
-                      onClick={() => handleCheckOut(trip)}
+                      onClick={() => setCheckOutBooking(trip)}
                     >
                       {t('myTrips.checkOutBtn')}
                     </Button>
@@ -254,6 +254,62 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
           </div>
         )}
       </div>
+
+      {/* In-App Check Out Confirmation Modal */}
+      <AnimatePresence>
+        {checkOutBooking && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-surface border border-rose-500/40 rounded-2xl p-6 shadow-2xl font-mono space-y-4"
+            >
+              <div className="flex items-start justify-between gap-2 border-b border-border/40 pb-3">
+                <div className="flex items-center gap-2 text-rose-400">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    {t('myTrips.checkOutBtn')}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setCheckOutBooking(null)}
+                  className="text-text-secondary hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
+                <p>{t('myTrips.confirmCheckOut', { title: checkOutBooking.listingTitle })}</p>
+                <div className="p-3 bg-black/40 border border-border/30 rounded-xl space-y-1 text-text-primary text-[11px]">
+                  <p className="text-cyber-green font-semibold">⚡ {t('myTrips.logRefund', { sats: (Math.floor(checkOutBooking.totalPriceSats * 0.10)).toLocaleString() })}</p>
+                  <p className="text-cyber-blue">📜 {t('myTrips.proofOfStayBadge')}</p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                <Button 
+                  fullWidth 
+                  variant="danger" 
+                  onClick={() => executeCheckOut(checkOutBooking)}
+                  className="gap-2 text-xs py-2.5 font-bold justify-center"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" /> {t('myTrips.checkOutBtn')}
+                </Button>
+                <Button 
+                  fullWidth 
+                  variant="outline" 
+                  onClick={() => setCheckOutBooking(null)}
+                  className="text-xs text-text-secondary hover:text-white py-2.5 justify-center"
+                >
+                  {t('myTrips.cancelBtn')}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

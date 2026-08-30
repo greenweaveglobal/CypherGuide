@@ -343,6 +343,15 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: '__mesh_store',
+      onRehydrateStorage: () => (state) => {
+        if (typeof window !== 'undefined') {
+          if (localStorage.getItem('nip07_explicitly_logged_out') === 'true') {
+            if (state) {
+              state.identity = null;
+            }
+          }
+        }
+      },
       partialize: (state) => {
         // Safe persistence: Keep npub and public keys, but never store private keys in localStorage
         const safeIdentity = state.identity ? {

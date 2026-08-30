@@ -79,7 +79,7 @@ export default function DirectMessages({ identity, listings, bookings, messages,
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      alert(t('directMessages.imgTooLarge'));
+      setSendError(t('directMessages.imgTooLarge'));
       return;
     }
     const reader = new FileReader();
@@ -94,7 +94,7 @@ export default function DirectMessages({ identity, listings, bookings, messages,
   const handleUnlockSessionNsec = (e: React.FormEvent) => {
     e.preventDefault();
     if (!sessionNsec.startsWith('nsec1')) {
-      alert(t('directMessages.invalidNsecFormat'));
+      setSendError(t('directMessages.invalidNsecFormat'));
       return;
     }
     setShowNsecUnlockModal(false);

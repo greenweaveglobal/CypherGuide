@@ -101,6 +101,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
   const [relays, setRelays] = useState<RelayNode[]>(DEFAULT_RELAYS);
   const [isScanning, setIsScanning] = useState(false);
   const [customUrl, setCustomUrl] = useState('');
+  const [addRelayError, setAddRelayError] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(true);
   const [activeGuideTab, setActiveGuideTab] = useState<'overview' | 'relays' | 'architecture' | 'privacy'>('overview');
 
@@ -203,6 +204,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
 
   const handleAddCustomRelay = (e: React.FormEvent) => {
     e.preventDefault();
+    setAddRelayError(null);
     if (!customUrl.trim()) return;
 
     let formattedUrl = customUrl.trim();
@@ -211,7 +213,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
     }
 
     if (relays.some(r => r.url.toLowerCase() === formattedUrl.toLowerCase())) {
-      alert(t('mesh.relayExists'));
+      setAddRelayError(t('mesh.relayExists'));
       return;
     }
 
@@ -228,6 +230,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
 
     setRelays(prev => [newRelay, ...prev]);
     setCustomUrl('');
+    setAddRelayError(null);
     onAddLog('relay', t('mesh.logAddedRelay', { url: formattedUrl }));
     
     // Test the newly added relay
@@ -474,13 +477,16 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
 
       {/* Add Custom Relay Form */}
       <Card variant="glass" className="p-1">
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-2">
           <form onSubmit={handleAddCustomRelay} className="flex flex-col sm:flex-row items-center gap-3">
             <div className="flex-1 w-full relative">
               <input
                 type="text"
                 value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
+                onChange={(e) => {
+                  setCustomUrl(e.target.value);
+                  if (addRelayError) setAddRelayError(null);
+                }}
                 placeholder={t('mesh.addRelayPlaceholder')}
                 className="w-full bg-surface border border-border focus:border-primary rounded-xl px-4 py-2 text-xs font-mono text-white placeholder:text-text-disabled outline-none transition-all"
               />
@@ -495,6 +501,9 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
               {t('mesh.addRelayBtn')}
             </Button>
           </form>
+          {addRelayError && (
+            <p className="text-[11px] text-rose-400 font-mono pl-1">{addRelayError}</p>
+          )}
         </CardContent>
       </Card>
 

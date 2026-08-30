@@ -46,6 +46,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const [copiedRef, setCopiedRef] = useState(false);
   const [copiedKeys, setCopiedKeys] = useState(false);
   const [showExtModal, setShowExtModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleSyncProfile = async () => {
     if (!identity) return;
@@ -156,18 +157,21 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
     }
   };
 
-  const handleDisconnect = () => {
-    if (window.confirm(t('identity.confirmLogout'))) {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('nip07_explicitly_logged_out', 'true');
-      }
-      onAddLog('relay', t('sysLogs.loggedOut'));
-      onIdentityChange(null);
-      setStep('connect');
-      setTempIdentity(null);
-      setVerifyNsec('');
-      setImportMode(false);
+  const handleDisconnectClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleConfirmDisconnect = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nip07_explicitly_logged_out', 'true');
     }
+    onAddLog('relay', t('sysLogs.loggedOut'));
+    onIdentityChange(null);
+    setStep('connect');
+    setTempIdentity(null);
+    setVerifyNsec('');
+    setImportMode(false);
+    setShowLogoutModal(false);
   };
 
   return (
@@ -440,7 +444,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                       )}
                     </Button>
                     <Button
-                      onClick={handleDisconnect}
+                      onClick={handleDisconnectClick}
                       variant="danger"
                       className="flex-1 gap-2 text-xs py-2.5"
                     >
@@ -971,6 +975,61 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                   className="text-xs text-text-secondary"
                 >
                   {t('identity.back')}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* In-App Logout Confirmation Modal (Zero reliance on window.confirm for WebView compatibility) */}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-surface border border-rose-500/40 rounded-2xl p-6 shadow-2xl font-mono space-y-4"
+            >
+              <div className="flex items-start justify-between gap-2 border-b border-border/40 pb-3">
+                <div className="flex items-center gap-2 text-rose-400">
+                  <AlertTriangle className="w-5 h-5 shrink-0" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    {t('identity.confirmLogoutTitle')}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setShowLogoutModal(false)}
+                  className="text-text-secondary hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
+                <p>{t('identity.confirmLogoutDesc')}</p>
+                <div className="p-3 bg-black/40 border border-rose-500/20 rounded-xl space-y-1.5 text-text-primary text-[11px]">
+                  <p className="text-rose-400 font-medium">⚠️ {t('identity.confirmLogout')}</p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                <Button 
+                  fullWidth 
+                  variant="danger" 
+                  onClick={handleConfirmDisconnect}
+                  className="gap-2 text-xs py-2.5 font-bold justify-center"
+                >
+                  <Trash2 className="w-4 h-4 shrink-0" /> {t('identity.confirmLogoutBtn')}
+                </Button>
+                <Button 
+                  fullWidth 
+                  variant="outline" 
+                  onClick={() => setShowLogoutModal(false)}
+                  className="text-xs text-text-secondary hover:text-white py-2.5 justify-center"
+                >
+                  {t('identity.cancelBtn')}
                 </Button>
               </div>
             </motion.div>
