@@ -2,6 +2,9 @@
 
 **Giao Thức Lưu Trú & Cộng Đồng Phi Tập Trung (Sovereign P2P Protocol)**
 
+🌐 **Trang Web Chính Thức / Ứng Dụng Trực Tiếp**: [https://cypherguide.org](https://cypherguide.org)  
+📄 **Tài Liệu & Tiêu Chuẩn RFC**: [https://cypherguide.org/vi](https://cypherguide.org/vi)
+
 > *Hệ thống đặt phòng và định danh phi lưu ký, chống kiểm duyệt xây dựng trên nền tảng Nostr (NIP-01/05/47), mạng lưới Bitcoin Lightning và cơ chế quản trị mật mã tự trị.*
 
 ---

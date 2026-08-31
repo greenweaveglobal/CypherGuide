@@ -2,6 +2,9 @@
 
 **Sovereign Peer-to-Peer Lodging & Community Protocol**
 
+🌐 **Official Website / Live App**: [https://cypherguide.org](https://cypherguide.org)  
+📄 **Documentation & RFCs**: [https://cypherguide.org/?tab=guide](https://cypherguide.org/?tab=guide)
+
 > *A non-custodial, censorship-resistant booking and identity protocol built on Nostr (NIP-01/05/47), Bitcoin Lightning Network, and autonomous cryptographic governance.*
 
 ---
