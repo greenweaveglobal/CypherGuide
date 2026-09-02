@@ -77,7 +77,7 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      devLnAddress: 'solidsleep11@walletofsatoshi.com',
+      devLnAddress: 'cypherguide@breez.tips',
       setDevLnAddress: (address) => set({ devLnAddress: address }),
 
       fetchProtocolConfig: async () => {

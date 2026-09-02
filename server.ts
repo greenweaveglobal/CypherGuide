@@ -220,7 +220,7 @@ ${docsContent}`;
       console.error("Error reading protocol config:", e);
     }
     return {
-      devLnAddress: "solidsleep11@walletofsatoshi.com",
+      devLnAddress: "cypherguide@breez.tips",
       updatedAt: Date.now(),
       updatedBy: "system"
     };
