@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, CookingPot, Sparkles, Navigation, Home, Globe } from 'lucide-react';
+import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, CookingPot, Sparkles, Navigation, Home, Globe, Github } from 'lucide-react';
 import { NostrIdentity } from '../types';
 import DonateModal from './DonateModal';
 import OnboardingTourModal from './OnboardingTourModal';
@@ -162,12 +162,35 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
             <CookingPot className="w-5 h-5 text-warning" />
             {t('layout.supportDev')}
           </button>
+
+          <div className="mt-2.5 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] font-mono">
+            <a
+              href="https://github.com/greenweaveglobal/cypherguide"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-text-secondary hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-surface-hover"
+              title={t('layout.githubLabel')}
+            >
+              <Github className="w-3.5 h-3.5" />
+              <span>GitHub</span>
+            </a>
+            <a
+              href="https://njump.me/npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 transition-colors px-2 py-1 rounded-lg hover:bg-purple-500/10"
+              title={t('layout.nostrLabel')}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+              <span>Nostr</span>
+            </a>
+          </div>
         </div>
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b border-border bg-surface/90 backdrop-blur-md z-50 flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b border-border bg-surface/90 backdrop-blur-md z-50 flex items-center justify-between px-3 sm:px-4">
+        <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-lg overflow-hidden border border-primary/30 shadow-md shrink-0">
             <img 
               src={cypherLogo} 
@@ -180,10 +203,22 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
           <h1 className="font-bold font-mono tracking-wider text-xs sm:text-sm truncate">CYPHER GUIDE</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* GitHub Source Link (Mobile) */}
+          <a
+            href="https://github.com/greenweaveglobal/cypherguide"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center p-2 bg-surface-hover hover:bg-surface-active text-text-secondary hover:text-white border border-border/80 rounded-xl text-xs font-mono font-bold transition-all group active:scale-95 shadow-sm"
+            title={t('layout.githubLabel')}
+            aria-label={t('layout.githubLabel')}
+          >
+            <Github className="w-3.5 h-3.5 text-text-secondary group-hover:text-white transition-colors" />
+          </a>
+
           <button
             onClick={toggleLanguage}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-surface-hover hover:bg-primary/20 text-text-primary border border-border/60 rounded-xl text-xs font-mono font-bold transition-all"
+            className="flex items-center gap-1 px-2 py-1.5 bg-surface-hover hover:bg-primary/20 text-text-primary border border-border/60 rounded-xl text-xs font-mono font-bold transition-all"
             title={t('layout.language')}
           >
             <Globe className="w-3.5 h-3.5 text-primary" />
@@ -192,7 +227,7 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
 
           <button
             onClick={() => setShowDonate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-warning/10 hover:bg-warning/20 text-warning border border-warning/40 rounded-xl text-xs font-mono font-bold transition-all shadow-[0_0_12px_rgba(245,158,11,0.25)] active:scale-95"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-warning/10 hover:bg-warning/20 text-warning border border-warning/40 rounded-xl text-xs font-mono font-bold transition-all shadow-[0_0_12px_rgba(245,158,11,0.25)] active:scale-95"
           >
             <CookingPot className="w-4 h-4 text-warning animate-pulse" />
             <span>{t('layout.donateShort')}</span>
@@ -200,7 +235,7 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
 
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 text-text-secondary hover:text-white"
+            className="p-1.5 text-text-secondary hover:text-white"
             aria-label={t('layout.toggleMenu')}
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -247,6 +282,27 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
                 </button>
               );
             })}
+
+            <div className="pt-3 border-t border-border/40 grid grid-cols-2 gap-2">
+              <a
+                href="https://github.com/greenweaveglobal/cypherguide"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-surface-hover text-text-secondary hover:text-white border border-border/60 rounded-xl text-xs font-mono font-bold transition-all"
+              >
+                <Github className="w-4 h-4" />
+                <span>GitHub</span>
+              </a>
+              <a
+                href="https://njump.me/npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-purple-500/10 text-purple-300 hover:text-purple-200 border border-purple-500/30 rounded-xl text-xs font-mono font-bold transition-all"
+              >
+                <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                <span>Nostr</span>
+              </a>
+            </div>
           </div>
         </div>
       )}
@@ -259,7 +315,33 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
             <Zap className="w-4 h-4 text-primary" />
             <span>{t('layout.protocolActive')}</span>
           </div>
-          <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2.5 text-xs font-mono">
+            {/* GitHub Source Link Button (Desktop) */}
+            <a
+              href="https://github.com/greenweaveglobal/cypherguide"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-hover hover:bg-surface-active text-text-secondary hover:text-white border border-border/80 hover:border-primary/50 rounded-xl font-bold transition-all shadow-sm hover:shadow-[0_0_12px_rgba(255,255,255,0.1)] active:scale-95 group"
+              title={t('layout.githubLabel')}
+              aria-label={t('layout.githubLabel')}
+            >
+              <Github className="w-4 h-4 text-text-secondary group-hover:text-white transition-colors" />
+              <span className="hidden lg:inline">GitHub</span>
+            </a>
+
+            {/* Nostr Official Account Link */}
+            <a
+              href="https://njump.me/npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/60 rounded-xl font-bold transition-all shadow-sm active:scale-95 group"
+              title={t('layout.nostrLabel')}
+              aria-label={t('layout.nostrLabel')}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 group-hover:animate-ping" />
+              <span className="hidden lg:inline">Nostr</span>
+            </a>
+
             {/* Language Switcher Button */}
             <button
               onClick={toggleLanguage}
@@ -267,25 +349,26 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
               title={t('layout.language')}
             >
               <Globe className="w-4 h-4 text-primary" />
-              <span className="uppercase text-xs font-mono tracking-wider">{locale === 'vi' ? 'VI (Tiếng Việt)' : 'EN (English)'}</span>
+              <span className="uppercase text-xs font-mono tracking-wider">{locale === 'vi' ? 'VI' : 'EN'}</span>
             </button>
 
             <button
               onClick={() => setShowDonate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/50 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-3.5 py-2 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/50 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95"
             >
-              <CookingPot className="w-5 h-5 text-warning animate-pulse" />
+              <CookingPot className="w-4 h-4 text-warning animate-pulse" />
               <span>{t('layout.supportDev')}</span>
             </button>
 
             <button
               onClick={() => setShowTour(true)}
-              className="flex items-center gap-2 px-3.5 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold transition-all shadow-sm hover:shadow-[0_0_15px_rgba(var(--primary),0.3)]"
+              className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold transition-all shadow-sm hover:shadow-[0_0_15px_rgba(var(--primary),0.3)]"
             >
               <Navigation className="w-4 h-4 text-primary" />
-              <span>{t('layout.tourExplore')}</span>
+              <span className="hidden xl:inline">{t('layout.tourExplore')}</span>
+              <span className="xl:hidden">{t('layout.start')}</span>
             </button>
-            <span className="text-text-secondary pl-2 border-l border-border/40">P2P:</span>
+            <span className="text-text-secondary pl-1.5 border-l border-border/40">P2P:</span>
             <span className="text-primary bg-primary/10 px-2 py-1 rounded border border-primary/20 font-bold">{t('layout.operational')}</span>
           </div>
         </header>

@@ -14,6 +14,9 @@ function loadProjectDocs(): string {
     "CONTRIBUTING.md",
     "CONTRIBUTING.vi.md",
     "CONTRIBUTING.en.md",
+    "HOST_LEGAL_REALITY.md",
+    "HOST_LEGAL_REALITY.vi.md",
+    "HOST_LEGAL_REALITY.en.md",
     "HANDOFF_NOTES.md"
   ];
 

@@ -42,6 +42,10 @@ const RFC_KNOWLEDGE_BASE: Record<string, { vi: string; en: string }> = {
     vi: "Theo **RFC-0011 (Ranh Giới Tài Chính Hóa - Financialization Boundary Principle)**, mọi hành vi trước khi sinh proof/uy tín/phí phải vượt qua 3 bài kiểm tra: 1. Khả năng xác minh khách quan (Verifiability), 2. Phục vụ tính toàn vẹn giao thức (Protocol-purpose), 3. Tương thích ý nghĩa gốc phi giao dịch (Original-meaning).",
     en: "According to **RFC-0011 (Financialization Boundary Principle)**, any behavior must pass 3 tests before generating proofs, reputation, or fee effects: 1. Verifiability Test, 2. Protocol-Purpose Test, and 3. Original-Meaning Test."
   },
+  sovereignty: {
+    vi: "Theo **RFC-0012 (Ranh Giới Chủ Quyền - Sovereignty Boundary Principle)** và tài liệu `HOST_LEGAL_REALITY.md`: Thanh toán bằng Lightning/Cashu chỉ giải quyết tầng công nghệ/thông tin, hoàn toàn KHÔNG miễn trừ host khỏi nghĩa vụ khai báo tạm trú, thuế, giấy phép an ninh trật tự hay PCCC theo chủ quyền pháp lý nước sở tại. Giao thức không đóng vai trò xác minh pháp lý mà cung cấp tài liệu chia sẻ kinh nghiệm thực tế do cộng đồng đóng góp.",
+    en: "According to **RFC-0012 (Sovereignty Boundary Principle)** and `HOST_LEGAL_REALITY.md`: Paying through Lightning/Cashu operates strictly at the digital network layer and does NOT exempt hosts from residency declaration, tax, public order, or fire safety obligations under local national sovereignty. The protocol does not act as a compliance intermediary; rather, it maintains a non-authoritative, community-contributed legal reality reference."
+  },
   nip46: {
     vi: "Theo **RFC-0003 Phụ lục (Addendum 2026-08-26 & Cập nhật 2026-08-28)**: Trình duyệt di động hệ thống (Chrome/Safari) thiếu NIP-07 extension, nhưng **trình duyệt tích hợp trong các app ví Nostr (như Amethyst)** đã tự động tiêm `window.nostr` cho phép dùng NIP-07 trực tiếp trên di động không cần dán NSEC. Đối với trình duyệt thông thường, hướng đi dài hạn vẫn là hỗ trợ NIP-46 (remote signer / bunker như Amber, nsec.app).",
     en: "According to **RFC-0003 Addendum (2026-08-26 & 2026-08-28 Update)**: Standard mobile browsers lack NIP-07, but **built-in in-app browsers inside mobile Nostr wallets (like Amethyst)** inject `window.nostr`, allowing full NIP-07 signing directly on mobile without raw NSEC. For standard browsers, the long-term roadmap remains NIP-46 (remote signers / bunkers like Amber, nsec.app)."
@@ -76,8 +80,11 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
   if (qLower.includes('stillness') || qLower.includes('tĩnh tâm') || qLower.includes('enso') || qLower.includes('nhang') || qLower.includes('rfc-0010')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.stillness.en : RFC_KNOWLEDGE_BASE.stillness.vi, success: true };
   }
-  if (qLower.includes('boundary') || qLower.includes('financialization') || qLower.includes('tài chính hóa') || qLower.includes('ranh giới') || qLower.includes('rfc-0011')) {
+  if (qLower.includes('boundary') || qLower.includes('financialization') || qLower.includes('tài chính hóa') || qLower.includes('rfc-0011')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.boundary.en : RFC_KNOWLEDGE_BASE.boundary.vi, success: true };
+  }
+  if (qLower.includes('sovereignty') || qLower.includes('chủ quyền') || qLower.includes('pháp lý') || qLower.includes('legal') || qLower.includes('tạm trú') || qLower.includes('thuế') || qLower.includes('282') || qLower.includes('rfc-0012')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.sovereignty.en : RFC_KNOWLEDGE_BASE.sovereignty.vi, success: true };
   }
   if (qLower.includes('nip-46') || qLower.includes('nip46') || qLower.includes('bunker') || qLower.includes('remote signer') || qLower.includes('amber') || qLower.includes('mobile signing')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.nip46.en : RFC_KNOWLEDGE_BASE.nip46.vi, success: true };

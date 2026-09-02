@@ -25,8 +25,9 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | 0009 | AI Phi Tập Trung Chạy Trên Thiết Bị Ngoại Biên (Decentralized AI on Edge Devices) | Draft (visionary) | `MeshNeighborhood.tsx` (RFC-0007 mở rộng) |
 | 0010 | Nghi Thức Tĩnh Tâm — Vòng Tròn, Nén Nhang, 369 Giây (Zen Stillness Ritual) | Draft | `StillnessRitual.tsx` (mới), `ListingDetail.tsx` |
 | 0011 | Ranh Giới Tài Chính Hóa (Financialization Boundary Principle) | Draft | Không có module riêng — nguyên tắc áp dụng ngược cho 0001, 0002, 0006, 0008, 0010 |
+| 0012 | Ranh Giới Chủ Quyền (Sovereignty Boundary Principle) | Draft | Không có module riêng — nguyên tắc áp dụng cho mọi tương tác Host/Khách & tài liệu pháp lý |
 
-Số RFC tiếp theo: **0012**.
+Số RFC tiếp theo: **0013**.
 
 ## Quy ước đặt tên (đã thống nhất lại)
 

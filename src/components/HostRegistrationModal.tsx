@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle, Scale } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, NostrIdentity, CoOwner } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
@@ -728,6 +728,24 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
               </div>
             );
           })()}
+
+          {/* RFC-0012: Sovereignty Boundary & Legal Notice */}
+          <div className="p-3.5 bg-black/70 border border-cyber-amber/30 rounded-xl space-y-1.5 shadow-md">
+            <div className="flex items-center gap-2 text-cyber-amber">
+              <Scale className="w-4 h-4 shrink-0" />
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wide">
+                {t('hostReg.sovereigntyNoticeTitle')}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-300 font-mono leading-relaxed">
+              {t('hostReg.sovereigntyNoticeDesc')}
+            </p>
+            <div className="pt-1">
+              <span className="text-[9px] text-gray-400 font-mono italic">
+                📖 {t('hostReg.sovereigntyNoticeDocLink')}
+              </span>
+            </div>
+          </div>
 
           <div className="pt-4 border-t border-white/5 flex justify-end gap-3 mt-6">
             <button

@@ -27,7 +27,9 @@
     "block": "BLOCK: 841,202",
     "uptime": "UPTIME: 99.99%",
     "cypherProtocol": "CYPHER_PROTOCOL",
-    "language": "Ngôn ngữ"
+    "language": "Ngôn ngữ",
+    "githubLabel": "Xem mã nguồn trên GitHub",
+    "nostrLabel": "Tài khoản Nostr dự án"
   },
   "tour": {
     "headerTitle": "Hướng Dẫn Sử Dụng Cypher Guide",
@@ -812,7 +814,10 @@
     "kycThresholdLabel": "Ngưỡng Đặt Phòng Bắt Buộc KYC (Sats)",
     "phKycThreshold": "0 = Bắt buộc cho mọi tổng giá trị đặt phòng",
     "kycThresholdHint": "(0 = Bắt buộc KYC cho mọi booking. Nhập số Sats để chỉ bắt buộc KYC khi booking vượt ngưỡng giá trị này).",
-    "errInvalidVerifierNpub": "Mã Verifier npub \"{verifier}\" không hợp lệ (thất bại bech32 checksum). Vui lòng dán đúng định dạng npub1...!"
+    "errInvalidVerifierNpub": "Mã Verifier npub \"{verifier}\" không hợp lệ (thất bại bech32 checksum). Vui lòng dán đúng định dạng npub1...!",
+    "sovereigntyNoticeTitle": "⚖️ Ranh Giới Chủ Quyền & Pháp Lý (RFC-0012)",
+    "sovereigntyNoticeDesc": "Thanh toán qua giao thức không thay đổi nghĩa vụ khai báo lưu trú/thuế tại quốc gia bạn đang vận hành. Vui lòng tự kiểm tra luật địa phương.",
+    "sovereigntyNoticeDocLink": "Thực Tế Pháp Lý Cho Host (HOST_LEGAL_REALITY.md)"
   },
   "booking": {
     "title": "Đặt chỗ Cypherpunk (Lightning)",
