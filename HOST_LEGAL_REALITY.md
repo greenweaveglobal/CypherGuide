@@ -13,8 +13,8 @@ Giao thức CypherGuide giải quyết các bài toán công nghệ phi tập tr
 
 ## 🇻🇳 Việt Nam (Vietnam)
 
-- **Người đóng góp:** Cộng đồng CypherGuide / Nostr Vietnam
-- **Thời điểm cập nhật:** Tháng 03/2026
+- **Nguồn:** Entry khởi tạo (seed) do đội dự án tổng hợp từ văn bản pháp luật công khai (Nghị định 282/2025/NĐ-CP) — CHƯA phải đóng góp từ một host thật đang vận hành tại Việt Nam. Mục này cần một host thật xác nhận hoặc bổ sung kinh nghiệm thực tế trước khi được coi là đã qua cộng đồng kiểm chứng.
+- **Thời điểm soạn:** Tháng 03/2026
 - **Căn cứ pháp lý tham khảo:** Nghị định 282/2025/NĐ-CP (có hiệu lực từ 15/12/2025, thay thế Nghị định 144/2021/NĐ-CP), Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài tại Việt Nam.
 
 ### 1. Nghĩa vụ khai báo tạm trú cho khách nước ngoài

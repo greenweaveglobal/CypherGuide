@@ -13,8 +13,8 @@ The CypherGuide protocol provides decentralized technological solutions (Bitcoin
 
 ## 🇻🇳 Vietnam
 
-- **Contributor:** CypherGuide Community / Nostr Vietnam
-- **Last Updated:** March 2026
+- **Source:** Seed entry compiled by the project team from public legal text (Decree 282/2025/NĐ-CP) — NOT YET a contribution from a real host operating in Vietnam. This entry needs a real host to confirm or add real-world experience before it counts as community-verified.
+- **Compiled:** March 2026
 - **Referenced Regulations:** Decree 282/2025/NĐ-CP (effective Dec 15, 2025, superseding Decree 144/2021/NĐ-CP), Law on Entry, Exit, Transit, and Residence of Foreigners in Vietnam.
 
 ### 1. Temporary Residence Declaration for Foreign Guests
