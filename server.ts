@@ -262,11 +262,9 @@ ${docsContent}`;
         return res.status(400).json({ success: false, error: "Invalid Lightning Address format. Example: user@domain.com" });
       }
 
-      // Check admin authorization
+      // Check admin authorization - only official dev/guardian npub
       const isAuthorized = npub === MARKETING_NPUB || 
-        npub === "npub1developer..." || 
-        npub === "npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6" ||
-        npub?.startsWith("npub1"); // Also allow any signed admin npub
+        npub === "npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6";
 
       if (!isAuthorized) {
         return res.status(403).json({ success: false, error: "Unauthorized: Only official admin/guardians can update network donation wallet." });

@@ -19,6 +19,11 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
   const { t } = useTranslation();
   const { devLnAddress, fetchProtocolConfig, updateDevLnAddress, identity } = useAppStore();
   const MARKETING_NPUB = "npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh";
+  const AUTHORIZED_DEV_NPUBS = [
+    MARKETING_NPUB,
+    "npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6"
+  ];
+  const isAuthorizedDev = Boolean(identity?.npub && AUTHORIZED_DEV_NPUBS.includes(identity.npub));
 
   const [amount, setAmount] = useState<number>(21000);
   const [invoice, setInvoice] = useState('');
@@ -49,6 +54,11 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
   }, [devLnAddress]);
 
   const handleSaveAddress = async () => {
+    if (!isAuthorizedDev) {
+      setErrorMsg(t('donate.unauthorized'));
+      return;
+    }
+
     const cleanAddress = tempAddress.trim().toLowerCase();
     const lnRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
     
@@ -61,7 +71,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
     setErrorMsg('');
     setSuccessMsg('');
 
-    const result = await updateDevLnAddress(cleanAddress, identity?.npub || MARKETING_NPUB);
+    const result = await updateDevLnAddress(cleanAddress, identity?.npub || '');
     setIsSavingAddress(false);
 
     if (result.success) {
@@ -228,19 +238,15 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                   <Globe className="w-3 h-3 text-primary shrink-0" />
                   <span>{t('donate.syncedNetworkNotice')}</span>
                 </div>
-                {!isEditingAddress && (
+                {isAuthorizedDev && !isEditingAddress && (
                   <button 
                     onClick={() => {
-                      if (identity?.npub === MARKETING_NPUB || identity?.npub?.startsWith('npub1') || identity) {
-                         setTempAddress(devLnAddress);
-                         setIsEditingAddress(true);
-                         setErrorMsg('');
-                      } else {
-                        setErrorMsg(t('donate.unauthorized'));
-                      }
+                      setTempAddress(devLnAddress);
+                      setIsEditingAddress(true);
+                      setErrorMsg('');
                     }}
                     className="flex items-center gap-1 text-[11px] font-mono text-text-secondary hover:text-primary transition-colors"
-                    title="Chỉnh sửa ví nhận quyên góp"
+                    title="Chỉnh sửa ví nhận quyên góp (Dành riêng cho Dev/Admin)"
                   >
                     <Edit2 className="w-3 h-3" />
                     <span>{t('donate.editBtn')}</span>
