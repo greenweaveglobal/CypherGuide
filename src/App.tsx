@@ -34,7 +34,7 @@ export default function App() {
   } = useAppStore();
 
   const [selectedListingForBooking, setSelectedListingForBooking] = useState<Listing | null>(null);
-  const [activeTab, setActiveTab] = useState<'lodgings' | 'governance' | 'identity' | 'trips' | 'messages' | 'mesh' | 'guide' | 'host'>('guide');
+  const [activeTab, setActiveTab] = useState<'lodgings' | 'governance' | 'identity' | 'trips' | 'messages' | 'mesh' | 'guide' | 'host'>('lodgings');
   const [showResetModal, setShowResetModal] = useState(false);
 
   const handleTabChange = (tab: any) => {
