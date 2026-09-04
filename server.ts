@@ -220,7 +220,7 @@ ${docsContent}`;
       console.error("Error reading protocol config:", e);
     }
     return {
-      devLnAddress: "cypherguide@breez.tips",
+      devLnAddress: "cypherguide@zaps.lol",
       updatedAt: Date.now(),
       updatedBy: "system"
     };

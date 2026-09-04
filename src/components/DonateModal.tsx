@@ -255,7 +255,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                     value={tempAddress}
                     onChange={(e) => setTempAddress(e.target.value)}
                     className="w-full bg-black/70 border border-primary/50 rounded-lg px-3 py-2 text-xs text-white font-mono outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
-                    placeholder="cypherguide@breez.tips"
+                    placeholder="cypherguide@zaps.lol"
                   />
                   <div className="flex items-center gap-2">
                     <Button 
