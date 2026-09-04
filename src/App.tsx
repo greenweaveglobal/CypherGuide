@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, Terminal, AlertTriangle, Trash2, X } from 'lucide-react';
+import { HelpCircle, Terminal, AlertTriangle, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Listing, Booking, Proposal, Payout } from './types';
 
 import NostrIdentityManager from './components/NostrIdentityManager';
@@ -36,6 +36,7 @@ export default function App() {
   const [selectedListingForBooking, setSelectedListingForBooking] = useState<Listing | null>(null);
   const [activeTab, setActiveTab] = useState<'lodgings' | 'governance' | 'identity' | 'trips' | 'messages' | 'mesh' | 'guide' | 'host'>('lodgings');
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showProtocolLogs, setShowProtocolLogs] = useState(false);
 
   const handleTabChange = (tab: any) => {
     setSelectedListingForBooking(null);
@@ -289,22 +290,61 @@ export default function App() {
 
       </div>
 
-      <div className="border-t border-border bg-background/80 backdrop-blur-md p-4 mt-8">
+      <div className="border-t border-border/70 bg-surface/90 backdrop-blur-md p-3 md:p-4 mt-8 font-mono">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-[10px] md:text-xs font-mono uppercase text-text-secondary">
-              <Terminal className="w-4 h-4 text-primary" />
-              <span className="font-bold">{t('logs.listenerTitle')}</span>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <button
-              onClick={handleResetData}
-              className="text-[9px] font-mono text-text-disabled hover:text-danger border border-transparent hover:border-danger/20 px-2 py-0.5 rounded transition-all"
-              id="reset-local-data-btn"
+              onClick={() => setShowProtocolLogs(!showProtocolLogs)}
+              className="flex items-center gap-2 text-[10px] md:text-xs font-mono uppercase text-text-secondary hover:text-white transition-colors text-left group"
+              id="toggle-protocol-logs-btn"
             >
-              {t('logs.clearLocalData')}
+              <div className="p-1 rounded bg-primary/10 border border-primary/20 text-primary group-hover:bg-primary/20 transition-all">
+                <Terminal className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-bold tracking-wide">{t('logs.listenerTitle')}</span>
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                8/8 Relays
+              </span>
+              <span className="text-[9px] md:text-[10px] text-text-disabled group-hover:text-primary flex items-center gap-1 ml-1 border border-border/60 px-2 py-0.5 rounded-lg bg-surface/60 transition-colors">
+                {showProtocolLogs ? (
+                  <>
+                    <span>{t('logs.hideLogs')}</span>
+                    <ChevronUp className="w-3 h-3" />
+                  </>
+                ) : (
+                  <>
+                    <span>{t('logs.showLogs')}</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </>
+                )}
+              </span>
             </button>
+
+            {showProtocolLogs && (
+              <button
+                onClick={handleResetData}
+                className="text-[9px] font-mono text-text-disabled hover:text-danger border border-transparent hover:border-danger/20 px-2 py-0.5 rounded transition-all ml-auto"
+                id="reset-local-data-btn"
+              >
+                {t('logs.clearLocalData')}
+              </button>
+            )}
           </div>
-          <RelayLogs logs={logs} identity={identity} bookings={bookings} onAddLog={addLog} />
+
+          <AnimatePresence>
+            {showProtocolLogs && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden pt-4 mt-3 border-t border-border/40"
+              >
+                <RelayLogs logs={logs} identity={identity} bookings={bookings} onAddLog={addLog} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

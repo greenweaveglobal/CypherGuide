@@ -173,7 +173,9 @@
   "logs": {
     "listenerTitle": "Giao Thức Lắng Nghe Meshnet & Lightning Log",
     "clearLocalData": "[XÓA TRẮNG DỮ LIỆU LOCAL]",
-    "resetConfirm": "Bạn có chắc chắn muốn khôi phục dữ liệu ban đầu về mặc định?"
+    "resetConfirm": "Bạn có chắc chắn muốn khôi phục dữ liệu ban đầu về mặc định?",
+    "showLogs": "Xem Terminal Log",
+    "hideLogs": "Thu gọn Log"
   },
   "lodging": {
     "searchPlaceholder": "Tìm theo tên hoặc Mesh ID (VD: mesh:10.77)...",

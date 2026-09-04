@@ -173,7 +173,9 @@
   "logs": {
     "listenerTitle": "Meshnet & Lightning Protocol Listener Logs",
     "clearLocalData": "[RESET LOCAL DATA]",
-    "resetConfirm": "Are you sure you want to reset all data back to default?"
+    "resetConfirm": "Are you sure you want to reset all data back to default?",
+    "showLogs": "Show Terminal Log",
+    "hideLogs": "Hide Terminal Log"
   },
   "lodging": {
     "searchPlaceholder": "Search by name or Mesh ID (e.g. mesh:10.77)...",
