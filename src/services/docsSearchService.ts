@@ -49,6 +49,10 @@ const RFC_KNOWLEDGE_BASE: Record<string, { vi: string; en: string }> = {
   nip46: {
     vi: "Theo **RFC-0003 Phụ lục (Addendum 2026-08-26 & Cập nhật 2026-08-28)**: Trình duyệt di động hệ thống (Chrome/Safari) thiếu NIP-07 extension, nhưng **trình duyệt tích hợp trong các app ví Nostr (như Amethyst)** đã tự động tiêm `window.nostr` cho phép dùng NIP-07 trực tiếp trên di động không cần dán NSEC. Đối với trình duyệt thông thường, hướng đi dài hạn vẫn là hỗ trợ NIP-46 (remote signer / bunker như Amber, nsec.app).",
     en: "According to **RFC-0003 Addendum (2026-08-26 & 2026-08-28 Update)**: Standard mobile browsers lack NIP-07, but **built-in in-app browsers inside mobile Nostr wallets (like Amethyst)** inject `window.nostr`, allowing full NIP-07 signing directly on mobile without raw NSEC. For standard browsers, the long-term roadmap remains NIP-46 (remote signers / bunkers like Amber, nsec.app)."
+  },
+  computeStay: {
+    vi: "Theo **RFC-0013 (Lưu Trú Bằng Compute - Compute-as-a-Stay / Khi Khách Không Phải Con Người)**: Mở rộng khái niệm 'khách' sang các tác nhân AI tự động (autonomous agent) thuê năng lực tính toán (CPU, RAM, băng thông) từ node LoRa/SBC của host. Nguyên tắc cốt lõi: 1. Quyền quyết định tài chính & thanh toán luôn thuộc về npub con người sở hữu agent kèm spending cap (không trao quyền tài chính không giới hạn cho agent); 2. Xác minh bằng số liệu máy móc khách quan (CPU-giây, băng thông); 3. Thang đo uy tín tách biệt hoàn toàn với Proof-of-Stay của con người; 4. Giá cố định có escrow tiêu chuẩn; 5. Ranh giới chủ quyền (RFC-0012) vẫn áp dụng cho host sở hữu hạ tầng.",
+    en: "According to **RFC-0013 (Compute-as-a-Stay — When the Guest Isn't Human)**: Extends CypherGuide's concept of 'guest' to autonomous AI agents renting idle compute (CPU, RAM, bandwidth) from host LoRa/SBC nodes. Core principles: 1. Payment and financial authority must always rest with the human npub owning the agent with a strict spending cap; 2. Verification via objective machine metrics (CPU-seconds, bandwidth); 3. Reputation namespace strictly separated from human Proof-of-Stay; 4. Fixed price with standard escrow; 5. Sovereignty boundary (RFC-0012) holds: machine owners remain legally responsible under local laws."
   }
 };
 
@@ -88,6 +92,9 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
   }
   if (qLower.includes('nip-46') || qLower.includes('nip46') || qLower.includes('bunker') || qLower.includes('remote signer') || qLower.includes('amber') || qLower.includes('mobile signing')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.nip46.en : RFC_KNOWLEDGE_BASE.nip46.vi, success: true };
+  }
+  if (qLower.includes('compute') || qLower.includes('agent') || qLower.includes('rfc-0013') || qLower.includes('rfc0013') || qLower.includes('moltbook') || qLower.includes('astra') || qLower.includes('không phải người') || qLower.includes('không phải con người') || qLower.includes('non-human')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.computeStay.en : RFC_KNOWLEDGE_BASE.computeStay.vi, success: true };
   }
 
   return {
