@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle, Scale } from 'lucide-react';
+import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle, Scale, Bot } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, NostrIdentity, CoOwner } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
@@ -480,6 +480,20 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   placeholder={t('hostReg.phSecurity')}
                   className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyber-green/50"
                 />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tag = 'Agent-Ready (Dedicated SBC, Relay, 50Mbps floor)';
+                      if (!securitySpecs.toLowerCase().includes('agent-ready')) {
+                        setSecuritySpecs(prev => prev.trim() ? `${prev.trim()}, ${tag}` : tag);
+                      }
+                    }}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/40 flex items-center gap-1 transition-colors"
+                  >
+                    <Bot className="w-2.5 h-2.5" /> + RFC-0013 AGENT-READY
+                  </button>
+                </div>
               </div>
 
               {/* RFC-0006: Optional KYC Verifiers Declaration */}

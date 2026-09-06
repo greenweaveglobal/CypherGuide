@@ -41,7 +41,7 @@ export const INITIAL_LISTINGS: Listing[] = [
   {
     id: 'LIST_CYPHER_02',
     title: 'Faraday Bunker & Bitcoin Mesh Lab',
-    description: 'High-security underground Cypherpunk homestay equipped with Starlink failover, RF shielded bedroom (Faraday cage), hardware multisig recovery station, and 24/7 dedicated Nostr relay node.',
+    description: 'High-security underground Cypherpunk homestay equipped with Starlink failover, RF shielded bedroom (Faraday cage), hardware multisig recovery station, 24/7 dedicated Nostr relay node, and RFC-0013 Agent-Ready amenity (dedicated SBC + 50 Mbps bandwidth floor).',
     imagePrompt: 'Cyberpunk concrete loft with neon accents and server rack',
     imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
     meshCoordinates: 'mesh:10.77:106.69 (Saigon District 1)',
@@ -49,6 +49,7 @@ export const INITIAL_LISTINGS: Listing[] = [
     priceModel: 'fixed',
     maxGuests: 2,
     securitySpecs: [
+      'Agent-Ready (50 Mbps floor, dedicated SBC)',
       'Faraday Shielding',
       'Dual Starlink Uplink',
       'Local Nostr Relay',

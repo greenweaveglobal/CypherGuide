@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap, Sparkles } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap, Sparkles, Bot } from 'lucide-react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import HostRegistrationModal from './HostRegistrationModal';
 import { Card, CardContent } from './ui/Card';
@@ -190,11 +190,22 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                     </div>
 
                     <div className="flex flex-wrap gap-1.5">
-                      {listing.securitySpecs.slice(0, 3).map((spec, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-black/40 rounded text-[9px] text-text-secondary font-mono border border-border/30 flex items-center gap-1">
-                          <ShieldCheck className="w-2.5 h-2.5 opacity-60" /> {spec.toUpperCase()}
-                        </span>
-                      ))}
+                      {listing.securitySpecs.slice(0, 3).map((spec, i) => {
+                        const isAgentReady = spec.toLowerCase().includes('agent-ready');
+                        return (
+                          <span 
+                            key={i} 
+                            className={`px-2 py-0.5 rounded text-[9px] font-mono border flex items-center gap-1 ${
+                              isAgentReady 
+                                ? 'bg-cyan-950/50 text-cyan-300 border-cyan-500/40 font-bold' 
+                                : 'bg-black/40 text-text-secondary border-border/30'
+                            }`}
+                          >
+                            {isAgentReady ? <Bot className="w-2.5 h-2.5 text-cyan-400" /> : <ShieldCheck className="w-2.5 h-2.5 opacity-60" />}
+                            {spec.toUpperCase()}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
 

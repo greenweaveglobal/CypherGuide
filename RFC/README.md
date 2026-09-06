@@ -26,7 +26,7 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | 0010 | Nghi Thức Tĩnh Tâm — Vòng Tròn, Nén Nhang, 369 Giây (Zen Stillness Ritual) | Draft | `StillnessRitual.tsx` (mới), `ListingDetail.tsx` |
 | 0011 | Ranh Giới Tài Chính Hóa (Financialization Boundary Principle) | Draft | Không có module riêng — nguyên tắc áp dụng ngược cho 0001, 0002, 0006, 0008, 0010 |
 | 0012 | Ranh Giới Chủ Quyền (Sovereignty Boundary Principle) | Draft | Không có module riêng — nguyên tắc áp dụng cho mọi tương tác Host/Khách & tài liệu pháp lý |
-| 0013 | Lưu Trú Bằng Compute (Compute-as-a-Stay) — Khi Khách Không Phải Con Người | Draft (experimental) | Không có module riêng — mở rộng RFC-0007/0009, 0003, 0011, 0012 |
+| 0013 | Lưu Trú Sẵn Sàng Cho Agent (Agent-Ready Stay) — Tiện Nghi Cho Giới Cypher/Personal Business | Draft | Mở rộng hệ thống tag tiện nghi (`AGENT-READY`), mở rộng RFC-0007/0009, giữ nguyên RFC-0003, 0011, 0012 |
 
 Số RFC tiếp theo: **0014**.
 

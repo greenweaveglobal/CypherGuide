@@ -118,7 +118,7 @@ ${userLocale === 'en' ? '"There is no documentation about this yet"' : '"Chưa c
 ${docsContent}`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-flash-latest",
         contents: question,
         config: {
           systemInstruction
