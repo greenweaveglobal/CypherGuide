@@ -10,6 +10,7 @@ import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress } from '../utils/depositEscrow';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
+import { calculateStayPrice } from '../utils/pricing';
 
 interface Props {
   listing: Listing | null;
@@ -59,13 +60,9 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
   // Recalculate nights and total price
   useEffect(() => {
     if (!startDate || !endDate || !listing) return;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = end.getTime() - start.getTime();
-    const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-    const effectiveNights = diffDays > 0 ? diffDays : 1;
-    setNights(effectiveNights);
-    setTotalPriceSats(effectiveNights * listing.priceSats);
+    const calc = calculateStayPrice(listing, startDate, endDate);
+    setNights(calc.nights);
+    setTotalPriceSats(calc.totalSats);
   }, [startDate, endDate, listing]);
 
   // Fetch Mock Network Fees
@@ -240,6 +237,8 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
         // Generate an offline local secret door access code
         const secretCode = 'sec_' + (await sha256(paymentHash + (identity?.nsec || ''))).slice(0, 16);
         
+        const stayCalc = calculateStayPrice(listing, startDate, endDate);
+
         const newBooking: Booking = {
           id: 'bk_' + paymentHash.slice(0, 12),
           listingId: listing.id,
@@ -248,6 +247,11 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
           startDate,
           endDate,
           totalPriceSats,
+          bookingSnapshot: {
+            title: listing.title,
+            pricePerNightSats: stayCalc.averageNightlySats,
+            securitySpecs: listing.securitySpecs
+          },
           status: 'paid',
           invoiceBolt11: invoice,
           paymentHash,
