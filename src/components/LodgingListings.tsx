@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap, Sparkles, Bot } from 'lucide-react';
 import { Listing, NostrIdentity, Booking } from '../types';
+import { getEffectivePrice, getEffectivePriceRule } from '../utils/pricing';
 import HostRegistrationModal from './HostRegistrationModal';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -210,26 +211,39 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                   </div>
 
                   <div className="mt-5 pt-4 border-t border-border/30 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] text-text-disabled font-mono uppercase tracking-tighter opacity-50">
-                        {listing.priceModel === 'dana' ? 'Pricing Model' : 'Base_Rate / Cycle'}
-                      </span>
-                      {listing.priceModel === 'dana' ? (
-                        <div className="flex items-center gap-1.5 mt-0.5 text-amber-400">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span className="text-sm font-bold font-mono tracking-tighter">
-                            DANA
-                          </span>
+                    {(() => {
+                      const effectivePriceToday = getEffectivePrice(listing, new Date());
+                      const activeRule = getEffectivePriceRule(listing, new Date());
+                      return (
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] text-text-disabled font-mono uppercase tracking-tighter opacity-50">
+                              {listing.priceModel === 'dana' ? 'Pricing Model' : 'Giá hôm nay / Đêm'}
+                            </span>
+                            {activeRule && (
+                              <span className="text-[8px] px-1 py-0.2 rounded bg-primary/20 text-primary border border-primary/30 font-mono">
+                                {activeRule.label}
+                              </span>
+                            )}
+                          </div>
+                          {listing.priceModel === 'dana' ? (
+                            <div className="flex items-center gap-1.5 mt-0.5 text-amber-400">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                              <span className="text-sm font-bold font-mono tracking-tighter">
+                                DANA
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Zap className="w-3.5 h-3.5 text-warning opacity-80" />
+                              <span className="text-sm font-bold font-mono text-white tracking-tighter">
+                                {effectivePriceToday.toLocaleString()} <span className="text-[10px] text-warning/70">SATS</span>
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <Zap className="w-3.5 h-3.5 text-warning opacity-80" />
-                          <span className="text-sm font-bold font-mono text-white tracking-tighter">
-                            {listing.priceSats.toLocaleString()} <span className="text-[10px] text-warning/70">SATS</span>
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()}
                     
                     <div className="flex items-center gap-3">
                       <div className="flex -space-x-2">

@@ -23,7 +23,7 @@ export default function App() {
   const { t } = useTranslation();
   const { 
     identity, setIdentity, 
-    listings, setListings, addListing,
+    listings, setListings, addListing, updateListing,
     bookings, setBookings, addBooking, updateBookingStatus,
     proposals, setProposals, addProposal,
     messages, addMessage,
@@ -256,6 +256,8 @@ export default function App() {
                     identity={identity}
                     bookings={bookings}
                     onAddListing={addListing}
+                    onUpdateListing={updateListing}
+                    onAddProposal={addProposal}
                     onUpdateBookingStatus={updateBookingStatus}
                     onAddLog={addLog}
                   />

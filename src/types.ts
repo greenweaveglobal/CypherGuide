@@ -27,6 +27,39 @@ export interface Nip94Image {
   uploadedAt: number;
 }
 
+export type PriceRuleType = 'date_range' | 'day_of_week' | 'recurring_month';
+
+export interface PriceRule {
+  id: string;
+  label: string; // ví dụ: "Tết 2026", "Cuối tuần"
+  type: PriceRuleType;
+  // date_range: { startDate, endDate } cụ thể YYYY-MM-DD
+  startDate?: string;
+  endDate?: string;
+  // day_of_week: mảng ['SA','SU'] áp dụng mọi tuần
+  daysOfWeek?: string[]; // 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
+  // recurring_month: { startMonth, endMonth } lặp hàng năm (1-12)
+  startMonth?: number;
+  endMonth?: number;
+  priceSats: number; // giá tuyệt đối cho rule này (không dùng % để tránh nhầm lẫn)
+  priority: number; // rule trùng ngày thì priority cao hơn thắng
+}
+
+export interface EditHistoryEntry {
+  timestamp: number;
+  editedBy: string; // npub
+  field: string;
+  oldValue: string;
+  newValue: string;
+  signature: string;
+}
+
+export interface BookingSnapshot {
+  title: string;
+  pricePerNightSats: number; // giá đã tính theo effective price lúc đặt
+  securitySpecs: string[];
+}
+
 export interface Listing {
   id: string;
   title: string;
@@ -37,6 +70,7 @@ export interface Listing {
   meshCoordinates: string; // e.g., "mesh:10.77:106.69"
   priceSats: number; // Sats per night (or 0 for dana)
   priceModel?: 'fixed' | 'dana'; // RFC-0008: 'fixed' by default or 'dana' (voluntary offering / retreat)
+  priceRules?: PriceRule[]; // RFC Extranet Seasonal & Date-specific pricing rules
   maxGuests?: number;
   securitySpecs: string[]; // No-KYC, Starlink, Mesh backup, solar, etc.
   coOwners: CoOwner[];
@@ -44,6 +78,7 @@ export interface Listing {
   kycThresholdSats?: number; // Optional amount threshold requiring KYC
   status: 'available' | 'occupied';
   reviews: Review[];
+  editHistory?: EditHistoryEntry[]; // Audit trail of changes
 }
 
 export interface KycAttestationRecord {
@@ -71,6 +106,7 @@ export interface Booking {
   endDate: string;
   nights?: number;
   totalPriceSats: number;
+  bookingSnapshot?: BookingSnapshot; // Frozen snapshot at booking time
   status: 'pending' | 'paid' | 'checked_in' | 'checked_out' | 'expired';
   invoiceBolt11: string;
   paymentHash: string;

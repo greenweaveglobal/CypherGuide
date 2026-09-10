@@ -70,6 +70,35 @@ export const INITIAL_LISTINGS: Listing[] = [
         lightningAddress: 'meshkeeper@cypherlodge.io'
       }
     ],
+    priceRules: [
+      {
+        id: 'rule_weekend_cypher',
+        label: 'Cuối tuần (Thứ 7 & CN)',
+        type: 'day_of_week',
+        daysOfWeek: ['SA', 'SU'],
+        priceSats: 145000,
+        priority: 10
+      },
+      {
+        id: 'rule_autumn_hackathon',
+        label: 'Mùa Hackathon Thu 2026',
+        type: 'date_range',
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        priceSats: 135000,
+        priority: 5
+      }
+    ],
+    editHistory: [
+      {
+        timestamp: Date.now() - 86400000 * 2,
+        editedBy: 'npub1cypherhost019283019283019283019283019283019283019283019283019283',
+        field: 'priceSats',
+        oldValue: '100000',
+        newValue: '120000',
+        signature: 'sig_schnorr_hist_init_981273981273918273918237'
+      }
+    ],
     status: 'available',
     reviews: [
       {

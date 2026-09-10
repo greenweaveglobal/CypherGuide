@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2 } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
+import { calculateStayPrice } from '../utils/pricing';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
@@ -51,6 +52,14 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   // RFC-0010 Stillness Ritual State
   const [showStillnessModal, setShowStillnessModal] = useState<boolean>(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
+  const [showEditHistory, setShowEditHistory] = useState(false);
+
+  const isDateValid = Boolean(checkIn && checkOut && new Date(checkOut) > new Date(checkIn));
+  const stayPriceCalc = calculateStayPrice(listing, isDateValid ? checkIn : undefined, isDateValid ? checkOut : undefined);
+  const effectiveNights = stayPriceCalc.nights;
+  const totalPriceSats = stayPriceCalc.totalSats;
+  const dynamicFeeInfo = calculateDynamicFee(totalPriceSats, undefined, 1.0, securityLevel);
+  const totalFeeSats = dynamicFeeInfo.totalFeeSats;
 
   const handleShareListing = () => {
     if (typeof window !== 'undefined') {
@@ -94,7 +103,12 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
         status: 'paid',
         invoiceBolt11: 'dana_offering_confirmed',
         paymentHash: hash,
-        paidAt: new Date().toISOString()
+        paidAt: new Date().toISOString(),
+        bookingSnapshot: {
+          title: listing.title,
+          pricePerNightSats: 0,
+          securitySpecs: [...(listing.securitySpecs || [])]
+        }
       };
 
       onBookingSuccess(newBooking);
@@ -143,15 +157,6 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
     setReplyingTo(null);
     setReplyText('');
   };
-
-  const diffTime = checkIn && checkOut ? new Date(checkOut).getTime() - new Date(checkIn).getTime() : 0;
-  const nights = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-  const effectiveNights = nights > 0 ? nights : 1;
-  
-  const totalPriceSats = listing.priceSats * effectiveNights;
-  const dynamicFeeInfo = calculateDynamicFee(totalPriceSats, undefined, 1.0, securityLevel);
-  const totalFeeSats = dynamicFeeInfo.totalFeeSats; 
-  const isDateValid = checkIn && checkOut && new Date(checkOut) > new Date(checkIn);
 
   const addPaymentLog = (msg: string) => {
     setPaymentLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -308,7 +313,12 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
         status: 'paid',
         invoiceBolt11: invoice,
         paymentHash: hash,
-        paidAt: new Date().toISOString()
+        paidAt: new Date().toISOString(),
+        bookingSnapshot: {
+          title: listing.title,
+          pricePerNightSats: stayPriceCalc.averageNightlySats,
+          securitySpecs: [...(listing.securitySpecs || [])]
+        }
       };
       
       executeProfitSplit();
@@ -598,6 +608,56 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                     ))}
                   </div>
                 )}
+                {/* Audit Trail (Edit History) Section */}
+                <div className="pt-6 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setShowEditHistory(!showEditHistory)}
+                      className="flex items-center gap-2 text-xs font-mono font-bold text-text-secondary hover:text-white transition-colors"
+                    >
+                      <History className="w-4 h-4 text-primary" />
+                      <span>Lịch Sử Chỉnh Sửa Listing (Audit Trail)</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface border border-border">
+                        {listing.editHistory?.length || 0}
+                      </span>
+                      {showEditHistory ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+
+                  {showEditHistory && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-3 space-y-2 text-xs font-mono"
+                    >
+                      {!listing.editHistory || listing.editHistory.length === 0 ? (
+                        <div className="p-3 bg-surface/40 rounded-lg border border-border/50 text-text-disabled text-center">
+                          Chưa có lịch sử thay đổi nào được ghi nhận trên Nostr Relay.
+                        </div>
+                      ) : (
+                        listing.editHistory.map((item, idx) => (
+                          <div key={idx} className="p-2.5 bg-surface/60 rounded-lg border border-border/60 space-y-1">
+                            <div className="flex justify-between items-center text-[10px] text-text-secondary">
+                              <span className="font-bold text-primary">{item.field}</span>
+                              <span>{new Date(item.timestamp).toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className="text-text-disabled line-through">{item.oldValue}</span>
+                              <ArrowRight className="w-3 h-3 text-text-disabled" />
+                              <span className="text-white font-bold">{item.newValue}</span>
+                            </div>
+                            <div className="pt-1 border-t border-white/5 flex justify-between items-center text-[9px] text-text-disabled">
+                              <span className="truncate max-w-[200px]">Host: {item.editedBy.slice(0, 16)}...</span>
+                              <span className="font-mono text-primary/70 truncate max-w-[150px]" title={item.signature}>
+                                Sig: {item.signature.slice(0, 12)}...
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </motion.div>
+                  )}
+                </div>
               </section>
             </div>
 
@@ -775,6 +835,24 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                         <span className="text-text-secondary">{t('listingDetail.stayCost', { nights: effectiveNights })}</span>
                         <span className="font-mono text-white">{totalPriceSats.toLocaleString()} Sats</span>
                       </div>
+
+                      {/* Dynamic Rate Breakdown if rules in effect */}
+                      {stayPriceCalc.hasDynamicRules && stayPriceCalc.nightlyBreakdown.length > 0 && (
+                        <div className="p-2.5 bg-surface/70 border border-primary/20 rounded-lg space-y-1 text-xs font-mono">
+                          <div className="flex justify-between items-center text-primary font-bold text-[10px] uppercase">
+                            <span>Chi tiết giá động từng đêm</span>
+                            <span>TB: {stayPriceCalc.averageNightlySats.toLocaleString()} Sats/đêm</span>
+                          </div>
+                          <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                            {stayPriceCalc.nightlyBreakdown.map((nb, i) => (
+                              <div key={i} className="flex justify-between items-center text-[10px] text-text-secondary">
+                                <span className="truncate">{nb.date} ({nb.dayOfWeek}){nb.ruleLabel ? ` · ${nb.ruleLabel}` : ''}</span>
+                                <span className="text-white font-mono">{nb.priceSats.toLocaleString()} S</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-text-secondary">BFT Protocol Fee ({dynamicFeeInfo.effectiveRatePercent}%):</span>
                         <span className="font-mono text-primary font-bold">+{dynamicFeeInfo.protocolFeeSats.toLocaleString()} Sats</span>

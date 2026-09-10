@@ -112,10 +112,28 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-white mb-1">{trip.listingTitle}</h4>
+                      <h4 className="text-sm font-bold text-white mb-1">
+                        {trip.bookingSnapshot?.title || trip.listingTitle}
+                      </h4>
                       <div className="text-[10px] text-text-secondary font-mono space-y-1">
                         <p>{t('myTrips.checkInLabel')} <span className="text-white font-bold">{trip.startDate}</span></p>
-                        <p>{t('myTrips.checkOutLabel')} <span className="text-white font-bold">{trip.endDate}</span></p>
+                        <p>{t('myTrips.checkOutLabel')} <span className="text-white font-bold">{trip.endDate}</span> ({trip.nights} đêm)</p>
+                        <p>
+                          Giá đã đóng băng: <span className="text-warning font-bold">
+                            {trip.bookingSnapshot?.pricePerNightSats !== undefined
+                              ? `${trip.bookingSnapshot.pricePerNightSats.toLocaleString()} Sats/đêm`
+                              : `${Math.round(trip.totalPriceSats / Math.max(1, trip.nights)).toLocaleString()} Sats/đêm`}
+                          </span> · Tổng: <span className="text-white font-bold">{trip.totalPriceSats.toLocaleString()} Sats</span>
+                        </p>
+                        {trip.bookingSnapshot?.securitySpecs && trip.bookingSnapshot.securitySpecs.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {trip.bookingSnapshot.securitySpecs.map((spec, si) => (
+                              <span key={si} className="text-[8px] px-1.5 py-0.5 rounded bg-surface border border-border text-text-secondary">
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <Badge variant={trip.status === 'checked_in' ? 'info' : 'success'}>
@@ -158,10 +176,28 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
                   <CardContent>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
-                        <h4 className="text-sm font-bold text-text-primary mb-1">{trip.listingTitle}</h4>
+                        <h4 className="text-sm font-bold text-text-primary mb-1">
+                          {trip.bookingSnapshot?.title || trip.listingTitle}
+                        </h4>
                         <div className="text-[10px] text-text-secondary font-mono space-y-1">
-                          <p>{trip.startDate} — {trip.endDate}</p>
+                          <p>{trip.startDate} — {trip.endDate} ({trip.nights} đêm)</p>
+                          <p>
+                            Giá đóng băng: <span className="text-warning font-bold">
+                              {trip.bookingSnapshot?.pricePerNightSats !== undefined
+                                ? `${trip.bookingSnapshot.pricePerNightSats.toLocaleString()} Sats/đêm`
+                                : `${Math.round(trip.totalPriceSats / Math.max(1, trip.nights)).toLocaleString()} Sats/đêm`}
+                            </span> · Tổng: <span className="text-white font-bold">{trip.totalPriceSats.toLocaleString()} Sats</span>
+                          </p>
                           <p>Booking ID: {trip.id}</p>
+                          {trip.bookingSnapshot?.securitySpecs && trip.bookingSnapshot.securitySpecs.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {trip.bookingSnapshot.securitySpecs.map((spec, si) => (
+                                <span key={si} className="text-[8px] px-1.5 py-0.5 rounded bg-surface border border-border text-text-secondary">
+                                  {spec}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {trip.proofOfStayHash && (
                             <div className="flex items-center gap-1.5 mt-2 bg-info/10 text-info px-2 py-1 rounded inline-flex border border-info/20">
                               <Shield className="w-3 h-3" />

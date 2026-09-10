@@ -12,6 +12,7 @@ interface AppState {
   listings: Listing[];
   setListings: (listings: Listing[]) => void;
   addListing: (listing: Listing) => void;
+  updateListing: (listing: Listing) => void;
 
   bookings: Booking[];
   setBookings: (bookings: Booking[]) => void;
@@ -132,6 +133,9 @@ export const useAppStore = create<AppState>()(
       listings: INITIAL_LISTINGS,
       setListings: (listings) => set({ listings }),
       addListing: (listing) => set((state) => ({ listings: [listing, ...state.listings] })),
+      updateListing: (updated) => set((state) => ({
+        listings: state.listings.map((l) => (l.id === updated.id ? updated : l))
+      })),
 
       bookings: [],
       setBookings: (bookings) => set({ bookings }),

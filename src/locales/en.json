@@ -445,6 +445,7 @@
     "statTotalRevenue": "TOTAL LIGHTNING REVENUE",
     "statTotalRevenueSub": "Routed via Lightning Network",
     "tabMyListings": "Homestay Listings ({count})",
+    "tabCalendarPricing": "Calendar & Pricing (Extranet)",
     "tabEscrow": "Deposit & Escrow Management ({count})",
     "tabEarnings": "Protocol Fee & Revenue Analysis",
     "priceSatsPerNight": "{sats} Sats/night",

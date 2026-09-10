@@ -445,6 +445,7 @@
     "statTotalRevenue": "TỔNG DOANH THU LIGHTNING",
     "statTotalRevenueSub": "Đã định tuyến qua Lightning Network",
     "tabMyListings": "Danh Sách Lưu Trú ({count})",
+    "tabCalendarPricing": "Lịch & Giá (Extranet)",
     "tabEscrow": "Quản Lý Đặt Cọc & Escrow ({count})",
     "tabEarnings": "Phân Tích Phí Protocol & Doanh Thu",
     "priceSatsPerNight": "{sats} Sats/đêm",

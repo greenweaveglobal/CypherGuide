@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Home, Plus, ShieldCheck, Coins, Key, Users, CheckCircle, Clock, AlertTriangle, FileText, ArrowUpRight } from 'lucide-react';
+import { Home, Plus, ShieldCheck, Coins, Key, Users, CheckCircle, Clock, AlertTriangle, FileText, ArrowUpRight, Calendar as CalendarIcon, Sliders } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
-import { Listing, Booking, NostrIdentity } from '../types';
+import { Listing, Booking, NostrIdentity, Proposal } from '../types';
 import HostRegistrationModal from './HostRegistrationModal';
+import HostCalendarPricing from './HostCalendarPricing';
 import { calculateRequiredDeposit, canReleaseDeposit } from '../utils/depositEscrow';
 import { calculateDynamicFee } from '../utils/dynamicFee';
 
@@ -12,8 +13,10 @@ interface Props {
   identity: NostrIdentity | null;
   bookings: Booking[];
   onAddListing: (listing: Listing) => void;
+  onUpdateListing?: (listing: Listing) => void;
+  onAddProposal?: (proposal: Proposal) => void;
   onUpdateBookingStatus: (id: string, status: 'checked_in' | 'checked_out' | 'expired', proofOfStayHash?: string) => void;
-  onAddLog: (type: 'relay' | 'lightning' | 'lock' | 'governance', message: string, hash?: string) => void;
+  onAddLog: (type: 'relay' | 'lightning' | 'lock' | 'governance' | 'message', message: string, hash?: string) => void;
 }
 
 export default function HostDashboard({
@@ -21,12 +24,14 @@ export default function HostDashboard({
   identity,
   bookings,
   onAddListing,
+  onUpdateListing,
+  onAddProposal,
   onUpdateBookingStatus,
   onAddLog
 }: Props) {
   const { t } = useTranslation();
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'my_listings' | 'escrow_management' | 'earnings'>('my_listings');
+  const [activeSubTab, setActiveSubTab] = useState<'my_listings' | 'calendar_pricing' | 'escrow_management' | 'earnings'>('my_listings');
 
   const [simAmountSats, setSimAmountSats] = useState<number>(100000);
   const [simCongestion, setSimCongestion] = useState<number>(1.0);
@@ -118,6 +123,17 @@ export default function HostDashboard({
           {t('hostDashboard.tabMyListings', { count: hostListings.length })}
         </button>
         <button
+          onClick={() => setActiveSubTab('calendar_pricing')}
+          className={`px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+            activeSubTab === 'calendar_pricing'
+              ? 'bg-primary/10 text-primary border border-primary/30'
+              : 'text-text-secondary hover:text-white'
+          }`}
+        >
+          <CalendarIcon className="w-3.5 h-3.5" />
+          <span>Lịch & Giá (Extranet)</span>
+        </button>
+        <button
           onClick={() => setActiveSubTab('escrow_management')}
           className={`px-4 py-2 rounded-lg font-mono text-xs font-bold transition-all shrink-0 whitespace-nowrap ${
             activeSubTab === 'escrow_management'
@@ -167,14 +183,33 @@ export default function HostDashboard({
                   <span className="text-text-secondary">Price: </span>
                   <span className="text-warning font-bold">{t('hostDashboard.priceSatsPerNight', { sats: listing.priceSats.toLocaleString() })}</span>
                 </div>
-                <div className="flex items-center gap-1 text-primary">
-                  <Users className="w-3.5 h-3.5" />
-                  <span>{t('hostDashboard.coOwnersCount', { count: listing.coOwners?.length || 1 })}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 text-primary">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>{t('hostDashboard.coOwnersCount', { count: listing.coOwners?.length || 1 })}</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveSubTab('calendar_pricing')}
+                    className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-mono font-bold border border-primary/30 flex items-center gap-1 transition-colors"
+                  >
+                    <Sliders className="w-3 h-3" /> Extranet
+                  </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {activeSubTab === 'calendar_pricing' && (
+        <HostCalendarPricing
+          listings={listings}
+          identity={identity}
+          bookings={bookings}
+          onUpdateListing={onUpdateListing || (() => {})}
+          onAddProposal={onAddProposal || (() => {})}
+          onAddLog={onAddLog}
+        />
       )}
 
       {activeSubTab === 'escrow_management' && (
