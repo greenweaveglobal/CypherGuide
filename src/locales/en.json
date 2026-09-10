@@ -279,6 +279,8 @@
   },
   "listingDetail": {
     "back": "Back",
+    "shareListing": "Share Link",
+    "copiedListingLink": "Link copied!",
     "newBadge": "New",
     "reviewsCount": "{count} reviews",
     "pricePerNight": "Price per night",

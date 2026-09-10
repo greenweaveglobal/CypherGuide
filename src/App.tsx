@@ -38,6 +38,9 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showProtocolLogs, setShowProtocolLogs] = useState(false);
 
+  const hasHandledRefRef = React.useRef(false);
+  const hasHandledListingRef = React.useRef(false);
+
   const handleTabChange = (tab: any) => {
     setSelectedListingForBooking(null);
     setActiveTab(tab);
@@ -48,11 +51,13 @@ export default function App() {
     checkIntegrity();
     fetchProtocolConfig();
 
-    // Tự động ghi nhận mã giới thiệu từ URL (?ref=npub...)
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+
+      // 1. Tự động ghi nhận mã giới thiệu từ URL (?ref=npub...)
       const refNpub = params.get('ref');
-      if (refNpub) {
+      if (refNpub && !hasHandledRefRef.current) {
+        hasHandledRefRef.current = true;
         if (isValidNpub(refNpub)) {
           sessionStorage.setItem('cypher_referrer_npub', refNpub);
           addLog('relay', `Đã ghi nhận mã giới thiệu Referral hợp lệ: ${refNpub.slice(0, 16)}...`);
@@ -60,8 +65,29 @@ export default function App() {
           addLog('relay', `Bỏ qua mã giới thiệu URL do sai định dạng Nostr npub.`);
         }
       }
+
+      // 2. Tự động mở chi tiết listing từ URL deep-link (?listing=<listingId>)
+      const listingId = params.get('listing');
+      if (listingId && !hasHandledListingRef.current) {
+        // Cần đợi state listings sẵn sàng (data đã nạp)
+        if (listings && listings.length > 0) {
+          hasHandledListingRef.current = true;
+          const targetId = listingId.trim();
+          const foundListing = listings.find(
+            (l) => l.id === targetId || l.id.toLowerCase() === targetId.toLowerCase()
+          );
+
+          if (foundListing) {
+            setSelectedListingForBooking(foundListing);
+            setActiveTab('lodgings');
+            addLog('relay', `Đã mở chi tiết listing qua liên kết trực tiếp: ${foundListing.title} (${foundListing.id})`);
+          } else {
+            addLog('relay', `Không tìm thấy listing với mã ID: ${targetId} từ liên kết trực tiếp.`);
+          }
+        }
+      }
     }
-  }, [checkIntegrity, addLog]);
+  }, [checkIntegrity, fetchProtocolConfig, addLog, listings]);
 
   const handleBookingSuccess = (newBooking: Booking) => {
     addBooking(newBooking);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import { Button } from './ui/Button';
@@ -50,6 +50,22 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
 
   // RFC-0010 Stillness Ritual State
   const [showStillnessModal, setShowStillnessModal] = useState<boolean>(false);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
+  const handleShareListing = () => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('listing', listing.id);
+      const existingRef = sessionStorage.getItem('cypher_referrer_npub');
+      if (existingRef && !url.searchParams.has('ref')) {
+        url.searchParams.set('ref', existingRef);
+      }
+      navigator.clipboard.writeText(url.toString());
+      setCopiedShareLink(true);
+      onAddLog('relay', `Đã sao chép liên kết chia sẻ listing: ${url.toString()}`);
+      setTimeout(() => setCopiedShareLink(false), 3000);
+    }
+  };
 
   const handleProceedDanaBooking = async () => {
     if (!identity) return;
@@ -338,9 +354,27 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 font-sans">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Button variant="outline" size="sm" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" /> {t('listingDetail.back')}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleShareListing}
+          className="text-xs font-mono border-white/10 hover:border-primary/40 text-text-secondary hover:text-white transition-all flex items-center gap-1.5"
+        >
+          {copiedShareLink ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-success" />
+              <span>{t('listingDetail.copiedListingLink')}</span>
+            </>
+          ) : (
+            <>
+              <Share2 className="w-3.5 h-3.5 text-primary" />
+              <span>{t('listingDetail.shareListing')}</span>
+            </>
+          )}
         </Button>
       </div>
       

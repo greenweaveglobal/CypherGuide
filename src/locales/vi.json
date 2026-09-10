@@ -279,6 +279,8 @@
   },
   "listingDetail": {
     "back": "Quay lại",
+    "shareListing": "Chia sẻ liên kết",
+    "copiedListingLink": "Đã chép liên kết!",
     "newBadge": "Mới",
     "reviewsCount": "{count} đánh giá",
     "pricePerNight": "Giá mỗi đêm",
