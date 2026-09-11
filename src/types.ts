@@ -56,8 +56,21 @@ export interface EditHistoryEntry {
 
 export interface BookingSnapshot {
   title: string;
+  roomTypeId?: string;
+  roomTypeName?: string;
   pricePerNightSats: number; // giá đã tính theo effective price lúc đặt
   securitySpecs: string[];
+}
+
+export interface RoomType {
+  id: string; // 'rt_' + random, duy nhất trong listing
+  name: string; // "Bungalow Hướng Vườn", "Lều (Tent)"...
+  maxGuests: number;
+  priceSats: number; // giá gốc/đêm, giữ nguyên ý nghĩa như Listing.priceSats cũ
+  securitySpecs: string[]; // tiện nghi riêng của loại phòng này (có thể khác amenities chung của listing)
+  priceRules?: PriceRule[]; // TÁI SỬ DỤNG nguyên cấu trúc PriceRule đã có — mỗi room type có lịch giá riêng
+  images?: string[]; // ảnh riêng cho loại phòng, tách khỏi ảnh chung listing
+  status: 'available' | 'occupied' | 'inactive';
 }
 
 export interface Listing {
@@ -68,11 +81,12 @@ export interface Listing {
   imageUrl: string;
   images?: Nip94Image[]; // NIP-94 Signed Images
   meshCoordinates: string; // e.g., "mesh:10.77:106.69"
-  priceSats: number; // Sats per night (or 0 for dana)
+  roomTypes: RoomType[]; // BẮT BUỘC, tối thiểu 1 phần tử
+  priceSats: number; // = roomTypes[0].priceSats, tự động đồng bộ khi roomTypes[0] đổi
   priceModel?: 'fixed' | 'dana'; // RFC-0008: 'fixed' by default or 'dana' (voluntary offering / retreat)
-  priceRules?: PriceRule[]; // RFC Extranet Seasonal & Date-specific pricing rules
-  maxGuests?: number;
-  securitySpecs: string[]; // No-KYC, Starlink, Mesh backup, solar, etc.
+  priceRules?: PriceRule[]; // = roomTypes[0].priceRules
+  maxGuests?: number; // = roomTypes[0].maxGuests
+  securitySpecs: string[]; // No-KYC, Starlink, Mesh backup, solar, etc. (tiện nghi chung)
   coOwners: CoOwner[];
   acceptedKycVerifiers?: string[]; // RFC-0006 array of verifier npubs specified by host
   kycThresholdSats?: number; // Optional amount threshold requiring KYC

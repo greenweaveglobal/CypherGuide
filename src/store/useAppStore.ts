@@ -4,6 +4,7 @@ import { Listing, Booking, Proposal, NostrIdentity, P2PLog, Payout, PropertyDocu
 import { INITIAL_LISTINGS, INITIAL_PROPOSALS } from '../data';
 import { DataReconciler, IntegrityReport } from '../utils/reconciler';
 import { DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
+import { migrateListingToRoomTypes } from '../utils/pricing';
 
 interface AppState {
   identity: NostrIdentity | null;
@@ -130,11 +131,11 @@ export const useAppStore = create<AppState>()(
       identity: null,
       setIdentity: (identity) => set({ identity }),
 
-      listings: INITIAL_LISTINGS,
-      setListings: (listings) => set({ listings }),
-      addListing: (listing) => set((state) => ({ listings: [listing, ...state.listings] })),
+      listings: INITIAL_LISTINGS.map(migrateListingToRoomTypes),
+      setListings: (listings) => set({ listings: listings.map(migrateListingToRoomTypes) }),
+      addListing: (listing) => set((state) => ({ listings: [migrateListingToRoomTypes(listing), ...state.listings] })),
       updateListing: (updated) => set((state) => ({
-        listings: state.listings.map((l) => (l.id === updated.id ? updated : l))
+        listings: state.listings.map((l) => (l.id === updated.id ? migrateListingToRoomTypes(updated) : l))
       })),
 
       bookings: [],
@@ -353,6 +354,9 @@ export const useAppStore = create<AppState>()(
             if (state) {
               state.identity = null;
             }
+          }
+          if (state && state.listings) {
+            state.listings = state.listings.map(migrateListingToRoomTypes);
           }
           if (state && (!state.devLnAddress || state.devLnAddress === 'cypherguide@breez.tips' || state.devLnAddress === 'solidsleep11@walletofsatoshi.com')) {
             state.devLnAddress = 'cypherguide@zaps.lol';

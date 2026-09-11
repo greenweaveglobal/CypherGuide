@@ -19,10 +19,11 @@ import {
   Tag,
   Info,
   Layers,
-  ArrowRight
+  ArrowRight,
+  DoorOpen
 } from 'lucide-react';
-import { Listing, NostrIdentity, Booking, PriceRule, PriceRuleType, Proposal, EditHistoryEntry } from '../types';
-import { getEffectivePrice, getEffectivePriceRule, DAY_OF_WEEK_LABELS, parseDate } from '../utils/pricing';
+import { Listing, NostrIdentity, Booking, PriceRule, PriceRuleType, Proposal, EditHistoryEntry, RoomType } from '../types';
+import { getEffectivePrice, getEffectivePriceRule, DAY_OF_WEEK_LABELS, parseDate, migrateListingToRoomTypes } from '../utils/pricing';
 import { signMessage, sha256 } from '../utils/crypto';
 import { useTranslation } from '../hooks/useTranslation';
 import { Card, CardHeader, CardContent } from './ui/Card';
@@ -74,20 +75,35 @@ export default function HostCalendarPricing({
   }, [initialListingId]);
 
   const selectedListing = useMemo(() => {
-    return listings.find(l => l.id === selectedListingId) || listings[0];
+    const raw = listings.find(l => l.id === selectedListingId) || listings[0];
+    return raw ? migrateListingToRoomTypes(raw) : raw;
   }, [listings, selectedListingId]);
 
   // Calendar view state (year & month: 0-11)
   const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 8, 1)); // Default Sept 2026
 
-  // Local draft states for Group A & Group B & PriceRules
-  const [draftPriceSats, setDraftPriceSats] = useState<number>(selectedListing?.priceSats || 100000);
+  // Room Types draft state
+  const [draftRoomTypes, setDraftRoomTypes] = useState<RoomType[]>(selectedListing?.roomTypes || []);
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>(
+    selectedListing?.roomTypes?.[0]?.id || ''
+  );
+
+  // Active room draft fields (Group A room-level)
+  const [draftRoomName, setDraftRoomName] = useState<string>(selectedListing?.roomTypes?.[0]?.name || '');
+  const [draftPriceSats, setDraftPriceSats] = useState<number>(selectedListing?.roomTypes?.[0]?.priceSats || 100000);
+  const [draftMaxGuests, setDraftMaxGuests] = useState<number>(selectedListing?.roomTypes?.[0]?.maxGuests || 2);
+  const [draftRoomSpecsStr, setDraftRoomSpecsStr] = useState<string>(
+    (selectedListing?.roomTypes?.[0]?.securitySpecs || []).join(', ')
+  );
+  const [draftStatus, setDraftStatus] = useState<'available' | 'occupied'>(
+    selectedListing?.roomTypes?.[0]?.status === 'occupied' ? 'occupied' : 'available'
+  );
+  const [draftRules, setDraftRules] = useState<PriceRule[]>(selectedListing?.roomTypes?.[0]?.priceRules || []);
+
+  // Property-wide draft fields (Group B & general)
   const [draftDesc, setDraftDesc] = useState<string>(selectedListing?.description || '');
   const [draftImageUrl, setDraftImageUrl] = useState<string>(selectedListing?.imageUrl || '');
-  const [draftStatus, setDraftStatus] = useState<'available' | 'occupied'>(selectedListing?.status || 'available');
-
   const [draftTitle, setDraftTitle] = useState<string>(selectedListing?.title || '');
-  const [draftMaxGuests, setDraftMaxGuests] = useState<number>(selectedListing?.maxGuests || 2);
   const [draftVerifiersStr, setDraftVerifiersStr] = useState<string>(
     (selectedListing?.acceptedKycVerifiers || []).join(', ')
   );
@@ -95,20 +111,26 @@ export default function HostCalendarPricing({
     selectedListing?.kycThresholdSats || 0
   );
 
-  const [draftRules, setDraftRules] = useState<PriceRule[]>(selectedListing?.priceRules || []);
-
   // Sync draft when selectedListing changes
   React.useEffect(() => {
     if (selectedListing) {
-      setDraftPriceSats(selectedListing.priceSats);
+      const rts = selectedListing.roomTypes || [];
+      setDraftRoomTypes(rts);
+      const initialRt = rts[0];
+      if (initialRt) {
+        setSelectedRoomTypeId(initialRt.id);
+        setDraftRoomName(initialRt.name);
+        setDraftPriceSats(initialRt.priceSats);
+        setDraftMaxGuests(initialRt.maxGuests || 2);
+        setDraftRoomSpecsStr((initialRt.securitySpecs || []).join(', '));
+        setDraftStatus(initialRt.status === 'occupied' ? 'occupied' : 'available');
+        setDraftRules(initialRt.priceRules || []);
+      }
       setDraftDesc(selectedListing.description);
       setDraftImageUrl(selectedListing.imageUrl);
-      setDraftStatus(selectedListing.status);
       setDraftTitle(selectedListing.title);
-      setDraftMaxGuests(selectedListing.maxGuests || 2);
       setDraftVerifiersStr((selectedListing.acceptedKycVerifiers || []).join(', '));
       setDraftKycThreshold(selectedListing.kycThresholdSats || 0);
-      setDraftRules(selectedListing.priceRules || []);
     }
   }, [selectedListing?.id]);
 
@@ -139,6 +161,105 @@ export default function HostCalendarPricing({
 
   const isGroupBBlocked = activeBookings.length > 0;
 
+  // Switch active Room Type with in-memory sync
+  const handleSelectRoomType = (newId: string) => {
+    if (newId === selectedRoomTypeId) return;
+
+    const updatedRoomTypes = draftRoomTypes.map(rt => {
+      if (rt.id === selectedRoomTypeId) {
+        return {
+          ...rt,
+          name: draftRoomName.trim() || rt.name,
+          priceSats: Number(draftPriceSats),
+          maxGuests: Number(draftMaxGuests),
+          securitySpecs: draftRoomSpecsStr.split(',').map(s => s.trim()).filter(Boolean),
+          status: draftStatus,
+          priceRules: draftRules
+        };
+      }
+      return rt;
+    });
+
+    setDraftRoomTypes(updatedRoomTypes);
+
+    const target = updatedRoomTypes.find(rt => rt.id === newId) || updatedRoomTypes[0];
+    if (target) {
+      setSelectedRoomTypeId(target.id);
+      setDraftRoomName(target.name);
+      setDraftPriceSats(target.priceSats);
+      setDraftMaxGuests(target.maxGuests || 2);
+      setDraftRoomSpecsStr((target.securitySpecs || []).join(', '));
+      setDraftStatus(target.status === 'occupied' ? 'occupied' : 'available');
+      setDraftRules(target.priceRules || []);
+    }
+  };
+
+  // Add new Room Type
+  const handleAddRoomType = () => {
+    if (isUnauthorizedSolo) return;
+    const currentFlushed = draftRoomTypes.map(rt => {
+      if (rt.id === selectedRoomTypeId) {
+        return {
+          ...rt,
+          name: draftRoomName.trim() || rt.name,
+          priceSats: Number(draftPriceSats),
+          maxGuests: Number(draftMaxGuests),
+          securitySpecs: draftRoomSpecsStr.split(',').map(s => s.trim()).filter(Boolean),
+          status: draftStatus,
+          priceRules: draftRules
+        };
+      }
+      return rt;
+    });
+
+    const newId = `rt_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+    const newRoom: RoomType = {
+      id: newId,
+      name: `Loại phòng mới ${draftRoomTypes.length + 1}`,
+      maxGuests: 2,
+      priceSats: 100000,
+      securitySpecs: [],
+      priceRules: [],
+      status: 'available'
+    };
+
+    const nextRoomTypes = [...currentFlushed, newRoom];
+    setDraftRoomTypes(nextRoomTypes);
+    setSelectedRoomTypeId(newId);
+    setDraftRoomName(newRoom.name);
+    setDraftPriceSats(newRoom.priceSats);
+    setDraftMaxGuests(newRoom.maxGuests);
+    setDraftRoomSpecsStr('');
+    setDraftStatus('available');
+    setDraftRules([]);
+    setStatusNotice({
+      message: `Đã tạo ${newRoom.name}. Bạn có thể cấu hình giá, quy tắc mùa và ký xác nhận.`,
+      type: 'success'
+    });
+  };
+
+  // Remove Room Type
+  const handleDeleteRoomType = (roomTypeId: string) => {
+    if (isUnauthorizedSolo) return;
+    if (draftRoomTypes.length <= 1) {
+      setStatusNotice({ message: 'Cơ sở lưu trú phải duy trì ít nhất 1 loại phòng.', type: 'error' });
+      return;
+    }
+    const remaining = draftRoomTypes.filter(rt => rt.id !== roomTypeId);
+    setDraftRoomTypes(remaining);
+    if (selectedRoomTypeId === roomTypeId) {
+      const nextTarget = remaining[0];
+      setSelectedRoomTypeId(nextTarget.id);
+      setDraftRoomName(nextTarget.name);
+      setDraftPriceSats(nextTarget.priceSats);
+      setDraftMaxGuests(nextTarget.maxGuests || 2);
+      setDraftRoomSpecsStr((nextTarget.securitySpecs || []).join(', '));
+      setDraftStatus(nextTarget.status === 'occupied' ? 'occupied' : 'available');
+      setDraftRules(nextTarget.priceRules || []);
+    }
+    setStatusNotice({ message: 'Đã xóa loại phòng khỏi danh sách nháp. Hãy ký để áp dụng.', type: 'success' });
+  };
+
   // New Rule form state
   const [showAddRuleForm, setShowAddRuleForm] = useState(false);
   const [ruleLabel, setRuleLabel] = useState('');
@@ -155,7 +276,7 @@ export default function HostCalendarPricing({
   const [isSigning, setIsSigning] = useState(false);
   const [statusNotice, setStatusNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Temporary preview listing with current draft rules and base price
+  // Temporary preview listing with current active room draft rules and base price
   const previewListing: Listing = useMemo(() => {
     return {
       ...selectedListing,
@@ -280,30 +401,113 @@ export default function HostCalendarPricing({
     setDraftRules(prev => prev.filter(r => r.id !== ruleId));
   };
 
+  // Active composed room types (including current in-form draft edits)
+  const currentFullRoomTypes: RoomType[] = useMemo(() => {
+    return draftRoomTypes.map(rt => {
+      if (rt.id === selectedRoomTypeId) {
+        return {
+          ...rt,
+          name: draftRoomName.trim() || rt.name,
+          priceSats: Number(draftPriceSats),
+          maxGuests: Number(draftMaxGuests),
+          securitySpecs: draftRoomSpecsStr.split(',').map(s => s.trim()).filter(Boolean),
+          status: draftStatus,
+          priceRules: draftRules
+        };
+      }
+      return rt;
+    });
+  }, [draftRoomTypes, selectedRoomTypeId, draftRoomName, draftPriceSats, draftMaxGuests, draftRoomSpecsStr, draftStatus, draftRules]);
+
   // Detect changed fields between draft and selectedListing
   const changes = useMemo(() => {
     const listA: Array<{ field: string; label: string; oldVal: string; newVal: string }> = [];
     const listB: Array<{ field: string; label: string; oldVal: string; newVal: string }> = [];
 
-    // Group A
-    if (draftPriceSats !== selectedListing.priceSats) {
+    // Room Types changes
+    const originalRoomTypes = selectedListing.roomTypes || [];
+    if (currentFullRoomTypes.length !== originalRoomTypes.length) {
       listA.push({
-        field: 'priceSats',
-        label: 'Giá cơ sở (Base Rate)',
-        oldVal: `${selectedListing.priceSats.toLocaleString()} Sats`,
-        newVal: `${draftPriceSats.toLocaleString()} Sats`
+        field: 'roomTypesCount',
+        label: 'Danh sách loại phòng',
+        oldVal: `${originalRoomTypes.length} loại`,
+        newVal: `${currentFullRoomTypes.length} loại`
       });
     }
 
-    if (JSON.stringify(draftRules) !== JSON.stringify(selectedListing.priceRules || [])) {
-      listA.push({
-        field: 'priceRules',
-        label: 'Quy tắc giá theo ngày/mùa (PriceRules)',
-        oldVal: `${(selectedListing.priceRules || []).length} quy tắc`,
-        newVal: `${draftRules.length} quy tắc`
-      });
-    }
+    currentFullRoomTypes.forEach((rt) => {
+      const orig = originalRoomTypes.find(o => o.id === rt.id);
+      if (!orig) {
+        listA.push({
+          field: `roomType_${rt.id}_new`,
+          label: `Thêm loại phòng: ${rt.name}`,
+          oldVal: 'Chưa có',
+          newVal: `${rt.priceSats.toLocaleString()} Sats, ${rt.maxGuests} khách`
+        });
+      } else {
+        if (orig.name !== rt.name) {
+          listA.push({
+            field: `roomType_${rt.id}_name`,
+            label: `Tên phòng (${orig.name})`,
+            oldVal: orig.name,
+            newVal: rt.name
+          });
+        }
+        if (orig.priceSats !== rt.priceSats) {
+          listA.push({
+            field: `roomType_${rt.id}_price`,
+            label: `Giá cơ sở (${rt.name})`,
+            oldVal: `${orig.priceSats.toLocaleString()} Sats`,
+            newVal: `${rt.priceSats.toLocaleString()} Sats`
+          });
+        }
+        if (JSON.stringify(orig.priceRules || []) !== JSON.stringify(rt.priceRules || [])) {
+          listA.push({
+            field: `roomType_${rt.id}_rules`,
+            label: `Quy tắc giá (${rt.name})`,
+            oldVal: `${(orig.priceRules || []).length} quy tắc`,
+            newVal: `${(rt.priceRules || []).length} quy tắc`
+          });
+        }
+        if (orig.status !== rt.status) {
+          listA.push({
+            field: `roomType_${rt.id}_status`,
+            label: `Trạng thái phòng (${rt.name})`,
+            oldVal: orig.status || 'available',
+            newVal: rt.status
+          });
+        }
+        if (JSON.stringify(orig.securitySpecs || []) !== JSON.stringify(rt.securitySpecs || [])) {
+          listA.push({
+            field: `roomType_${rt.id}_specs`,
+            label: `Tiện nghi phòng (${rt.name})`,
+            oldVal: (orig.securitySpecs || []).join(', ') || 'Không',
+            newVal: (rt.securitySpecs || []).join(', ') || 'Không'
+          });
+        }
+        if (orig.maxGuests !== rt.maxGuests) {
+          listB.push({
+            field: `roomType_${rt.id}_maxGuests`,
+            label: `Sức chứa phòng (${rt.name})`,
+            oldVal: `${orig.maxGuests} khách`,
+            newVal: `${rt.maxGuests} khách`
+          });
+        }
+      }
+    });
 
+    originalRoomTypes.forEach(orig => {
+      if (!currentFullRoomTypes.some(rt => rt.id === orig.id)) {
+        listA.push({
+          field: `roomType_${orig.id}_deleted`,
+          label: `Xóa loại phòng: ${orig.name}`,
+          oldVal: orig.name,
+          newVal: 'Đã xóa'
+        });
+      }
+    });
+
+    // Group A (Property-level)
     if (draftDesc.trim() !== selectedListing.description.trim()) {
       listA.push({
         field: 'description',
@@ -316,37 +520,19 @@ export default function HostCalendarPricing({
     if (draftImageUrl.trim() !== selectedListing.imageUrl.trim()) {
       listA.push({
         field: 'imageUrl',
-        label: 'Ảnh đại diện',
+        label: 'Ảnh đại diện Homestay',
         oldVal: selectedListing.imageUrl.slice(0, 30) + '...',
         newVal: draftImageUrl.slice(0, 30) + '...'
       });
     }
 
-    if (draftStatus !== selectedListing.status) {
-      listA.push({
-        field: 'status',
-        label: 'Trạng thái nhận khách',
-        oldVal: selectedListing.status,
-        newVal: draftStatus
-      });
-    }
-
-    // Group B
+    // Group B (Property-level)
     if (draftTitle.trim() !== selectedListing.title.trim()) {
       listB.push({
         field: 'title',
         label: 'Tiêu đề Homestay',
         oldVal: selectedListing.title,
         newVal: draftTitle.trim()
-      });
-    }
-
-    if (draftMaxGuests !== (selectedListing.maxGuests || 2)) {
-      listB.push({
-        field: 'maxGuests',
-        label: 'Số khách tối đa',
-        oldVal: String(selectedListing.maxGuests || 2),
-        newVal: String(draftMaxGuests)
       });
     }
 
@@ -371,13 +557,10 @@ export default function HostCalendarPricing({
 
     return { listA, listB, hasChanges: listA.length > 0 || listB.length > 0 };
   }, [
-    draftPriceSats,
-    draftRules,
+    currentFullRoomTypes,
     draftDesc,
     draftImageUrl,
-    draftStatus,
     draftTitle,
-    draftMaxGuests,
     draftVerifiersStr,
     draftKycThreshold,
     selectedListing
@@ -447,13 +630,15 @@ export default function HostCalendarPricing({
 
       const updatedListing: Listing = {
         ...selectedListing,
-        priceSats: draftPriceSats,
-        priceRules: draftRules,
+        roomTypes: currentFullRoomTypes,
+        // Backward compatibility sync
+        priceSats: currentFullRoomTypes[0]?.priceSats || 0,
+        maxGuests: currentFullRoomTypes[0]?.maxGuests || 2,
+        priceRules: currentFullRoomTypes[0]?.priceRules || [],
         description: draftDesc.trim(),
         imageUrl: draftImageUrl.trim(),
-        status: draftStatus,
+        status: currentFullRoomTypes.some(rt => rt.status === 'available') ? 'available' : 'occupied',
         title: draftTitle.trim(),
-        maxGuests: Number(draftMaxGuests),
         acceptedKycVerifiers: parsedVerifiers.length > 0 ? parsedVerifiers : undefined,
         kycThresholdSats: Number(draftKycThreshold) > 0 ? Number(draftKycThreshold) : undefined,
         editHistory: [...(selectedListing.editHistory || []), ...newHistoryEntries]
@@ -671,6 +856,95 @@ export default function HostCalendarPricing({
         </div>
       </div>
 
+      {/* Room Type Selector & Management Panel */}
+      <div className="glass-panel p-4 rounded-xl border border-border bg-surface space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <DoorOpen className="w-4 h-4 text-primary" />
+            <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">
+              Quản Lý Loại Phòng Trong Cơ Sở ({draftRoomTypes.length} loại phòng)
+            </h3>
+          </div>
+          {!isUnauthorizedSolo && (
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              onClick={handleAddRoomType}
+              className="text-xs font-mono py-1 px-3"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Thêm loại phòng mới
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
+          {draftRoomTypes.map((rt) => {
+            const isSelected = rt.id === selectedRoomTypeId;
+            const displayName = rt.id === selectedRoomTypeId ? (draftRoomName || rt.name) : rt.name;
+            const displayPrice = rt.id === selectedRoomTypeId ? draftPriceSats : rt.priceSats;
+            const displayGuests = rt.id === selectedRoomTypeId ? draftMaxGuests : rt.maxGuests;
+            const displayRules = rt.id === selectedRoomTypeId ? draftRules : (rt.priceRules || []);
+            const displayStatus = rt.id === selectedRoomTypeId ? draftStatus : (rt.status || 'available');
+
+            return (
+              <div
+                key={rt.id}
+                onClick={() => handleSelectRoomType(rt.id)}
+                className={`cursor-pointer p-3 rounded-xl border font-mono text-xs transition-all flex flex-col justify-between gap-2 relative ${
+                  isSelected
+                    ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(var(--primary),0.12)]'
+                    : 'bg-black/30 border-border/60 hover:border-border hover:bg-black/40'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5 overflow-hidden">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`font-bold text-sm truncate ${isSelected ? 'text-primary' : 'text-white'}`}>
+                        {displayName}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-text-secondary flex items-center gap-2">
+                      <span>Tối đa {displayGuests} khách</span>
+                      <span>•</span>
+                      <span className={displayStatus === 'available' ? 'text-success' : 'text-danger'}>
+                        {displayStatus === 'available' ? 'Đang mở' : 'Tạm đóng'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!isUnauthorizedSolo && draftRoomTypes.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteRoomType(rt.id);
+                      }}
+                      title="Xóa loại phòng này"
+                      className="p-1 rounded text-text-disabled hover:text-danger hover:bg-danger/20 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-border/30 flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-1 text-warning font-bold">
+                    <Zap className="w-3 h-3" />
+                    <span>{displayPrice.toLocaleString()} Sats</span>
+                    <span className="text-[9px] font-normal text-text-secondary">/đêm</span>
+                  </div>
+                  <span className="text-[10px] text-text-secondary">
+                    {displayRules.length > 0 ? `${displayRules.length} quy tắc mùa` : 'Giá cố định'}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Main Extranet Grid: Calendar & Price Rules */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Interactive Calendar View (7 cols) */}
@@ -680,7 +954,7 @@ export default function HostCalendarPricing({
               <div className="flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">
-                  Lịch Giá Extranet Theo Tháng
+                  Lịch Giá: <span className="text-primary">{draftRoomName || 'Loại phòng'}</span>
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -779,7 +1053,7 @@ export default function HostCalendarPricing({
               <div className="flex items-center gap-2">
                 <Tag className="w-4 h-4 text-warning" />
                 <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">
-                  Quy Tắc Giá Theo Mùa / Ngày
+                  Quy Tắc Giá: <span className="text-warning">{draftRoomName || 'Loại phòng'}</span>
                 </h3>
               </div>
               {!isUnauthorizedSolo && (
@@ -1075,7 +1349,18 @@ export default function HostCalendarPricing({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
               <div>
-                <label className="text-text-secondary block mb-1">Giá cơ sở mặc định (Base Sats/đêm):</label>
+                <label className="text-text-secondary block mb-1">Tên loại phòng đang chọn (Room Name):</label>
+                <input
+                  type="text"
+                  value={draftRoomName}
+                  onChange={(e) => setDraftRoomName(e.target.value)}
+                  placeholder="Ví dụ: Lều Glamping, Bungalow..."
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white font-bold focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-text-secondary block mb-1">Giá cơ sở phòng này (Base Sats/đêm):</label>
                 <input
                   type="number"
                   value={draftPriceSats}
@@ -1086,7 +1371,19 @@ export default function HostCalendarPricing({
               </div>
 
               <div>
-                <label className="text-text-secondary block mb-1">Trạng thái nhận khách:</label>
+                <label className="text-text-secondary block mb-1">Sức chứa loại phòng này (Khách):</label>
+                <input
+                  type="number"
+                  value={draftMaxGuests}
+                  onChange={(e) => setDraftMaxGuests(Number(e.target.value))}
+                  min={1}
+                  max={20}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-text-secondary block mb-1">Trạng thái nhận khách của phòng:</label>
                 <select
                   value={draftStatus}
                   onChange={(e) => setDraftStatus(e.target.value as any)}
@@ -1098,7 +1395,18 @@ export default function HostCalendarPricing({
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-text-secondary block mb-1">URL Ảnh Đại Diện:</label>
+                <label className="text-text-secondary block mb-1">Tiện nghi riêng của loại phòng (phân tách dấu phẩy):</label>
+                <input
+                  type="text"
+                  placeholder="Lồng Faraday, Ban công view rừng, Khóa Nostr tử tế..."
+                  value={draftRoomSpecsStr}
+                  onChange={(e) => setDraftRoomSpecsStr(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-text-secondary block mb-1">URL Ảnh Đại Diện Homestay:</label>
                 <input
                   type="text"
                   value={draftImageUrl}
@@ -1108,7 +1416,7 @@ export default function HostCalendarPricing({
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-text-secondary block mb-1">Mô tả Homestay:</label>
+                <label className="text-text-secondary block mb-1">Mô tả Tổng quan Homestay:</label>
                 <textarea
                   rows={3}
                   value={draftDesc}
@@ -1143,26 +1451,13 @@ export default function HostCalendarPricing({
             )}
 
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono ${isGroupBBlocked ? 'opacity-50 pointer-events-none' : ''}`}>
-              <div>
+              <div className="md:col-span-2">
                 <label className="text-text-secondary block mb-1">Tiêu đề Homestay (Title):</label>
                 <input
                   type="text"
                   disabled={isGroupBBlocked}
                   value={draftTitle}
                   onChange={(e) => setDraftTitle(e.target.value)}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="text-text-secondary block mb-1">Số khách tối đa (Max Guests):</label>
-                <input
-                  type="number"
-                  disabled={isGroupBBlocked}
-                  value={draftMaxGuests}
-                  onChange={(e) => setDraftMaxGuests(Number(e.target.value))}
-                  min={1}
-                  max={20}
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
                 />
               </div>
@@ -1186,7 +1481,7 @@ export default function HostCalendarPricing({
                   disabled={isGroupBBlocked}
                   value={draftKycThreshold}
                   onChange={(e) => setDraftKycThreshold(Number(e.target.value))}
-                  step={10000}
+                  step={50000}
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
                 />
               </div>

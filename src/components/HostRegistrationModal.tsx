@@ -159,20 +159,37 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         };
       }));
 
+      const basePrice = priceModel === 'dana' ? 0 : parseInt(priceSats) || 0;
+      const parsedMaxGuests = parseInt(maxGuests) || 2;
+      const specsList = securitySpecs.split(',').map(s => s.trim()).filter(Boolean);
+      const mainImg = imageUrl || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=600&q=80';
+
       const newListing: Listing = {
         id: listingId,
         title,
         description,
-        priceSats: priceModel === 'dana' ? 0 : parseInt(priceSats) || 0,
+        roomTypes: [
+          {
+            id: `rt_${Math.random().toString(36).substring(2, 9)}`,
+            name: title,
+            maxGuests: parsedMaxGuests,
+            priceSats: basePrice,
+            securitySpecs: specsList,
+            priceRules: [],
+            images: [mainImg],
+            status: 'available'
+          }
+        ],
+        priceSats: basePrice,
         priceModel: priceModel,
-        maxGuests: parseInt(maxGuests),
+        maxGuests: parsedMaxGuests,
         meshCoordinates: locationCoords,
         imagePrompt: 'Cypherpunk bunker',
-        securitySpecs: securitySpecs.split(',').map(s => s.trim()),
+        securitySpecs: specsList,
         acceptedKycVerifiers: rawVerifiers,
         kycThresholdSats: kycThresholdSats,
         status: 'available',
-        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=600&q=80',
+        imageUrl: mainImg,
         images: signedImages,
         reviews: [],
         coOwners: coOwners.map(owner => ({

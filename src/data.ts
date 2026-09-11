@@ -1,7 +1,8 @@
 import { Listing } from './types';
+import { migrateListingToRoomTypes } from './utils/pricing';
 
 export const INITIAL_LISTINGS: Listing[] = [
-  {
+  migrateListingToRoomTypes({
     id: 'LIST_ZEN_01',
     title: 'Anatta Zen Forest Sanctuary (RFC-0008 Dana Retreat)',
     description: 'A secluded forest monastery hermitage dedicated to mindfulness, digital detox, and stillness. Operating entirely on the Buddhist principle of Dana (voluntary offering / non-attachment). Off-grid solar power, natural spring water, and mesh relay connectivity.',
@@ -17,6 +18,28 @@ export const INITIAL_LISTINGS: Listing[] = [
       'LoRa Mesh Node',
       'No-KYC Required',
       'Spring Water'
+    ],
+    roomTypes: [
+      {
+        id: 'rt_zen_kuti_01',
+        name: 'Cốc Thiền Độc Lập (Private Kuti)',
+        maxGuests: 1,
+        priceSats: 0,
+        securitySpecs: ['Đệm Tọa Thiền Chuyên Dụng', 'Nước Suối Nguồn Tự Nhiên', 'Không Thiết Bị Điện Tử'],
+        images: ['https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80'],
+        priceRules: [],
+        status: 'available'
+      },
+      {
+        id: 'rt_zen_cottage_02',
+        name: 'Chòi Tre Hướng Rừng Thông (Forest Hermitage)',
+        maxGuests: 2,
+        priceSats: 0,
+        securitySpecs: ['Hiên Ngắm Rừng', 'Bếp Củi Pha Trà', 'Đèn Dầu Thực Vật'],
+        images: ['https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&w=1200&q=80'],
+        priceRules: [],
+        status: 'available'
+      }
     ],
     coOwners: [
       {
@@ -37,8 +60,8 @@ export const INITIAL_LISTINGS: Listing[] = [
         createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
       }
     ]
-  },
-  {
+  }),
+  migrateListingToRoomTypes({
     id: 'LIST_CYPHER_02',
     title: 'Faraday Bunker & Bitcoin Mesh Lab',
     description: 'High-security underground Cypherpunk homestay equipped with Starlink failover, RF shielded bedroom (Faraday cage), hardware multisig recovery station, 24/7 dedicated Nostr relay node, and RFC-0013 Agent-Ready amenity (dedicated SBC + 50 Mbps bandwidth floor).',
@@ -55,6 +78,55 @@ export const INITIAL_LISTINGS: Listing[] = [
       'Local Nostr Relay',
       'NUT-11 2-of-3 Escrow',
       'Zero-Log Routing'
+    ],
+    roomTypes: [
+      {
+        id: 'rt_cypher_suite_01',
+        name: 'Faraday Shielded Suite (Phòng Suite Chống Sóng RF)',
+        maxGuests: 2,
+        priceSats: 120000,
+        securitySpecs: ['Lồng Faraday Cách Ly RF', 'Starlink Gigabit Uplink', 'Trạm Multisig Hw-Wallet', 'Air-Gapped Workstation'],
+        images: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'],
+        priceRules: [
+          {
+            id: 'rule_weekend_cypher',
+            label: 'Cuối tuần (Thứ 7 & CN)',
+            type: 'day_of_week',
+            daysOfWeek: ['SA', 'SU'],
+            priceSats: 145000,
+            priority: 10
+          },
+          {
+            id: 'rule_autumn_hackathon',
+            label: 'Mùa Hackathon Thu 2026',
+            type: 'date_range',
+            startDate: '2026-09-01',
+            endDate: '2026-09-30',
+            priceSats: 135000,
+            priority: 5
+          }
+        ],
+        status: 'available'
+      },
+      {
+        id: 'rt_cypher_capsule_02',
+        name: 'Mesh Node Capsule (Khoang Ngủ Hacker)',
+        maxGuests: 1,
+        priceSats: 65000,
+        securitySpecs: ['Dedicated Ethernet Port', 'LoRa Antennas Access', 'Bảo Mật Cửa Mã PIN Nostr'],
+        images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=80'],
+        priceRules: [
+          {
+            id: 'rule_capsule_weekend',
+            label: 'Cuối tuần Hacker',
+            type: 'day_of_week',
+            daysOfWeek: ['SA', 'SU'],
+            priceSats: 75000,
+            priority: 5
+          }
+        ],
+        status: 'available'
+      }
     ],
     coOwners: [
       {
@@ -110,7 +182,7 @@ export const INITIAL_LISTINGS: Listing[] = [
         createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
       }
     ]
-  }
+  })
 ];
 
 export const INITIAL_PROPOSALS: any[] = [];
