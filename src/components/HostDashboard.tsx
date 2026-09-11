@@ -32,6 +32,7 @@ export default function HostDashboard({
   const { t } = useTranslation();
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'my_listings' | 'calendar_pricing' | 'escrow_management' | 'earnings'>('my_listings');
+  const [selectedExtranetListingId, setSelectedExtranetListingId] = useState<string | undefined>(undefined);
 
   const [simAmountSats, setSimAmountSats] = useState<number>(100000);
   const [simCongestion, setSimCongestion] = useState<number>(1.0);
@@ -189,7 +190,10 @@ export default function HostDashboard({
                     <span>{t('hostDashboard.coOwnersCount', { count: listing.coOwners?.length || 1 })}</span>
                   </div>
                   <button
-                    onClick={() => setActiveSubTab('calendar_pricing')}
+                    onClick={() => {
+                      setSelectedExtranetListingId(listing.id);
+                      setActiveSubTab('calendar_pricing');
+                    }}
                     className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-mono font-bold border border-primary/30 flex items-center gap-1 transition-colors"
                   >
                     <Sliders className="w-3 h-3" /> Extranet
@@ -206,6 +210,7 @@ export default function HostDashboard({
           listings={listings}
           identity={identity}
           bookings={bookings}
+          initialListingId={selectedExtranetListingId}
           onUpdateListing={onUpdateListing || (() => {})}
           onAddProposal={onAddProposal || (() => {})}
           onAddLog={onAddLog}

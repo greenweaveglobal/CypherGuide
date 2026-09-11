@@ -33,15 +33,23 @@ interface Props {
   listings: Listing[];
   identity: NostrIdentity | null;
   bookings: Booking[];
+  initialListingId?: string;
   onUpdateListing: (listing: Listing) => void;
   onAddProposal: (proposal: Proposal) => void;
   onAddLog: (type: 'relay' | 'lightning' | 'lock' | 'governance' | 'message', message: string, hash?: string) => void;
 }
 
+export const canEditDirectly = (listing: Listing, identity: NostrIdentity | null): boolean => {
+  if (!identity || !listing.coOwners || listing.coOwners.length !== 1) return false;
+  const owner = listing.coOwners[0];
+  return owner.share === 100 && owner.npub === identity.npub;
+};
+
 export default function HostCalendarPricing({
   listings,
   identity,
   bookings,
+  initialListingId,
   onUpdateListing,
   onAddProposal,
   onAddLog
@@ -56,8 +64,14 @@ export default function HostCalendarPricing({
   }, [listings, identity]);
 
   const [selectedListingId, setSelectedListingId] = useState<string>(
-    hostListings[0]?.id || listings[0]?.id || ''
+    initialListingId || hostListings[0]?.id || listings[0]?.id || ''
   );
+
+  React.useEffect(() => {
+    if (initialListingId) {
+      setSelectedListingId(initialListingId);
+    }
+  }, [initialListingId]);
 
   const selectedListing = useMemo(() => {
     return listings.find(l => l.id === selectedListingId) || listings[0];
@@ -99,10 +113,20 @@ export default function HostCalendarPricing({
   }, [selectedListing?.id]);
 
   // Ownership & Risk Assessment
-  const isSoloHost = useMemo(() => {
-    if (!selectedListing || !selectedListing.coOwners) return true;
+  const isSoloListing = useMemo(() => {
+    if (!selectedListing || !selectedListing.coOwners) return false;
     return selectedListing.coOwners.length === 1 && selectedListing.coOwners[0].share === 100;
   }, [selectedListing]);
+
+  const hasDirectEditAccess = useMemo(() => {
+    if (!selectedListing) return false;
+    return canEditDirectly(selectedListing, identity);
+  }, [selectedListing, identity]);
+
+  const soloOwner = selectedListing?.coOwners && selectedListing.coOwners.length === 1 ? selectedListing.coOwners[0] : null;
+  const soloOwnerShortNpub = soloOwner ? `${soloOwner.npub.slice(0, 10)}...${soloOwner.npub.slice(-4)}` : '';
+
+  const isUnauthorizedSolo = isSoloListing && !hasDirectEditAccess;
 
   // Active bookings check for Group B protection
   const activeBookings = useMemo(() => {
@@ -219,6 +243,13 @@ export default function HostCalendarPricing({
   // Add rule handler
   const handleAddRule = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isUnauthorizedSolo) {
+      setStatusNotice({
+        message: `Bạn không phải chủ sở hữu listing này — chỉ npub ${soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.`,
+        type: 'error'
+      });
+      return;
+    }
     if (!ruleLabel.trim() || rulePriceSats <= 0) return;
 
     const newRule: PriceRule = {
@@ -245,6 +276,7 @@ export default function HostCalendarPricing({
   };
 
   const handleDeleteRule = (ruleId: string) => {
+    if (isUnauthorizedSolo) return;
     setDraftRules(prev => prev.filter(r => r.id !== ruleId));
   };
 
@@ -358,6 +390,14 @@ export default function HostCalendarPricing({
       return;
     }
 
+    if (isUnauthorizedSolo) {
+      setStatusNotice({
+        message: `Bạn không phải chủ sở hữu listing này — chỉ npub ${soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.`,
+        type: 'error'
+      });
+      return;
+    }
+
     if (!changes.hasChanges) {
       setStatusNotice({ message: 'Chưa có thay đổi nào được ghi nhận để ký.', type: 'error' });
       return;
@@ -419,7 +459,7 @@ export default function HostCalendarPricing({
         editHistory: [...(selectedListing.editHistory || []), ...newHistoryEntries]
       };
 
-      if (isSoloHost) {
+      if (hasDirectEditAccess) {
         // Solo host
         if (changes.listB.length === 0) {
           // Only Group A changes: Direct apply
@@ -529,7 +569,7 @@ export default function HostCalendarPricing({
           </div>
         </div>
 
-        {hostListings.length > 1 && (
+        {(hostListings.length > 1 || listings.length > 1) && (
           <div className="flex items-center gap-2 w-full md:w-auto">
             <span className="text-xs font-mono text-text-secondary shrink-0">Chọn cơ sở:</span>
             <select
@@ -537,7 +577,7 @@ export default function HostCalendarPricing({
               onChange={(e) => setSelectedListingId(e.target.value)}
               className="bg-black/50 border border-border rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-primary w-full md:w-auto"
             >
-              {hostListings.map(l => (
+              {(hostListings.length > 0 ? hostListings : listings).map(l => (
                 <option key={l.id} value={l.id}>
                   {l.title} ({l.id})
                 </option>
@@ -556,21 +596,37 @@ export default function HostCalendarPricing({
               <ShieldCheck className="w-4 h-4 text-primary" />
             </div>
             <div className="text-sm font-bold font-mono text-white flex items-center gap-2 mt-1">
-              {isSoloHost ? (
-                <span className="text-success flex items-center gap-1.5">
-                  <Check className="w-4 h-4" /> Solo Host (100% Cổ phần)
-                </span>
+              {isSoloListing ? (
+                hasDirectEditAccess ? (
+                  <span className="text-success flex items-center gap-1.5">
+                    <Check className="w-4 h-4" /> Solo Host (100% Cổ phần)
+                  </span>
+                ) : (
+                  <span className="text-danger flex items-center gap-1.5">
+                    <Lock className="w-4 h-4" /> Solo Host (Chỉ xem)
+                  </span>
+                )
               ) : (
                 <span className="text-primary flex items-center gap-1.5">
-                  <Layers className="w-4 h-4" /> Multi-Owner ({selectedListing.coOwners.length} Co-Owners)
+                  <Layers className="w-4 h-4" /> Multi-Owner ({selectedListing.coOwners?.length || 0} Co-Owners)
                 </span>
               )}
             </div>
           </div>
-          <p className="text-[10px] text-text-secondary font-mono mt-2">
-            {isSoloHost 
-              ? 'Nhóm A: Ký 1 lần áp dụng ngay. Nhóm B: Tự động lưu vết Governance.'
-              : 'Mọi thay đổi Nhóm A & B đều tạo Đề xuất Quản trị cần biểu quyết >50%.'}
+          <p className="text-[10px] font-mono mt-2">
+            {isUnauthorizedSolo ? (
+              <span className="text-danger font-semibold">
+                Bạn không phải chủ sở hữu listing này — chỉ npub {soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.
+              </span>
+            ) : hasDirectEditAccess ? (
+              <span className="text-text-secondary">
+                Nhóm A: Ký 1 lần áp dụng ngay. Nhóm B: Tự động lưu vết Governance.
+              </span>
+            ) : (
+              <span className="text-text-secondary">
+                Mọi thay đổi Nhóm A & B đều tạo Đề xuất Quản trị cần biểu quyết &gt;50%.
+              </span>
+            )}
           </p>
         </div>
 
@@ -726,21 +782,23 @@ export default function HostCalendarPricing({
                   Quy Tắc Giá Theo Mùa / Ngày
                 </h3>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => setShowAddRuleForm(!showAddRuleForm)}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                {showAddRuleForm ? 'Đóng' : 'Thêm quy tắc'}
-              </Button>
+              {!isUnauthorizedSolo && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setShowAddRuleForm(!showAddRuleForm)}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  {showAddRuleForm ? 'Đóng' : 'Thêm quy tắc'}
+                </Button>
+              )}
             </CardHeader>
 
             <CardContent className="pt-4 space-y-4">
               {/* Add Rule Form */}
               <AnimatePresence>
-                {showAddRuleForm && (
+                {!isUnauthorizedSolo && showAddRuleForm && (
                   <motion.form
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -950,14 +1008,16 @@ export default function HostCalendarPricing({
                         <span className="text-warning font-bold">
                           {rule.priceSats.toLocaleString()} Sats
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteRule(rule.id)}
-                          className="p-1 rounded text-text-disabled hover:text-danger hover:bg-danger/10 transition-colors"
-                          title="Xóa quy tắc"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {!isUnauthorizedSolo && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRule(rule.id)}
+                            className="p-1 rounded text-text-disabled hover:text-danger hover:bg-danger/10 transition-colors"
+                            title="Xóa quy tắc"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -969,31 +1029,49 @@ export default function HostCalendarPricing({
       </div>
 
       {/* Group A & Group B Editable Form */}
-      <Card variant="glass" className="border-border">
-        <CardHeader className="pb-4 border-b border-border">
-          <h3 className="text-base font-bold font-mono text-white flex items-center gap-2">
-            <Sliders className="w-5 h-5 text-primary" />
-            <span>Phân Quyền Sửa Dữ Liệu Theo Nhóm Rủi Ro</span>
-          </h3>
-          <p className="text-xs text-text-secondary font-mono">
-            Phân loại rõ ràng các trường dữ liệu theo chính sách giao thức BFT của Cypher Travel.
-          </p>
-        </CardHeader>
-
-        <CardContent className="pt-6 space-y-6">
-          {/* Group A Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border/40">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-success/20 text-success border border-success/30 font-mono text-xs font-bold">
-                  Nhóm A
-                </span>
-                <span className="text-xs font-bold font-mono text-white uppercase">Tức Thời (Low Risk)</span>
-              </div>
-              <span className="text-[10px] font-mono text-text-secondary">
-                {isSoloHost ? 'Solo: Ký 1 lần & Áp dụng ngay' : 'Multi: Qua Governance đề xuất'}
-              </span>
+      {isUnauthorizedSolo ? (
+        <Card variant="glass" className="border-danger/30 bg-danger/5">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-danger/10 border border-danger/30 text-danger flex items-center justify-center mx-auto">
+              <Lock className="w-6 h-6" />
             </div>
+            <div className="space-y-1">
+              <h4 className="text-base font-bold font-mono text-white">Quyền Chỉnh Sửa Trực Tiếp Bị Khóa</h4>
+              <p className="text-sm font-mono text-danger font-medium">
+                Bạn không phải chủ sở hữu listing này — chỉ npub {soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.
+              </p>
+            </div>
+            <p className="text-xs font-mono text-text-secondary max-w-md mx-auto">
+              Listing này được bảo vệ theo cơ chế xác thực Cypher BFT. Chỉ danh tính Nostr sở hữu 100% quyền quản trị ({soloOwnerShortNpub}) mới có quyền chỉnh sửa trực tiếp dữ liệu cơ sở lưu trú.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card variant="glass" className="border-border">
+          <CardHeader className="pb-4 border-b border-border">
+            <h3 className="text-base font-bold font-mono text-white flex items-center gap-2">
+              <Sliders className="w-5 h-5 text-primary" />
+              <span>Phân Quyền Sửa Dữ Liệu Theo Nhóm Rủi Ro</span>
+            </h3>
+            <p className="text-xs text-text-secondary font-mono">
+              Phân loại rõ ràng các trường dữ liệu theo chính sách giao thức BFT của Cypher Travel.
+            </p>
+          </CardHeader>
+
+          <CardContent className="pt-6 space-y-6">
+            {/* Group A Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-success/20 text-success border border-success/30 font-mono text-xs font-bold">
+                    Nhóm A
+                  </span>
+                  <span className="text-xs font-bold font-mono text-white uppercase">Tức Thời (Low Risk)</span>
+                </div>
+                <span className="text-[10px] font-mono text-text-secondary">
+                  {hasDirectEditAccess ? 'Solo: Ký 1 lần & Áp dụng ngay' : 'Multi: Qua Governance đề xuất'}
+                </span>
+              </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
               <div>
@@ -1206,7 +1284,7 @@ export default function HostCalendarPricing({
               >
                 {isSigning ? (
                   <span>Đang ký Schnorr...</span>
-                ) : isSoloHost ? (
+                ) : hasDirectEditAccess ? (
                   <span>Ký Schnorr & Áp Dụng Ngay (Solo Host)</span>
                 ) : (
                   <span>Ký & Tạo Đề Xuất Quản Trị (Multi-Owner)</span>
@@ -1216,6 +1294,7 @@ export default function HostCalendarPricing({
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
