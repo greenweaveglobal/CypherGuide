@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap, Sparkles, Bot } from 'lucide-react';
 import { Listing, NostrIdentity, Booking } from '../types';
-import { getEffectivePrice, getEffectivePriceRule } from '../utils/pricing';
+import { getEffectivePrice, getEffectivePriceRule, migrateListingToRoomTypes } from '../utils/pricing';
 import HostRegistrationModal from './HostRegistrationModal';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -212,8 +212,12 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
 
                   <div className="mt-5 pt-4 border-t border-border/30 flex items-center justify-between">
                     {(() => {
-                      const effectivePriceToday = getEffectivePrice(listing, new Date());
-                      const activeRule = getEffectivePriceRule(listing, new Date());
+                      const roomTypes = migrateListingToRoomTypes(listing).roomTypes;
+                      const cheapestRoomId = roomTypes.length > 0
+                        ? roomTypes.reduce((min, rt) => rt.priceSats < min.priceSats ? rt : min, roomTypes[0]).id
+                        : undefined;
+                      const effectivePriceToday = getEffectivePrice(listing, new Date(), cheapestRoomId);
+                      const activeRule = getEffectivePriceRule(listing, new Date(), cheapestRoomId);
                       return (
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1.5">
@@ -237,6 +241,7 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <Zap className="w-3.5 h-3.5 text-warning opacity-80" />
                               <span className="text-sm font-bold font-mono text-white tracking-tighter">
+                                {roomTypes.length > 1 && <span className="text-xs font-normal text-text-secondary mr-1">Từ</span>}
                                 {effectivePriceToday.toLocaleString()} <span className="text-[10px] text-warning/70">SATS</span>
                               </span>
                             </div>
