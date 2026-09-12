@@ -205,7 +205,8 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       onClose();
     } catch (err) {
       console.error(err);
-      setErrorMsg(t('hostReg.errSigning'));
+      const detail = err instanceof Error ? err.message : String(err);
+      setErrorMsg(`${t('hostReg.errSigning')} — Chi tiết: ${detail}`);
     } finally {
       setIsSubmitting(false);
     }
