@@ -229,35 +229,44 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-panel max-w-2xl w-full border border-white/10 rounded-2xl p-4 sm:p-6 relative my-4 sm:my-8"
+        className="glass-panel max-w-2xl w-full border border-white/10 rounded-2xl my-auto flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] shadow-2xl relative font-sans overflow-hidden"
       >
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white">
-          <X className="w-5 h-5" />
-        </button>
-        
-        <div className="flex items-center gap-3 mb-6">
-          <Home className="w-6 h-6 text-cyber-green" />
-          <h2 className="text-xl font-bold text-white uppercase tracking-wider font-mono">{t('hostReg.title')}</h2>
+        {/* Sticky Header */}
+        <div className="flex justify-between items-center bg-black/60 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Home className="w-5 h-5 text-cyber-green shrink-0" />
+            <h2 className="text-white font-mono font-bold uppercase tracking-wider text-xs sm:text-sm truncate">
+              {t('hostReg.title')}
+            </h2>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 ml-2"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {errorMsg && (
-          <div className="p-3 mb-6 bg-danger/20 border border-danger/30 rounded-lg text-xs font-mono text-danger flex justify-between items-center">
-            <span>{errorMsg}</span>
-            <button onClick={() => setErrorMsg('')} className="p-1 hover:bg-white/10 rounded">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        {/* Scrollable Content */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
+          {errorMsg && (
+            <div className="p-3 bg-danger/20 border border-danger/30 rounded-lg text-xs font-mono text-danger flex justify-between items-center">
+              <span>{errorMsg}</span>
+              <button onClick={() => setErrorMsg('')} className="p-1 hover:bg-white/10 rounded">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
-        <p className="text-xs text-gray-400 font-mono mb-6 pb-4 border-b border-white/5">
-          {t('hostReg.descHeader')}
-        </p>
+          <p className="text-xs text-gray-400 font-mono pb-4 border-b border-white/5">
+            {t('hostReg.descHeader')}
+          </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-4">
               <div>
@@ -319,9 +328,10 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 <div className="relative">
                   <input
                     type="url"
-                    value={imageUrl}
+                    value={imageUrl.startsWith('data:') ? '' : imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder={t('hostReg.phUrl')}
+                    placeholder={imageUrl.startsWith('data:') ? t('hostReg.uploadFromFile') : t('hostReg.phUrl')}
+                    readOnly={imageUrl.startsWith('data:')}
                     className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyber-green/50 font-mono"
                   />
                 </div>
@@ -797,6 +807,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
             </button>
           </div>
         </form>
+        </div>
       </motion.div>
     </div>
   );
