@@ -46,6 +46,16 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  // 3. Khôi phục privKeyHex từ sessionStorage khi app khởi động / component mount
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedPrivKey = sessionStorage.getItem('cg_session_privkey');
+      if (savedPrivKey && identity && !identity.privKeyHex) {
+        setIdentity({ ...identity, privKeyHex: savedPrivKey });
+      }
+    }
+  }, [identity, setIdentity]);
+
   React.useEffect(() => {
     // Cypher Travel: Tự động đối soát hạ tầng Cypher Protocol & đồng bộ cấu hình mạng lưới
     checkIntegrity();

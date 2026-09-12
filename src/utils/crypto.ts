@@ -138,9 +138,18 @@ export async function encryptNostrMessage(
   identity: NostrIdentity,
   standard: 'NIP-04' | 'NIP-44' = 'NIP-44'
 ): Promise<string> {
-  // Try NIP-07 Extension first if present
+  let privKeyHex = identity.privKeyHex;
+  if (!privKeyHex && typeof window !== 'undefined') {
+    const saved = sessionStorage.getItem('cg_session_privkey');
+    if (saved) {
+      privKeyHex = saved;
+      identity.privKeyHex = saved;
+    }
+  }
+
+  // Try NIP-07 Extension first if present and no local privKey
   const nostr = (window as any).nostr;
-  if (!identity.privKeyHex && nostr) {
+  if (!privKeyHex && nostr) {
     if (standard === 'NIP-04' && nostr.nip04?.encrypt) {
       return await nostr.nip04.encrypt(recipientPubKeyHex, content);
     }
@@ -150,9 +159,9 @@ export async function encryptNostrMessage(
   }
 
   // Use local session private key if available
-  if (identity.privKeyHex) {
+  if (privKeyHex) {
     try {
-      const sk = hexToBytes(identity.privKeyHex);
+      const sk = hexToBytes(privKeyHex);
       if (standard === 'NIP-04') {
         return await nip04.encrypt(sk, recipientPubKeyHex, content);
       } else {
@@ -184,9 +193,18 @@ export async function decryptNostrMessage(
     return '[🔐 Tin nhắn được gửi từ phiên thử nghiệm cũ]';
   }
 
+  let privKeyHex = identity.privKeyHex;
+  if (!privKeyHex && typeof window !== 'undefined') {
+    const saved = sessionStorage.getItem('cg_session_privkey');
+    if (saved) {
+      privKeyHex = saved;
+      identity.privKeyHex = saved;
+    }
+  }
+
   // Try NIP-07 Extension if no local privKeyHex
   const nostr = (window as any).nostr;
-  if (!identity.privKeyHex && nostr) {
+  if (!privKeyHex && nostr) {
     try {
       if (standard === 'NIP-04' && nostr.nip04?.decrypt) {
         return await nostr.nip04.decrypt(peerPubKeyHex, ciphertext);
@@ -200,9 +218,9 @@ export async function decryptNostrMessage(
   }
 
   // Try local session private key
-  if (identity.privKeyHex) {
+  if (privKeyHex) {
     try {
-      const sk = hexToBytes(identity.privKeyHex);
+      const sk = hexToBytes(privKeyHex);
       if (standard === 'NIP-04') {
         return await nip04.decrypt(sk, peerPubKeyHex, ciphertext);
       } else {
@@ -226,14 +244,23 @@ export async function signMessage(message: string, identity: NostrIdentity): Pro
     content: message,
   };
 
-  if (!identity.nsec && !identity.privKeyHex) {
+  let privKeyHex = identity.privKeyHex;
+  if (!privKeyHex && typeof window !== 'undefined') {
+    const saved = sessionStorage.getItem('cg_session_privkey');
+    if (saved) {
+      privKeyHex = saved;
+      identity.privKeyHex = saved;
+    }
+  }
+
+  if (!identity.nsec && !privKeyHex) {
     const nostr = (window as any).nostr;
     if (!nostr) throw new Error("NIP-07 extension not found");
     const signedEvent = await nostr.signEvent(eventTemplate);
     return JSON.stringify(signedEvent);
   } else {
     try {
-      const sk = hexToBytes(identity.privKeyHex);
+      const sk = hexToBytes(privKeyHex);
       const signedEvent = finalizeEvent(eventTemplate, sk);
       return JSON.stringify(signedEvent);
     } catch (e) {

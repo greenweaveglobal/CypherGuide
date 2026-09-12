@@ -105,6 +105,9 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
     if (tempIdentity && verifyNsec === tempIdentity.nsec) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('nip07_explicitly_logged_out');
+        if (tempIdentity.privKeyHex) {
+          sessionStorage.setItem('cg_session_privkey', tempIdentity.privKeyHex);
+        }
       }
       onIdentityChange(tempIdentity);
       onAddLog('relay', t('sysLogs.createdKeys', { name: tempIdentity.name }));
@@ -123,16 +126,18 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
       const sk = decoded.data as Uint8Array;
       const pk = getPublicKey(sk);
       const npub = nip19.npubEncode(pk);
+      const privKeyHex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
       
       const imported: NostrIdentity = {
         npub,
         nsec: importNsecStr,
         name: `Imported_${pk.slice(0, 8)}`, 
         pubKeyHex: pk, 
-        privKeyHex: Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('')
+        privKeyHex
       };
       if (typeof window !== 'undefined') {
         localStorage.removeItem('nip07_explicitly_logged_out');
+        sessionStorage.setItem('cg_session_privkey', privKeyHex);
       }
       onIdentityChange(imported);
       onAddLog('relay', t('sysLogs.importedSecretKey', { npub: npub.slice(0, 16) }));
@@ -147,6 +152,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
     try {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('nip07_explicitly_logged_out');
+        sessionStorage.removeItem('cg_session_privkey');
       }
       const nip07Id = await loginWithNip07();
       onIdentityChange(nip07Id);
@@ -164,6 +170,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const handleConfirmDisconnect = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('nip07_explicitly_logged_out', 'true');
+      sessionStorage.removeItem('cg_session_privkey');
     }
     onAddLog('relay', t('sysLogs.loggedOut'));
     onIdentityChange(null);

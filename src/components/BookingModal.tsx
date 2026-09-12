@@ -320,26 +320,28 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-cyber-dark border border-white/10 rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl relative font-sans">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-cyber-dark border border-white/10 rounded-2xl w-full max-w-2xl my-auto flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] shadow-2xl relative font-sans overflow-hidden">
         
-        {/* Header */}
-        <div className="flex justify-between items-center bg-black/40 px-5 py-4 border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-cyber-amber" />
-            <h3 className="text-white font-mono font-bold uppercase tracking-wider text-sm">{t('booking.modalTitle')}</h3>
+        {/* Sticky Header */}
+        <div className="flex justify-between items-center bg-black/60 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Zap className="w-5 h-5 text-cyber-amber shrink-0" />
+            <h3 className="text-white font-mono font-bold uppercase tracking-wider text-xs sm:text-sm truncate">
+              {t('booking.modalTitle')}
+            </h3>
           </div>
           <button 
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 ml-2"
             id="close-booking-modal-btn"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Steps Content */}
-        <div className="p-6">
+        {/* Scrollable Steps Content */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
           {errorMsg && (
             <div className="p-3 mb-4 bg-danger/20 border border-danger/30 rounded-lg text-xs font-mono text-danger flex justify-between items-center">
               <span>{errorMsg}</span>
@@ -473,10 +475,12 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           )}
                         </div>
                         <p className="text-xs text-text-secondary truncate mt-0.5">{listing.title}</p>
-                        <div className="flex items-center gap-3 text-[11px] font-mono text-cyber-green mt-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-mono text-cyber-green mt-1">
                           <span>{listing.meshCoordinates}</span>
                           {currentRoom && (
-                            <span className="text-text-secondary font-mono">• Tối đa {currentRoom.maxGuests} khách • {currentRoom.priceSats.toLocaleString()} Sats/đêm</span>
+                            <span className="text-text-secondary font-mono">
+                              • Tối đa {currentRoom.maxGuests} khách • <strong className="text-warning font-semibold">{currentRoom.priceSats.toLocaleString()} Sats/đêm</strong>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -486,11 +490,11 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
               })()}
 
               {/* Date selection */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500 font-mono uppercase flex items-center gap-1.5 mb-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-cyber-green" />
-                    {t('booking.checkInDate')}
+                  <label className="text-xs text-gray-400 font-mono uppercase flex items-center gap-1.5 mb-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-cyber-green shrink-0" />
+                    <span>{t('booking.checkInDate')}</span>
                   </label>
                   <input
                     type="date"
@@ -501,9 +505,9 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 font-mono uppercase flex items-center gap-1.5 mb-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-cyber-green" />
-                    {t('booking.checkOutDate')}
+                  <label className="text-xs text-gray-400 font-mono uppercase flex items-center gap-1.5 mb-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-cyber-green shrink-0" />
+                    <span>{t('booking.checkOutDate')}</span>
                   </label>
                   <input
                     type="date"
@@ -517,24 +521,24 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
 
               {/* Payment Method Selector */}
               <div className="space-y-1.5">
-                <label className="text-[10px] text-gray-400 font-mono uppercase block">{t('booking.paymentMethodTitle')}</label>
+                <label className="text-[11px] text-gray-400 font-mono uppercase block">{t('booking.paymentMethodTitle')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('lightning')}
                     className={`p-3 rounded-xl border text-left flex flex-col justify-between font-mono transition-all ${
                       paymentMethod === 'lightning'
-                        ? 'bg-cyber-amber/10 border-cyber-amber text-white'
+                        ? 'bg-cyber-amber/10 border-cyber-amber text-white ring-1 ring-cyber-amber/40'
                         : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/20'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-1.5">
                       <Zap className={`w-4 h-4 ${paymentMethod === 'lightning' ? 'text-cyber-amber fill-cyber-amber' : 'text-gray-400'}`} />
-                      {paymentMethod === 'lightning' && <span className="text-[9px] bg-cyber-amber/20 text-cyber-amber px-1.5 rounded">{t('booking.defaultBadge')}</span>}
+                      {paymentMethod === 'lightning' && <span className="text-[9px] bg-cyber-amber/20 text-cyber-amber px-1.5 py-0.5 rounded font-bold">{t('booking.defaultBadge')}</span>}
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white">Lightning Network</div>
-                      <div className="text-[9px] text-gray-400">BOLT11 / WebLN Instant</div>
+                      <div className="text-[10px] text-gray-400">BOLT11 / WebLN Instant</div>
                     </div>
                   </button>
 
@@ -543,98 +547,110 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                     onClick={() => setPaymentMethod('cashu')}
                     className={`p-3 rounded-xl border text-left flex flex-col justify-between font-mono transition-all ${
                       paymentMethod === 'cashu'
-                        ? 'bg-cyber-blue/10 border-cyber-blue text-white'
+                        ? 'bg-cyber-blue/10 border-cyber-blue text-white ring-1 ring-cyber-blue/40'
                         : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/20'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-1.5">
                       <Banknote className={`w-4 h-4 ${paymentMethod === 'cashu' ? 'text-cyber-blue' : 'text-gray-400'}`} />
                       <span className="text-[9px] bg-cyber-blue/20 text-cyber-blue px-1.5 rounded font-bold">NIP-60 ZK</span>
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white">Cashu Chaumian Ecash</div>
-                      <div className="text-[9px] text-gray-400">Blind Signatures / Offline</div>
+                      <div className="text-[10px] text-gray-400">Blind Signatures / Offline</div>
                     </div>
                   </button>
                 </div>
               </div>
 
               {/* Price & Tokenomics Breakdown */}
-              <div className="bg-black/30 border border-white/5 p-4 rounded-lg space-y-2.5 relative">
+              <div className="bg-black/40 border border-white/10 p-3.5 sm:p-4 rounded-xl space-y-3 relative">
                 {isFetchingFees && paymentMethod === 'lightning' && (
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center rounded-lg z-10">
-                    <span className="text-[10px] font-mono text-cyber-blue animate-pulse flex items-center gap-2">
-                      <Activity className="w-3 h-3" /> {t('booking.optimizingFees')}
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-10">
+                    <span className="text-xs font-mono text-cyber-blue animate-pulse flex items-center gap-2">
+                      <Activity className="w-3.5 h-3.5" /> {t('booking.optimizingFees')}
                     </span>
                   </div>
                 )}
                 
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>{t('booking.roomPrice', { nights })}:</span>
-                  <span className="font-mono text-white">{totalPriceSats.toLocaleString()} Sats</span>
+                {/* Room Price */}
+                <div className="flex justify-between items-center text-xs text-gray-300 font-mono">
+                  <span>{t('booking.roomPrice', { nights })}</span>
+                  <span className="font-bold text-white text-sm">{totalPriceSats.toLocaleString()} Sats</span>
                 </div>
 
                 {/* 1. Reputation-Based Fee Reduction */}
-                <div className="flex justify-between text-xs text-gray-400 items-center">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-cyber-green" />
-                    <span>{t('booking.protocolFee')}:</span>
-                    <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-cyber-green/20 text-cyber-green font-bold">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-gray-300 font-mono">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Sparkles className="w-3.5 h-3.5 text-cyber-green shrink-0" />
+                    <span>{t('booking.protocolFee')}</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyber-green/20 text-cyber-green font-bold shrink-0">
                       {t('booking.cypherLegendBadge')}
                     </span>
                   </div>
-                  <div className="text-right font-mono">
-                    <span className="line-through text-gray-600 text-[10px] mr-1">
+                  <div className="flex items-center gap-1.5 sm:text-right shrink-0">
+                    <span className="line-through text-gray-500 text-[11px]">
                       {Math.floor(totalPriceSats * 0.015).toLocaleString()} Sats
                     </span>
-                    <span className="text-cyber-green font-bold">
+                    <span className="text-cyber-green font-bold text-xs">
                       {Math.floor(totalPriceSats * 0.002).toLocaleString()} Sats
                     </span>
                   </div>
                 </div>
 
                 {/* 2. 2-Way Refundable Escrow Deposit */}
-                <div className="p-2.5 bg-black/50 border border-cyber-amber/20 rounded-lg space-y-1 font-mono text-[11px]">
-                  <div className="flex justify-between items-center text-cyber-amber font-bold">
-                    <span className="flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5" /> {t('booking.escrow2Way')}
+                <div className="p-3 bg-black/60 border border-cyber-amber/30 rounded-xl space-y-1.5 font-mono text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-cyber-amber font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 shrink-0 text-cyber-amber" />
+                      <span>{t('booking.escrow2Way')}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyber-amber/20 text-cyber-amber font-semibold shrink-0">
+                        {t('booking.refund100')}
+                      </span>
                     </span>
-                    <span>+{Math.floor(totalPriceSats * 0.10).toLocaleString()} SATS ({t('booking.refund100')})</span>
+                    <span className="text-xs sm:text-sm font-bold text-cyber-amber shrink-0">
+                      +{Math.floor(totalPriceSats * 0.10).toLocaleString()} Sats
+                    </span>
                   </div>
-                  <p className="text-[9px] text-gray-400 leading-tight">
-                    • <strong>{t('booking.guestDeposit')}</strong><br/>
-                    • <strong>{t('booking.hostDeposit')}</strong>
-                  </p>
+                  <div className="text-[10px] text-gray-400 space-y-1 leading-relaxed pt-1 border-t border-white/5">
+                    <div>{t('booking.guestDeposit')}</div>
+                    <div>{t('booking.hostDeposit')}</div>
+                  </div>
                 </div>
 
                 {/* 3. Referral Sats */}
-                <div className="flex justify-between text-xs text-gray-400 items-center pt-1 border-t border-white/5">
-                  <span className="flex items-center gap-1 text-[11px]">
-                    <Zap className="w-3 h-3 text-cyber-amber" /> {t('booking.referralBonus')}:
+                <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-gray-300 font-mono pt-1 border-t border-white/5">
+                  <span className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-cyber-amber shrink-0" />
+                    <span>{t('booking.referralBonus')}</span>
+                    <span className="text-[10px] text-gray-400 font-normal">({t('booking.referralAutoShare')})</span>
                   </span>
-                  <span className="font-mono text-cyber-amber text-[11px]">
-                    +{Math.floor(totalPriceSats * 0.01).toLocaleString()} Sats ({t('booking.referralAutoShare')})
+                  <span className="font-bold text-cyber-amber text-xs shrink-0">
+                    +{Math.floor(totalPriceSats * 0.01).toLocaleString()} Sats
                   </span>
                 </div>
 
                 {paymentMethod === 'lightning' && (
-                  <div className="flex justify-between text-xs text-gray-400 items-center">
+                  <div className="flex justify-between items-center text-xs text-gray-300 font-mono">
                     <span>{t('booking.lightningRoutingFee')}</span>
-                    <span className="font-mono text-white">{routingFeeSats.toLocaleString()} Sats</span>
+                    <span className="font-bold text-white text-xs shrink-0">{routingFeeSats.toLocaleString()} Sats</span>
                   </div>
                 )}
 
-                <div className="border-t border-white/10 pt-2.5 flex justify-between items-center">
-                  <div>
-                    <span className="text-xs text-white font-bold block">{t('booking.subtotalTitle')}</span>
-                    <span className="text-[9px] text-cyber-green font-mono">
+                {/* Subtotal with deposit */}
+                <div className="border-t border-white/10 pt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs sm:text-sm text-white font-bold block">{t('booking.subtotalTitle')}</span>
+                    <span className="text-[10px] text-cyber-green font-mono block mt-0.5">
                       * {t('booking.refundOnCheckout', { sats: Math.floor(totalPriceSats * 0.10).toLocaleString() })}
                     </span>
                   </div>
-                  <span className="font-mono text-cyber-amber font-bold text-lg flex items-center gap-1">
-                    <Coins className="w-4 h-4" />
-                    {(totalPriceSats + Math.floor(totalPriceSats * 0.10) + Math.floor(totalPriceSats * 0.002) + (paymentMethod === 'lightning' ? routingFeeSats : 0)).toLocaleString()} Sats
-                  </span>
+                  <div className="font-mono text-cyber-amber font-bold text-base sm:text-lg flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+                    <Coins className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                    <span>
+                      {(totalPriceSats + Math.floor(totalPriceSats * 0.10) + Math.floor(totalPriceSats * 0.002) + (paymentMethod === 'lightning' ? routingFeeSats : 0)).toLocaleString()} Sats
+                    </span>
+                  </div>
                 </div>
               </div>
 

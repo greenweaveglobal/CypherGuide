@@ -129,7 +129,22 @@ export const useAppStore = create<AppState>()(
       },
 
       identity: null,
-      setIdentity: (identity) => set({ identity }),
+      setIdentity: (identity) => {
+        let activeIdentity = identity;
+        if (typeof window !== 'undefined') {
+          if (activeIdentity?.privKeyHex) {
+            sessionStorage.setItem('cg_session_privkey', activeIdentity.privKeyHex);
+          } else if (activeIdentity === null) {
+            sessionStorage.removeItem('cg_session_privkey');
+          } else if (activeIdentity && !activeIdentity.privKeyHex) {
+            const savedPrivKey = sessionStorage.getItem('cg_session_privkey');
+            if (savedPrivKey) {
+              activeIdentity = { ...activeIdentity, privKeyHex: savedPrivKey };
+            }
+          }
+        }
+        set({ identity: activeIdentity });
+      },
 
       listings: INITIAL_LISTINGS.map(migrateListingToRoomTypes),
       setListings: (listings) => set({ listings: listings.map(migrateListingToRoomTypes) }),
@@ -326,6 +341,9 @@ export const useAppStore = create<AppState>()(
       },
 
       resetStore: () => {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('cg_session_privkey');
+        }
         set({
           identity: null,
           listings: INITIAL_LISTINGS,
@@ -354,6 +372,15 @@ export const useAppStore = create<AppState>()(
             if (state) {
               state.identity = null;
             }
+          }
+          // Restore privKeyHex from sessionStorage if available
+          try {
+            const savedPrivKey = sessionStorage.getItem('cg_session_privkey');
+            if (savedPrivKey && state?.identity && !state.identity.privKeyHex) {
+              state.identity.privKeyHex = savedPrivKey;
+            }
+          } catch (e) {
+            // ignore sessionStorage error
           }
           if (state && state.listings) {
             state.listings = state.listings.map(migrateListingToRoomTypes);

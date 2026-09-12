@@ -37,7 +37,15 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
 
   const effectiveListing = migrateListingToRoomTypes(listing);
   const roomTypes = effectiveListing.roomTypes || [];
-  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string | undefined>(() => roomTypes[0]?.id);
+  
+  // Khởi tạo loại phòng mặc định: Chọn loại phòng có giá thấp nhất còn trống để khớp với giá "Từ ..." ngoài danh sách
+  const getInitialRoomTypeId = () => {
+    if (roomTypes.length === 0) return undefined;
+    const available = roomTypes.filter(rt => rt.status !== 'occupied');
+    const pool = available.length > 0 ? available : roomTypes;
+    return pool.reduce((min, rt) => rt.priceSats < min.priceSats ? rt : min, pool[0]).id;
+  };
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string | undefined>(getInitialRoomTypeId);
   const [showBookingModal, setShowBookingModal] = useState<boolean>(false);
   const [bookingModalRoomTypeId, setBookingModalRoomTypeId] = useState<string | undefined>(undefined);
 
@@ -520,9 +528,16 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                     return (
                       <div
                         key={rt.id}
+                        onClick={() => {
+                          if (isAvailable) {
+                            setSelectedRoomTypeId(rt.id);
+                          }
+                        }}
                         className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                          isAvailable ? 'cursor-pointer' : 'cursor-not-allowed'
+                        } ${
                           isSelected
-                            ? 'bg-primary/5 border-primary/60 shadow-[0_0_15px_rgba(var(--primary),0.1)]'
+                            ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(var(--primary),0.15)] ring-1 ring-primary/40'
                             : isAvailable
                             ? 'bg-surface/60 border-border hover:border-primary/40 hover:bg-surface'
                             : 'bg-black/30 border-border/40 opacity-60'
@@ -548,7 +563,8 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                                 </span>
                               )}
                               {isSelected && (
-                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary border border-primary/40 font-mono font-bold">
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary border border-primary/40 font-mono font-bold flex items-center gap-1">
+                                  <Check className="w-3 h-3" />
                                   Đang chọn
                                 </span>
                               )}
@@ -585,19 +601,34 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                             <span className="text-[11px] text-text-disabled font-mono block">/ đêm</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Button
-                              variant={isSelected ? 'primary' : 'outline'}
-                              size="sm"
-                              disabled={!isAvailable}
-                              onClick={() => {
-                                setSelectedRoomTypeId(rt.id);
-                                handleOpenBookingModalForRoom(rt.id);
-                              }}
-                              className="font-mono text-xs font-bold"
-                            >
-                              <Zap className="w-3.5 h-3.5 mr-1" />
-                              Đặt phòng này
-                            </Button>
+                            {isSelected ? (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                disabled={!isAvailable}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenBookingModalForRoom(rt.id);
+                                }}
+                                className="font-mono text-xs font-bold shadow-md shadow-primary/20"
+                              >
+                                <Zap className="w-3.5 h-3.5 mr-1" />
+                                Đặt phòng này
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={!isAvailable}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRoomTypeId(rt.id);
+                                }}
+                                className="font-mono text-xs hover:border-primary hover:text-primary transition-colors"
+                              >
+                                {isAvailable ? 'Chọn loại phòng' : 'Hết phòng'}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -856,6 +887,29 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                           className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary"
                         />
                       </div>
+
+                      {/* Tóm tắt loại phòng đang chọn & giá tạm tính */}
+                      {(() => {
+                        const currentRoom = getRoomType(effectiveListing, selectedRoomTypeId);
+                        return (
+                          <div className="p-3 rounded-lg bg-black/40 border border-white/10 space-y-1.5 font-mono text-xs">
+                            <div className="flex items-center justify-between text-text-secondary">
+                              <span>Loại phòng:</span>
+                              <span className="text-white font-bold truncate max-w-[150px]">{currentRoom.name}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-text-secondary">Đơn giá:</span>
+                              <span className="text-warning font-bold">{currentRoom.priceSats.toLocaleString()} Sats/đêm</span>
+                            </div>
+                            {isDateValid && (
+                              <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                                <span className="text-text-primary">Tạm tính ({effectiveNights} đêm):</span>
+                                <span className="text-primary font-bold text-sm">{totalPriceSats.toLocaleString()} Sats</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                       
                       {!identity ? (
                         <div className="bg-danger/10 border border-danger/20 rounded-lg p-3 text-xs text-danger text-center">
