@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock } from 'lucide-react';
+import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, Booking, NostrIdentity } from '../types';
 import { generateBolt11, isWebLNAvailable, payViaWebLN } from '../utils/lightning';
@@ -10,23 +10,46 @@ import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress } from '../utils/depositEscrow';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
-import { calculateStayPrice } from '../utils/pricing';
+import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
 
 interface Props {
   listing: Listing | null;
+  preselectedRoomTypeId?: string;
   onClose: () => void;
   onBookingSuccess: (booking: Booking) => void;
   identity: NostrIdentity | null;
   onAddLog: (type: 'relay' | 'lightning' | 'lock' | 'governance' | 'message', message: string, hash?: string) => void;
 }
 
-export default function BookingModal({ listing, onClose, onBookingSuccess, identity, onAddLog }: Props) {
+export default function BookingModal({ listing, preselectedRoomTypeId, onClose, onBookingSuccess, identity, onAddLog }: Props) {
   const { t } = useTranslation();
+  const effectiveListing = listing ? migrateListingToRoomTypes(listing) : null;
+  const roomTypes = effectiveListing?.roomTypes || [];
+
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string | undefined>(() => {
+    if (preselectedRoomTypeId && roomTypes.some(rt => rt.id === preselectedRoomTypeId)) {
+      return preselectedRoomTypeId;
+    }
+    if (roomTypes.length === 1) {
+      return roomTypes[0].id;
+    }
+    return undefined;
+  });
+
+  const [step, setStep] = useState<'select_room' | 'details' | 'payment' | 'completed'>(() => {
+    if (preselectedRoomTypeId && roomTypes.some(rt => rt.id === preselectedRoomTypeId)) {
+      return 'details';
+    }
+    if (roomTypes.length <= 1) {
+      return 'details';
+    }
+    return 'select_room';
+  });
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [nights, setNights] = useState(1);
   const [totalPriceSats, setTotalPriceSats] = useState(0);
-  const [step, setStep] = useState<'details' | 'payment' | 'completed'>('details');
   const [paymentMethod, setPaymentMethod] = useState<'lightning' | 'cashu'>('lightning');
   
   const [networkCongestion, setNetworkCongestion] = useState<'low' | 'medium' | 'high'>('medium');
@@ -43,6 +66,21 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
   const [copiedInvoice, setCopiedInvoice] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Sync when listing or preselectedRoomTypeId changes
+  useEffect(() => {
+    if (!effectiveListing) return;
+    const rts = effectiveListing.roomTypes;
+    if (preselectedRoomTypeId && rts.some(rt => rt.id === preselectedRoomTypeId)) {
+      setSelectedRoomTypeId(preselectedRoomTypeId);
+      setStep('details');
+    } else if (rts.length === 1) {
+      setSelectedRoomTypeId(rts[0].id);
+      setStep('details');
+    } else if (!selectedRoomTypeId || !rts.some(rt => rt.id === selectedRoomTypeId)) {
+      setStep('select_room');
+    }
+  }, [listing?.id, preselectedRoomTypeId]);
+
   useEffect(() => {
     setWebLNAvailable(isWebLNAvailable());
   }, []);
@@ -57,13 +95,13 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
     setEndDate(tomorrow.toISOString().split('T')[0]);
   }, []);
 
-  // Recalculate nights and total price
+  // Recalculate nights and total price based on selectedRoomTypeId
   useEffect(() => {
-    if (!startDate || !endDate || !listing) return;
-    const calc = calculateStayPrice(listing, startDate, endDate);
+    if (!startDate || !endDate || !effectiveListing) return;
+    const calc = calculateStayPrice(effectiveListing, startDate, endDate, selectedRoomTypeId);
     setNights(calc.nights);
     setTotalPriceSats(calc.totalSats);
-  }, [startDate, endDate, listing]);
+  }, [startDate, endDate, effectiveListing, selectedRoomTypeId]);
 
   // Fetch Mock Network Fees
   useEffect(() => {
@@ -93,8 +131,10 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
     setErrorMsg('');
     const totalWithFee = paymentMethod === 'cashu' ? totalPriceSats : (totalPriceSats + routingFeeSats);
     const hash = await sha256(listing.id + startDate + endDate + identity.npub + Date.now().toString());
-    const bolt11 = generateBolt11(totalWithFee, `Thanh toan phong tai ${listing.title}`);
-    const generatedCashu = generateCashuToken(totalWithFee, 'https://mint.cashu.space', `Thanh toan phong: ${listing.title}`);
+    const room = effectiveListing ? getRoomType(effectiveListing, selectedRoomTypeId) : null;
+    const roomSuffix = room ? ` - ${room.name}` : '';
+    const bolt11 = generateBolt11(totalWithFee, `Thanh toan phong tai ${listing.title}${roomSuffix}`);
+    const generatedCashu = generateCashuToken(totalWithFee, 'https://mint.cashu.space', `Thanh toan phong: ${listing.title}${roomSuffix}`);
     
     setInvoice(bolt11);
     setCashuToken(generatedCashu);
@@ -237,20 +277,25 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
         // Generate an offline local secret door access code
         const secretCode = 'sec_' + (await sha256(paymentHash + (identity?.nsec || ''))).slice(0, 16);
         
-        const stayCalc = calculateStayPrice(listing, startDate, endDate);
+        const stayCalc = calculateStayPrice(effectiveListing || listing, startDate, endDate, selectedRoomTypeId);
+        const room = effectiveListing ? getRoomType(effectiveListing, selectedRoomTypeId) : null;
 
         const newBooking: Booking = {
           id: 'bk_' + paymentHash.slice(0, 12),
           listingId: listing.id,
           listingTitle: listing.title,
+          roomTypeId: room?.id,
+          roomTypeName: room?.name,
           guestNpub: identity?.npub || 'unknown',
           startDate,
           endDate,
           totalPriceSats,
           bookingSnapshot: {
             title: listing.title,
+            roomTypeId: room?.id,
+            roomTypeName: room?.name,
             pricePerNightSats: stayCalc.averageNightlySats,
-            securitySpecs: listing.securitySpecs
+            securitySpecs: (room?.securitySpecs && room.securitySpecs.length > 0) ? room.securitySpecs : (listing.securitySpecs || [])
           },
           status: 'paid',
           invoiceBolt11: invoice,
@@ -304,21 +349,141 @@ export default function BookingModal({ listing, onClose, onBookingSuccess, ident
             </div>
           )}
 
-          {step === 'details' && (
-            <div className="space-y-6">
-              {/* Hotel Overview */}
-              <div className="flex gap-4 items-center p-3 bg-white/5 rounded-lg">
-                <img 
-                  src={listing.imageUrl} 
-                  alt={listing.title} 
-                  className="w-16 h-16 object-cover rounded-lg"
-                  referrerPolicy="no-referrer"
-                />
+          {step === 'select_room' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div>
-                  <h4 className="text-white font-bold text-sm leading-snug">{listing.title}</h4>
-                  <p className="text-xs text-cyber-green font-mono mt-1">{listing.meshCoordinates}</p>
+                  <h4 className="text-sm font-bold text-white font-mono uppercase tracking-wide flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-cyber-amber" />
+                    Chọn Loại Phòng Lưu Trú
+                  </h4>
+                  <p className="text-xs text-text-secondary mt-0.5 font-mono">
+                    {listing.title} • {roomTypes.length} loại phòng sẵn có
+                  </p>
                 </div>
               </div>
+
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                {roomTypes.map((rt) => {
+                  const roomImage = (rt.images && rt.images.length > 0) ? rt.images[0] : listing.imageUrl;
+                  const isAvailable = rt.status !== 'occupied';
+                  return (
+                    <div
+                      key={rt.id}
+                      onClick={() => {
+                        if (!isAvailable) return;
+                        setSelectedRoomTypeId(rt.id);
+                        setStep('details');
+                      }}
+                      className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                        isAvailable
+                          ? 'bg-surface/60 border-border hover:border-primary/60 hover:bg-surface-hover cursor-pointer'
+                          : 'bg-black/30 border-border/40 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <img
+                          src={roomImage}
+                          alt={rt.name}
+                          className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg shrink-0 border border-white/10 shadow-sm"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h5 className="text-sm font-bold text-white truncate">{rt.name}</h5>
+                            {rt.status === 'occupied' ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-danger/20 text-danger border border-danger/30 font-mono">
+                                Đã có khách
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-success/20 text-success border border-success/30 font-mono">
+                                Sẵn sàng
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-text-secondary font-mono">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 text-primary" />
+                              Tối đa {rt.maxGuests} khách
+                            </span>
+                          </div>
+                          {rt.securitySpecs && rt.securitySpecs.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-0.5">
+                              {rt.securitySpecs.slice(0, 3).map((spec, i) => (
+                                <span key={i} className="text-[9px] px-1.5 py-0.2 rounded bg-black/40 text-text-disabled border border-border/40 font-mono">
+                                  {spec}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto shrink-0 gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                        <div className="text-left sm:text-right">
+                          <div className="text-sm font-bold font-mono text-warning">
+                            {rt.priceSats.toLocaleString()} Sats
+                          </div>
+                          <span className="text-[10px] text-text-disabled font-mono block">/ đêm</span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!isAvailable}
+                          className="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-mono font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <span>Chọn phòng</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 'details' && (
+            <div className="space-y-6">
+              {/* Hotel & Selected Room Overview */}
+              {(() => {
+                const currentRoom = effectiveListing ? getRoomType(effectiveListing, selectedRoomTypeId) : null;
+                const roomImg = (currentRoom?.images && currentRoom.images.length > 0) ? currentRoom.images[0] : listing.imageUrl;
+                return (
+                  <div className="p-3.5 bg-white/5 rounded-xl border border-white/10 space-y-2">
+                    <div className="flex gap-3.5 items-center">
+                      <img 
+                        src={roomImg} 
+                        alt={currentRoom?.name || listing.title} 
+                        className="w-16 h-16 object-cover rounded-lg border border-white/10 shrink-0 shadow-sm"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-white font-bold text-sm truncate leading-snug">
+                            {currentRoom?.name || listing.title}
+                          </h4>
+                          {roomTypes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setStep('select_room')}
+                              className="text-[11px] font-mono text-primary hover:underline shrink-0 flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 border border-primary/25"
+                            >
+                              Đổi loại phòng
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-text-secondary truncate mt-0.5">{listing.title}</p>
+                        <div className="flex items-center gap-3 text-[11px] font-mono text-cyber-green mt-1">
+                          <span>{listing.meshCoordinates}</span>
+                          {currentRoom && (
+                            <span className="text-text-secondary font-mono">• Tối đa {currentRoom.maxGuests} khách • {currentRoom.priceSats.toLocaleString()} Sats/đêm</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Date selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -114,6 +114,8 @@ export interface Booking {
   id: string;
   listingId: string;
   listingTitle: string;
+  roomTypeId?: string;
+  roomTypeName?: string;
   guestNpub: string;
   hostNpub?: string;
   startDate: string;

@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
-import { calculateStayPrice } from '../utils/pricing';
+import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
+import BookingModal from './BookingModal';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
@@ -34,6 +35,12 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   const { t } = useTranslation();
   const { kycAttestations, addKycAttestation } = useAppStore();
 
+  const effectiveListing = migrateListingToRoomTypes(listing);
+  const roomTypes = effectiveListing.roomTypes || [];
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string | undefined>(() => roomTypes[0]?.id);
+  const [showBookingModal, setShowBookingModal] = useState<boolean>(false);
+  const [bookingModalRoomTypeId, setBookingModalRoomTypeId] = useState<string | undefined>(undefined);
+
   const [step, setStep] = useState<'detail' | 'availability' | 'payment' | 'completed'>('detail');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -55,11 +62,20 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   const [showEditHistory, setShowEditHistory] = useState(false);
 
   const isDateValid = Boolean(checkIn && checkOut && new Date(checkOut) > new Date(checkIn));
-  const stayPriceCalc = calculateStayPrice(listing, isDateValid ? checkIn : undefined, isDateValid ? checkOut : undefined);
+  const stayPriceCalc = calculateStayPrice(effectiveListing, isDateValid ? checkIn : undefined, isDateValid ? checkOut : undefined, selectedRoomTypeId);
   const effectiveNights = stayPriceCalc.nights;
   const totalPriceSats = stayPriceCalc.totalSats;
   const dynamicFeeInfo = calculateDynamicFee(totalPriceSats, undefined, 1.0, securityLevel);
   const totalFeeSats = dynamicFeeInfo.totalFeeSats;
+
+  const handleOpenBookingModalForRoom = (roomTypeId?: string) => {
+    const targetRoomId = roomTypeId || selectedRoomTypeId || roomTypes[0]?.id;
+    if (targetRoomId) {
+      setSelectedRoomTypeId(targetRoomId);
+    }
+    setBookingModalRoomTypeId(targetRoomId);
+    setShowBookingModal(true);
+  };
 
   const handleShareListing = () => {
     if (typeof window !== 'undefined') {
@@ -89,10 +105,14 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       const signature = await signMessage(bookingPayload, identity);
       const hash = await sha256(bookingPayload + signature);
 
+      const currentRoom = getRoomType(effectiveListing, selectedRoomTypeId);
+
       const newBooking: Booking = {
         id: `bk_dana_${Date.now()}`,
         listingId: listing.id,
         listingTitle: listing.title,
+        roomTypeId: currentRoom.id,
+        roomTypeName: currentRoom.name,
         guestNpub: identity.npub,
         hostNpub: hostNpub,
         startDate: checkIn,
@@ -106,8 +126,10 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
         paidAt: new Date().toISOString(),
         bookingSnapshot: {
           title: listing.title,
+          roomTypeId: currentRoom.id,
+          roomTypeName: currentRoom.name,
           pricePerNightSats: 0,
-          securitySpecs: [...(listing.securitySpecs || [])]
+          securitySpecs: (currentRoom.securitySpecs && currentRoom.securitySpecs.length > 0) ? currentRoom.securitySpecs : [...(listing.securitySpecs || [])]
         }
       };
 
@@ -296,10 +318,14 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       addPaymentLog(`NUT-11 Escrow created: ${escrow.multisigAddress}`);
       onAddLog('lightning', t('listingDetail.escrowCreatedLog', { sats: depositAmountSats.toLocaleString(), address: escrow.multisigAddress }), hash);
       
+      const currentRoom = getRoomType(effectiveListing, selectedRoomTypeId);
+      
       const newBooking: Booking = {
         id: `bk_${Date.now()}`,
         listingId: listing.id,
         listingTitle: listing.title,
+        roomTypeId: currentRoom.id,
+        roomTypeName: currentRoom.name,
         guestNpub: identity!.npub,
         hostNpub: hostNpub,
         startDate: checkIn,
@@ -316,8 +342,10 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
         paidAt: new Date().toISOString(),
         bookingSnapshot: {
           title: listing.title,
+          roomTypeId: currentRoom.id,
+          roomTypeName: currentRoom.name,
           pricePerNightSats: stayPriceCalc.averageNightlySats,
-          securitySpecs: [...(listing.securitySpecs || [])]
+          securitySpecs: (currentRoom.securitySpecs && currentRoom.securitySpecs.length > 0) ? currentRoom.securitySpecs : [...(listing.securitySpecs || [])]
         }
       };
       
@@ -422,10 +450,22 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                   <span className="text-2xl font-bold font-mono">{t('listingDetail.danaPriceLabel')}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-warning">
-                  <Coins className="w-6 h-6" />
-                  <span className="text-3xl font-bold font-mono">{listing.priceSats.toLocaleString()}</span>
-                  <span className="text-sm font-bold mt-1">Sats</span>
+                <div className="flex flex-col md:items-end">
+                  <div className="flex items-center gap-2 text-warning">
+                    <Coins className="w-6 h-6" />
+                    {roomTypes.length > 1 && (
+                      <span className="text-xs font-mono text-text-secondary uppercase">Từ</span>
+                    )}
+                    <span className="text-3xl font-bold font-mono">
+                      {(roomTypes.length > 0 ? Math.min(...roomTypes.map(rt => rt.priceSats)) : listing.priceSats).toLocaleString()}
+                    </span>
+                    <span className="text-sm font-bold mt-1">Sats</span>
+                  </div>
+                  {roomTypes.length > 1 && (
+                    <span className="text-[11px] font-mono text-primary mt-0.5">
+                      {roomTypes.length} loại phòng sẵn có
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -455,6 +495,115 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                 <p className="text-text-secondary leading-relaxed mt-4 text-sm">
                   {listing.description}
                 </p>
+              </section>
+
+              {/* Room Types Section */}
+              <section className="space-y-4 pt-6 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2 font-mono">
+                      <Sparkles className="w-5 h-5 text-cyber-amber" />
+                      Danh Sách Loại Phòng ({roomTypes.length} loại)
+                    </h3>
+                    <p className="text-xs text-text-secondary font-mono mt-0.5">
+                      Chọn loại phòng phù hợp với nhu cầu và sức chứa của bạn
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {roomTypes.map((rt) => {
+                    const roomImage = (rt.images && rt.images.length > 0) ? rt.images[0] : listing.imageUrl;
+                    const isAvailable = rt.status !== 'occupied';
+                    const isSelected = selectedRoomTypeId === rt.id;
+
+                    return (
+                      <div
+                        key={rt.id}
+                        className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                          isSelected
+                            ? 'bg-primary/5 border-primary/60 shadow-[0_0_15px_rgba(var(--primary),0.1)]'
+                            : isAvailable
+                            ? 'bg-surface/60 border-border hover:border-primary/40 hover:bg-surface'
+                            : 'bg-black/30 border-border/40 opacity-60'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0 flex-1">
+                          <img
+                            src={roomImage}
+                            alt={rt.name}
+                            className="w-full sm:w-28 sm:h-24 h-36 object-cover rounded-lg shrink-0 border border-white/10"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="space-y-2 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-base font-bold text-white font-sans">{rt.name}</h4>
+                              {rt.status === 'occupied' ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-danger/20 text-danger border border-danger/30 font-mono">
+                                  Đã có khách
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-success/20 text-success border border-success/30 font-mono">
+                                  Sẵn sàng
+                                </span>
+                              )}
+                              {isSelected && (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary border border-primary/40 font-mono font-bold">
+                                  Đang chọn
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-4 text-xs font-mono text-text-secondary">
+                              <span className="flex items-center gap-1.5 text-text-primary">
+                                <Users className="w-3.5 h-3.5 text-primary" />
+                                Tối đa {rt.maxGuests} khách
+                              </span>
+                            </div>
+
+                            {rt.securitySpecs && rt.securitySpecs.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {rt.securitySpecs.map((spec, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 rounded text-[10px] font-mono bg-black/40 text-text-secondary border border-border/40 flex items-center gap-1"
+                                  >
+                                    <Check className="w-2.5 h-2.5 text-primary" />
+                                    {spec}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto shrink-0 gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-white/5">
+                          <div className="text-left md:text-right">
+                            <div className="text-lg font-bold font-mono text-warning">
+                              {rt.priceSats.toLocaleString()} Sats
+                            </div>
+                            <span className="text-[11px] text-text-disabled font-mono block">/ đêm</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant={isSelected ? 'primary' : 'outline'}
+                              size="sm"
+                              disabled={!isAvailable}
+                              onClick={() => {
+                                setSelectedRoomTypeId(rt.id);
+                                handleOpenBookingModalForRoom(rt.id);
+                              }}
+                              className="font-mono text-xs font-bold"
+                            >
+                              <Zap className="w-3.5 h-3.5 mr-1" />
+                              Đặt phòng này
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </section>
 
               {/* RFC-0006 KYC Attestation Details Section */}
@@ -670,6 +819,25 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                 <CardContent className="space-y-6 pt-6">
                   {step === 'detail' && (
                     <div className="space-y-4">
+                      {roomTypes.length > 1 && (
+                        <div>
+                          <label className="text-xs font-mono text-text-secondary uppercase mb-2 block">
+                            Chọn loại phòng
+                          </label>
+                          <select
+                            value={selectedRoomTypeId}
+                            onChange={(e) => setSelectedRoomTypeId(e.target.value)}
+                            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-mono"
+                          >
+                            {roomTypes.map((rt) => (
+                              <option key={rt.id} value={rt.id} disabled={rt.status === 'occupied'}>
+                                {rt.name} - {rt.priceSats.toLocaleString()} Sats (tối đa {rt.maxGuests} khách){rt.status === 'occupied' ? ' [HẾT PHÒNG]' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       <div>
                         <label className="text-xs font-mono text-text-secondary uppercase mb-2 block">{t('listingDetail.checkIn')}</label>
                         <input 
@@ -989,6 +1157,25 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
         onClose={() => setShowStillnessModal(false)}
         listingTitle={listing.title}
       />
+
+      {/* Booking Modal with Room Selection */}
+      {showBookingModal && (
+        <BookingModal
+          listing={listing}
+          preselectedRoomTypeId={bookingModalRoomTypeId || selectedRoomTypeId}
+          onClose={() => {
+            setShowBookingModal(false);
+            setBookingModalRoomTypeId(undefined);
+          }}
+          onBookingSuccess={(booking) => {
+            setShowBookingModal(false);
+            setBookingModalRoomTypeId(undefined);
+            onBookingSuccess(booking);
+          }}
+          identity={identity}
+          onAddLog={onAddLog}
+        />
+      )}
     </div>
   );
 }
