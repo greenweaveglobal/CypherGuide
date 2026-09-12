@@ -6,6 +6,23 @@ import { Listing, NostrIdentity, CoOwner } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
 import { isValidNpub } from '../utils/kycAttestation';
 
+const COMPRESSION_SETTINGS = {
+  low: { maxWidth: 2400, quality: 0.9 },
+  medium: { maxWidth: 1600, quality: 0.8 },
+  high: { maxWidth: 1000, quality: 0.6 },
+};
+
+async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Promise<string> {
+  const { maxWidth, quality } = COMPRESSION_SETTINGS[level];
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxWidth / bitmap.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width * scale;
+  canvas.height = bitmap.height * scale;
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
 interface Props {
   identity: NostrIdentity | null;
   onClose: () => void;
@@ -36,45 +53,51 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [compressionLevel, setCompressionLevel] = useState<'low' | 'medium' | 'high'>('medium');
 
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const nip94FileInputRef = useRef<HTMLInputElement>(null);
 
   // File upload handlers
-  const handleCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
       setErrorMsg(t('hostReg.errImgOver10MB'));
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setImageUrl(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+    
+    try {
+      const compressedDataUrl = await compressImage(file, compressionLevel);
+      setImageUrl(compressedDataUrl);
+    } catch (err) {
+      console.error('Image compression error:', err);
+      setErrorMsg('Lỗi xử lý ảnh.');
+    }
   };
 
-  const handleNip94FilesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNip94FilesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file: File) => {
+    if (files.length > 10) {
+      setErrorMsg('Chỉ chọn tối đa 10 ảnh mỗi lần, vui lòng chọn ít hơn.');
+      return;
+    }
+
+    for (const file of Array.from(files)) {
       if (file.size > 10 * 1024 * 1024) {
         setErrorMsg(t('hostReg.errSomeImgOver10MB'));
-        return;
+        continue;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const dataUrl = event.target.result as string;
-          setNip94Urls((prev) => [...prev.filter(u => u.trim() !== ''), dataUrl]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+      
+      try {
+        const compressedDataUrl = await compressImage(file, compressionLevel);
+        setNip94Urls((prev) => [...prev.filter(u => u.trim() !== ''), compressedDataUrl]);
+      } catch (err) {
+        console.error('Image compression error:', err);
+      }
+    }
   };
 
   const handleNip94UrlChange = (index: number, value: string) => {
@@ -358,6 +381,31 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   multiple
                   className="hidden"
                 />
+
+                {/* Image Compression Settings */}
+                <div className="flex gap-2 bg-black/40 p-1.5 rounded-lg border border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setCompressionLevel('high')}
+                    className={`flex-1 text-[10px] font-mono py-1 rounded transition-colors ${compressionLevel === 'high' ? 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  >
+                    Tiết kiệm dữ liệu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompressionLevel('medium')}
+                    className={`flex-1 text-[10px] font-mono py-1 rounded transition-colors ${compressionLevel === 'medium' ? 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  >
+                    Cân bằng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompressionLevel('low')}
+                    className={`flex-1 text-[10px] font-mono py-1 rounded transition-colors ${compressionLevel === 'low' ? 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  >
+                    Chất lượng cao
+                  </button>
+                </div>
 
                 <div className="flex gap-2">
                   <button
