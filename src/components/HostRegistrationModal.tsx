@@ -14,31 +14,61 @@ const COMPRESSION_SETTINGS = {
 
 async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Promise<Blob> {
   const { maxWidth, quality } = COMPRESSION_SETTINGS[level];
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxWidth / bitmap.width);
-  const canvas = document.createElement('canvas');
-  canvas.width = bitmap.width * scale;
-  canvas.height = bitmap.height * scale;
-  
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  }
-  
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      // Free memory to prevent OOM on mobile webviews
-      bitmap.close();
-      canvas.width = 0;
-      canvas.height = 0;
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
       
-      if (blob) resolve(blob);
-      else reject(new Error('Canvas to Blob failed'));
-    }, 'image/jpeg', quality);
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
+      
+      canvas.toBlob((blob) => {
+        // Free memory aggressively
+        canvas.width = 0;
+        canvas.height = 0;
+        img.src = '';
+        
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas to Blob failed'));
+      }, 'image/jpeg', quality);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load image'));
+    };
+
+    img.src = objectUrl;
   });
 }
 
 async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
+  // Primary: x0.at (fast, reliable, no auth required)
+  try {
+    const x0Data = new FormData();
+    x0Data.append('file', blob, 'image.jpg');
+    const res = await fetch('https://x0.at', {
+      method: 'POST',
+      body: x0Data,
+    });
+    if (res.ok) {
+      const text = await res.text();
+      const url = text.trim();
+      if (url.startsWith('http')) return url;
+    }
+  } catch (e) {
+    console.warn('x0.at upload failed', e);
+  }
+
+  // Fallback 1: nostr.build (might require nip-98 now)
   const formData = new FormData();
   formData.append('fileToUpload', blob, 'image.jpg');
 
@@ -57,7 +87,7 @@ async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
     console.warn('nostr.build upload failed', e);
   }
 
-  // Fallback to void.cat
+  // Fallback 2: void.cat
   try {
     const res = await fetch('https://void.cat/upload', {
       method: 'POST',
@@ -76,20 +106,14 @@ async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
     console.error('void.cat upload failed', e);
   }
 
-  // Final fallback to base64 for demo purposes when media servers fail or require auth
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  throw new Error('All media upload servers failed.');
 }
 
 interface Props {
   identity: NostrIdentity | null;
   onClose: () => void;
   onAddListing: (listing: Listing) => void;
-  onAddLog: (type: 'relay' | 'lightning' | 'lock' | 'governance', message: string, hash?: string) => void;
+  onAddLog: (type: 'relay' | 'lightning' | 'lock' | 'governance' | 'message', message: string, hash?: string) => void;
 }
 
 export default function HostRegistrationModal({ identity, onClose, onAddListing, onAddLog }: Props) {
@@ -153,7 +177,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     }
 
     setIsUploading(true);
-    for (const file of Array.from(files)) {
+    for (const file of Array.from(files) as File[]) {
       if (file.size > 10 * 1024 * 1024) {
         setErrorMsg(t('hostReg.errSomeImgOver10MB'));
         continue;
@@ -163,6 +187,9 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         const compressedBlob = await compressImage(file, compressionLevel);
         const url = await uploadMediaToNostrBuild(compressedBlob);
         setNip94Urls((prev) => [...prev.filter(u => u.trim() !== ''), url]);
+        // Delay 300ms to allow mobile browser Garbage Collector to clean up canvas/img memory
+        // This prevents the "Aw, Snap!" (OOM Crash) when picking 5-10 huge photos at once
+        await new Promise(r => setTimeout(r, 300));
       } catch (err) {
         console.error('Image upload error:', err);
         setErrorMsg('Một số ảnh không tải lên được, vui lòng thử lại.');
@@ -329,14 +356,14 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   }
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 overflow-hidden">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-panel max-w-2xl w-full border border-white/10 rounded-2xl my-auto flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] shadow-2xl relative font-sans overflow-hidden"
+        className="glass-panel w-full sm:max-w-2xl border-0 sm:border border-white/10 sm:rounded-2xl h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col shadow-2xl relative font-sans overflow-hidden"
       >
         {/* Sticky Header */}
-        <div className="flex justify-between items-center bg-black/60 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 shrink-0">
+        <div className="flex justify-between items-center bg-black/80 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <Home className="w-5 h-5 text-cyber-green shrink-0" />
             <h2 className="text-white font-mono font-bold uppercase tracking-wider text-xs sm:text-sm truncate">
@@ -352,7 +379,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 space-y-5 pb-10">
           {errorMsg && (
             <div className="p-3 bg-danger/20 border border-danger/30 rounded-lg text-xs font-mono text-danger flex justify-between items-center">
               <span>{errorMsg}</span>
