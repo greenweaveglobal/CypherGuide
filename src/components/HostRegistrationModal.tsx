@@ -12,7 +12,7 @@ const COMPRESSION_SETTINGS = {
   high: { maxWidth: 1000, quality: 0.6 },
 };
 
-async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Promise<string> {
+async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Promise<Blob> {
   const { maxWidth, quality } = COMPRESSION_SETTINGS[level];
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxWidth / bitmap.width);
@@ -20,7 +20,54 @@ async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Prom
   canvas.width = bitmap.width * scale;
   canvas.height = bitmap.height * scale;
   canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', quality);
+  
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Canvas to Blob failed'));
+    }, 'image/jpeg', quality);
+  });
+}
+
+async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append('fileToUpload', blob, 'image.jpg');
+
+  try {
+    const res = await fetch('https://nostr.build/api/v2/upload/files', {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.data && data.data[0] && data.data[0].url) {
+        return data.data[0].url;
+      }
+    }
+  } catch (e) {
+    console.warn('nostr.build upload failed', e);
+  }
+
+  // Fallback to void.cat
+  try {
+    const res = await fetch('https://void.cat/upload', {
+      method: 'POST',
+      body: blob,
+      headers: {
+        'V-Content-Type': blob.type || 'image/jpeg',
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.file && data.file.id) {
+        return `https://void.cat/d/${data.file.id}`;
+      }
+    }
+  } catch (e) {
+    console.error('void.cat upload failed', e);
+  }
+
+  throw new Error('Upload to media server failed');
 }
 
 interface Props {
@@ -52,6 +99,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [compressionLevel, setCompressionLevel] = useState<'low' | 'medium' | 'high'>('medium');
 
@@ -67,12 +115,16 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       return;
     }
     
+    setIsUploading(true);
     try {
-      const compressedDataUrl = await compressImage(file, compressionLevel);
-      setImageUrl(compressedDataUrl);
+      const compressedBlob = await compressImage(file, compressionLevel);
+      const url = await uploadMediaToNostrBuild(compressedBlob);
+      setImageUrl(url);
     } catch (err) {
-      console.error('Image compression error:', err);
-      setErrorMsg('Lỗi xử lý ảnh.');
+      console.error('Image upload error:', err);
+      setErrorMsg('Lỗi khi tải ảnh lên máy chủ Nostr.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -85,6 +137,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       return;
     }
 
+    setIsUploading(true);
     for (const file of Array.from(files)) {
       if (file.size > 10 * 1024 * 1024) {
         setErrorMsg(t('hostReg.errSomeImgOver10MB'));
@@ -92,12 +145,15 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       }
       
       try {
-        const compressedDataUrl = await compressImage(file, compressionLevel);
-        setNip94Urls((prev) => [...prev.filter(u => u.trim() !== ''), compressedDataUrl]);
+        const compressedBlob = await compressImage(file, compressionLevel);
+        const url = await uploadMediaToNostrBuild(compressedBlob);
+        setNip94Urls((prev) => [...prev.filter(u => u.trim() !== ''), url]);
       } catch (err) {
-        console.error('Image compression error:', err);
+        console.error('Image upload error:', err);
+        setErrorMsg('Một số ảnh không tải lên được, vui lòng thử lại.');
       }
     }
+    setIsUploading(false);
   };
 
   const handleNip94UrlChange = (index: number, value: string) => {
@@ -171,16 +227,19 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
 
       // Sign images using NIP-94 mock
       const validUrls = nip94Urls.filter(url => url.trim() !== '');
-      const signedImages = await Promise.all(validUrls.map(async (url) => {
-        const hash = await sha256(`nip94_mock_content_hash_${url}_${Date.now()}`);
+      const signedImages = [];
+      for (const url of validUrls) {
+        // Optimize hash input for huge base64 strings to prevent memory spike (OOM)
+        const hashTarget = url.length > 500 ? url.substring(0, 200) + url.length : url;
+        const hash = await sha256(`nip94_mock_content_hash_${hashTarget}_${Date.now()}`);
         const sig = await signMessage(hash, identity);
-        return {
+        signedImages.push({
           url,
           hash,
           signature: sig,
           uploadedAt: Date.now()
-        };
-      }));
+        });
+      }
 
       const basePrice = priceModel === 'dana' ? 0 : parseInt(priceSats) || 0;
       const parsedMaxGuests = parseInt(maxGuests) || 2;
@@ -330,11 +389,12 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 <div className="flex gap-2">
                   <button
                     type="button"
+                    disabled={isUploading}
                     onClick={() => coverFileInputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/40 rounded-lg text-xs font-mono font-bold transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/40 rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-50"
                   >
                     <Upload className="w-4 h-4" />
-                    <span>{t('hostReg.uploadFromFile')}</span>
+                    <span>{isUploading ? 'Đang tải lên...' : t('hostReg.uploadFromFile')}</span>
                   </button>
                   {imageUrl && (
                     <button
@@ -410,11 +470,12 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 <div className="flex gap-2">
                   <button
                     type="button"
+                    disabled={isUploading}
                     onClick={() => nip94FileInputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/40 rounded-lg text-xs font-mono font-bold transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/40 rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-50"
                   >
                     <Upload className="w-4 h-4" />
-                    <span>{t('hostReg.uploadMultiple')}</span>
+                    <span>{isUploading ? 'Đang tải lên...' : t('hostReg.uploadMultiple')}</span>
                   </button>
                   <button
                     type="button"
