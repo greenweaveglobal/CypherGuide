@@ -67,29 +67,6 @@ async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
     console.error('void.cat upload failed', e);
   }
 
-  // Fallback to tmpfiles.org
-  try {
-    const tmpFormData = new FormData();
-    tmpFormData.append('file', blob, 'image.jpg');
-    
-    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
-      method: 'POST',
-      body: tmpFormData,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.status === 'success' && data.data && data.data.url) {
-        // tmpfiles.org returns page URL, the actual image URL is usually modified, 
-        // e.g. https://tmpfiles.org/12345/image.jpg -> https://tmpfiles.org/dl/12345/image.jpg
-        const pageUrl = data.data.url;
-        const directUrl = pageUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-        return directUrl;
-      }
-    }
-  } catch (e) {
-    console.error('tmpfiles.org upload failed', e);
-  }
-
   // Final fallback to base64 for demo purposes when media servers fail or require auth
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
