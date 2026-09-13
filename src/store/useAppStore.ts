@@ -1,10 +1,23 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { get, set as idbSet, del } from 'idb-keyval';
 import { Listing, Booking, Proposal, NostrIdentity, P2PLog, Payout, PropertyDocument, GovernanceAct, ReferralRecord, NodeIncentiveRecord, KycAttestationRecord } from '../types';
 import { INITIAL_LISTINGS, INITIAL_PROPOSALS } from '../data';
 import { DataReconciler, IntegrityReport } from '../utils/reconciler';
 import { DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
 import { migrateListingToRoomTypes } from '../utils/pricing';
+
+const idbStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    return (await get(name)) || null;
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await idbSet(name, value);
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await del(name);
+  },
+};
 
 interface AppState {
   identity: NostrIdentity | null;
@@ -366,6 +379,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: '__mesh_store',
+      storage: createJSONStorage(() => idbStorage),
       onRehydrateStorage: () => (state) => {
         if (typeof window !== 'undefined') {
           if (localStorage.getItem('nip07_explicitly_logged_out') === 'true') {
