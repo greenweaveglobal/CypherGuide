@@ -51,7 +51,24 @@ async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Prom
 }
 
 async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
-  // Primary: x0.at (fast, reliable, no auth required)
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: blob,
+      headers: {
+        'Content-Type': blob.type || 'image/jpeg'
+      }
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.url) return data.url;
+    }
+  } catch (e) {
+    console.error('Local proxy upload failed:', e);
+  }
+
+  // Fallback 1: x0.at direct
   try {
     const x0Data = new FormData();
     x0Data.append('file', blob, 'image.jpg');
@@ -66,25 +83,6 @@ async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
     }
   } catch (e) {
     console.warn('x0.at upload failed', e);
-  }
-
-  // Fallback 1: nostr.build (might require nip-98 now)
-  const formData = new FormData();
-  formData.append('fileToUpload', blob, 'image.jpg');
-
-  try {
-    const res = await fetch('https://nostr.build/api/v2/upload/files', {
-      method: 'POST',
-      body: formData,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.data && data.data[0] && data.data[0].url) {
-        return data.data[0].url;
-      }
-    }
-  } catch (e) {
-    console.warn('nostr.build upload failed', e);
   }
 
   // Fallback 2: void.cat
