@@ -27,6 +27,7 @@
     "idb-keyval": "^6.3.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "multer": "^2.4.0",
     "nostr-tools": "^2.23.12",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.1",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",

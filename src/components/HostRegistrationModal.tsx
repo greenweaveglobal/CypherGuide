@@ -50,63 +50,37 @@ async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Prom
   });
 }
 
-async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
-  const nostr = (window as any).nostr;
-  
-  if (!nostr) {
-    throw new Error('Không tìm thấy ví Nostr (như Alby). Vui lòng cài đặt tiện ích mở rộng ví Nostr để sử dụng NIP-98 tải ảnh.');
-  }
+const MEDIA_SERVER_URL = '/api/media';
 
-  let proxyError = '';
+async function uploadToMediaServer(blob: Blob, filename: string): Promise<{ url: string; hash: string }> {
   try {
-    const url = 'https://nostr.build/api/v2/upload/files';
-    const method = 'POST';
-    
-    // Create NIP-98 Auth Event
-    const event = {
-      kind: 27235,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [
-        ['u', url],
-        ['method', method]
-      ],
-      content: ''
-    };
-    
-    // Sign event with user's extension
-    const signedEvent = await nostr.signEvent(event);
-    const authHeader = `Nostr ${btoa(JSON.stringify(signedEvent))}`;
-    
-    // Prepare FormData
     const formData = new FormData();
-    formData.append('fileToUpload', blob, 'image.jpg');
-    
-    // Upload directly to nostr.build with Auth
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'Authorization': authHeader
-      },
-      body: formData
+    formData.append('file', blob, filename);
+
+    const res = await fetch(`${MEDIA_SERVER_URL}/upload`, { 
+      method: 'POST', 
+      body: formData 
     });
     
-    if (res.ok) {
-      const data = await res.json();
-      if (data.data && data.data[0] && data.data[0].url) {
-        return data.data[0].url;
-      } else {
-        throw new Error('nostr.build không trả về đường dẫn ảnh.');
-      }
+    if (!res.ok) {
+      throw new Error(`Media Server lỗi: ${res.status}`);
+    }
+    
+    const data = await res.json();
+    if (data.status === 'success' && data.nip94_event && data.nip94_event.tags) {
+      const urlTag = data.nip94_event.tags.find((t: string[]) => t[0] === 'url');
+      const hashTag = data.nip94_event.tags.find((t: string[]) => t[0] === 'ox');
+      
+      return { 
+        url: urlTag ? urlTag[1] : '', 
+        hash: hashTag ? hashTag[1] : '' 
+      };
     } else {
-      const err = await res.text();
-      proxyError = `NIP-98 lỗi: ${res.status} ${err}`;
-      console.error(proxyError);
-      throw new Error(`Máy chủ từ chối: ${res.status}`);
+      throw new Error('Dữ liệu từ Media Server không hợp lệ');
     }
   } catch (e: any) {
-    if (e.message.includes('Tất cả máy chủ')) throw e;
-    console.error('Lỗi ngoại lệ NIP-98:', e);
-    throw new Error(e.message || 'Lỗi tải ảnh qua NIP-98.');
+    console.error('Lỗi tải ảnh lên Media Server:', e);
+    throw new Error(e.message || 'Lỗi tải ảnh.');
   }
 }
 
@@ -158,7 +132,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     setIsUploading(true);
     try {
       const compressedBlob = await compressImage(file, compressionLevel);
-      const url = await uploadMediaToNostrBuild(compressedBlob);
+      const { url } = await uploadToMediaServer(compressedBlob, file.name || 'cover.jpg');
       setImageUrl(url);
     } catch (err: any) {
       console.error('Image upload error:', err);
@@ -186,7 +160,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       
       try {
         const compressedBlob = await compressImage(file, compressionLevel);
-        const url = await uploadMediaToNostrBuild(compressedBlob);
+        const { url } = await uploadToMediaServer(compressedBlob, file.name || `image_${Date.now()}.jpg`);
         setNip94Urls((prev) => [...prev.filter(u => u.trim() !== ''), url]);
         // Delay 300ms to allow mobile browser Garbage Collector to clean up canvas/img memory
         // This prevents the "Aw, Snap!" (OOM Crash) when picking 5-10 huge photos at once
@@ -273,7 +247,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       const signedImages = [];
       for (const url of validUrls) {
         // Optimize hash input for huge base64 strings to prevent memory spike (OOM)
-        const hashTarget = url.length > 500 ? url.substring(0, 200) + url.length : url;
+        const hashTarget = url;
         const hash = await sha256(`nip94_mock_content_hash_${hashTarget}_${Date.now()}`);
         
         // Skip opening external signer 10 times for images. Just use a mock signature to prevent UX freezing.
@@ -424,24 +398,19 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
               {/* Cover Image Upload */}
               <div className="space-y-1.5">
                 <label className="text-[10px] text-gray-400 font-mono uppercase block">{t('hostReg.coverImg')}</label>
-                <input
-                  type="file"
-                  ref={coverFileInputRef}
-                  onChange={handleCoverFileUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
                 
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={isUploading}
-                    onClick={() => coverFileInputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/40 rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-50"
-                  >
+                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/40 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input
+                      type="file"
+                      onChange={handleCoverFileUpload}
+                      accept="image/*"
+                      className="hidden"
+                      disabled={isUploading}
+                    />
                     <Upload className="w-4 h-4" />
                     <span>{isUploading ? 'Đang tải lên...' : t('hostReg.uploadFromFile')}</span>
-                  </button>
+                  </label>
                   {imageUrl && (
                     <button
                       type="button"
@@ -478,15 +447,6 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
               {/* NIP-94 Signed Images Upload */}
               <div className="space-y-2">
                 <label className="text-[10px] text-gray-400 font-mono uppercase block">{t('hostReg.nip94Img')}</label>
-                
-                <input
-                  type="file"
-                  ref={nip94FileInputRef}
-                  onChange={handleNip94FilesUpload}
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                />
 
                 {/* Image Compression Settings */}
                 <div className="flex gap-2 bg-black/40 p-1.5 rounded-lg border border-white/5">
@@ -514,15 +474,18 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 </div>
 
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={isUploading}
-                    onClick={() => nip94FileInputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/40 rounded-lg text-xs font-mono font-bold transition-all disabled:opacity-50"
-                  >
+                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/40 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input
+                      type="file"
+                      onChange={handleNip94FilesUpload}
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      disabled={isUploading}
+                    />
                     <Upload className="w-4 h-4" />
                     <span>{isUploading ? 'Đang tải lên...' : t('hostReg.uploadMultiple')}</span>
-                  </button>
+                  </label>
                   <button
                     type="button"
                     onClick={addNip94Url}

@@ -3,6 +3,8 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import multer from "multer";
+import crypto from "crypto";
 
 function loadProjectDocs(): string {
   const docs: string[] = [];
@@ -391,6 +393,55 @@ ${docsContent}`;
         error: err.message || "Failed to resolve Lightning Address",
         fallback: true
       });
+    }
+  });
+
+  // Media Server (NIP-96 style minimalist upload)
+  const uploadDir = path.join(process.cwd(), "dist", "media");
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 15 * 1024 * 1024 } // 15MB matching frontend limit
+  });
+
+  // Serve static media files
+  app.use("/media", express.static(uploadDir, { maxAge: "30d" }));
+
+  app.post("/api/media/upload", upload.single("file"), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "no file" });
+      }
+
+      const hash = crypto.createHash("sha256").update(req.file.buffer).digest("hex");
+      const ext = path.extname(req.file.originalname) || ".jpg";
+      const filename = `${hash}${ext}`;
+      const filepath = path.join(uploadDir, filename);
+
+      if (!fs.existsSync(filepath)) {
+        fs.writeFileSync(filepath, req.file.buffer);
+      }
+
+      // Generate the public URL
+      const publicUrl = `${req.protocol}://${req.get("host")}/media/${filename}`;
+
+      // Return strictly in NIP-96 format as requested
+      return res.json({
+        status: "success",
+        nip94_event: {
+          tags: [
+            ["url", publicUrl],
+            ["ox", hash],
+            ["m", req.file.mimetype]
+          ]
+        }
+      });
+    } catch (error: any) {
+      console.error("Media upload error:", error);
+      return res.status(500).json({ error: error.message || "Internal Server Error" });
     }
   });
 
