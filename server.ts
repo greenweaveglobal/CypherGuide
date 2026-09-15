@@ -394,40 +394,6 @@ ${docsContent}`;
     }
   });
 
-  // API: Image Upload Proxy to bypass CORS on mobile
-  app.post("/api/upload", express.raw({ type: ['image/*', 'application/octet-stream'], limit: '15mb' }), async (req, res) => {
-    try {
-      if (!req.body || !Buffer.isBuffer(req.body)) {
-        return res.status(400).json({ error: "No image payload found" });
-      }
-      
-      const blob = new Blob([req.body], { type: req.headers['content-type'] || 'image/jpeg' });
-      const fd = new FormData();
-      fd.append('file', blob, 'image.jpg');
-      
-      const uploadRes = await fetch('https://x0.at', {
-        method: 'POST',
-        body: fd
-      });
-      
-      if (!uploadRes.ok) {
-        return res.status(uploadRes.status).json({ error: "Failed to upload to remote host" });
-      }
-      
-      const text = await uploadRes.text();
-      const url = text.trim();
-      
-      if (url.startsWith('http')) {
-        return res.json({ url });
-      } else {
-        return res.status(500).json({ error: "Invalid response from host" });
-      }
-    } catch (e: any) {
-      console.error("Upload error:", e);
-      return res.status(500).json({ error: e.message || "Upload failed" });
-    }
-  });
-
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", service: "Cypher Guide Server" });

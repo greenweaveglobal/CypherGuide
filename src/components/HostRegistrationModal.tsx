@@ -51,60 +51,63 @@ async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Prom
 }
 
 async function uploadMediaToNostrBuild(blob: Blob): Promise<string> {
+  const nostr = (window as any).nostr;
+  
+  if (!nostr) {
+    throw new Error('Không tìm thấy ví Nostr (như Alby). Vui lòng cài đặt tiện ích mở rộng ví Nostr để sử dụng NIP-98 tải ảnh.');
+  }
+
+  let proxyError = '';
   try {
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: blob,
+    const url = 'https://nostr.build/api/v2/upload/files';
+    const method = 'POST';
+    
+    // Create NIP-98 Auth Event
+    const event = {
+      kind: 27235,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [
+        ['u', url],
+        ['method', method]
+      ],
+      content: ''
+    };
+    
+    // Sign event with user's extension
+    const signedEvent = await nostr.signEvent(event);
+    const authHeader = `Nostr ${btoa(JSON.stringify(signedEvent))}`;
+    
+    // Prepare FormData
+    const formData = new FormData();
+    formData.append('fileToUpload', blob, 'image.jpg');
+    
+    // Upload directly to nostr.build with Auth
+    const res = await fetch(url, {
+      method,
       headers: {
-        'Content-Type': blob.type || 'image/jpeg'
-      }
+        'Authorization': authHeader
+      },
+      body: formData
     });
     
     if (res.ok) {
       const data = await res.json();
-      if (data.url) return data.url;
-    }
-  } catch (e) {
-    console.error('Local proxy upload failed:', e);
-  }
-
-  // Fallback 1: x0.at direct
-  try {
-    const x0Data = new FormData();
-    x0Data.append('file', blob, 'image.jpg');
-    const res = await fetch('https://x0.at', {
-      method: 'POST',
-      body: x0Data,
-    });
-    if (res.ok) {
-      const text = await res.text();
-      const url = text.trim();
-      if (url.startsWith('http')) return url;
-    }
-  } catch (e) {
-    console.warn('x0.at upload failed', e);
-  }
-
-  // Fallback 2: void.cat
-  try {
-    const res = await fetch('https://void.cat/upload', {
-      method: 'POST',
-      body: blob,
-      headers: {
-        'V-Content-Type': blob.type || 'image/jpeg',
+      if (data.data && data.data[0] && data.data[0].url) {
+        return data.data[0].url;
+      } else {
+        throw new Error('nostr.build không trả về đường dẫn ảnh.');
       }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.ok && data.file && data.file.id) {
-        return `https://void.cat/d/${data.file.id}`;
-      }
+    } else {
+      const err = await res.text();
+      proxyError = `NIP-98 lỗi: ${res.status} ${err}`;
+      console.error(proxyError);
+      throw new Error(`Máy chủ từ chối: ${res.status}`);
     }
-  } catch (e) {
-    console.error('void.cat upload failed', e);
+  } catch (e: any) {
+    if (e.message.includes('Tất cả máy chủ')) throw e;
+    console.error('Lỗi ngoại lệ NIP-98:', e);
+    throw new Error(e.message || 'Lỗi tải ảnh qua NIP-98.');
   }
-
-  throw new Error('All media upload servers failed.');
 }
 
 interface Props {
@@ -157,9 +160,9 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       const compressedBlob = await compressImage(file, compressionLevel);
       const url = await uploadMediaToNostrBuild(compressedBlob);
       setImageUrl(url);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Image upload error:', err);
-      setErrorMsg('Lỗi khi tải ảnh lên máy chủ Nostr.');
+      setErrorMsg(err.message || 'Lỗi khi tải ảnh lên máy chủ Nostr.');
     } finally {
       setIsUploading(false);
     }
@@ -188,9 +191,9 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         // Delay 300ms to allow mobile browser Garbage Collector to clean up canvas/img memory
         // This prevents the "Aw, Snap!" (OOM Crash) when picking 5-10 huge photos at once
         await new Promise(r => setTimeout(r, 300));
-      } catch (err) {
+      } catch (err: any) {
         console.error('Image upload error:', err);
-        setErrorMsg('Một số ảnh không tải lên được, vui lòng thử lại.');
+        setErrorMsg(`Một số ảnh không tải lên được: ${err.message || 'Lỗi không xác định'}`);
       }
     }
     setIsUploading(false);

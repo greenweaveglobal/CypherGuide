@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<body>
+<input type="file" id="file" />
+<button onclick="upload()">Upload</button>
+<script>
+async function upload() {
+  const file = document.getElementById('file').files[0];
+  if (!file) return alert('No file');
+  
+  if (!window.nostr) return alert('No window.nostr');
+  
+  const url = 'https://nostr.build/api/v2/upload/files';
+  const method = 'POST';
+  
+  const event = {
+    kind: 27235,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ['u', url],
+      ['method', method]
+    ],
+    content: ''
+  };
+  
+  const signed = await window.nostr.signEvent(event);
+  const auth = 'Nostr ' + btoa(JSON.stringify(signed));
+  
+  const fd = new FormData();
+  fd.append('fileToUpload', file);
+  
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': auth
+      },
+      body: fd
+    });
+    console.log(res.status, await res.text());
+  } catch (e) {
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>
