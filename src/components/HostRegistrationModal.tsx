@@ -50,7 +50,7 @@ async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Prom
   });
 }
 
-const MEDIA_SERVER_URL = '/api/media';
+const MEDIA_SERVER_URL = import.meta.env.VITE_MEDIA_SERVER_URL || '/api/media';
 
 async function uploadToMediaServer(blob: Blob, filename: string): Promise<{ url: string; hash: string }> {
   try {
