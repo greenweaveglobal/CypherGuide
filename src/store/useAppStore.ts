@@ -146,11 +146,12 @@ export const useAppStore = create<AppState>()(
         let activeIdentity = identity;
         if (typeof window !== 'undefined') {
           if (activeIdentity?.privKeyHex) {
-            sessionStorage.setItem('cg_session_privkey', activeIdentity.privKeyHex);
+            localStorage.setItem('cg_privkey', activeIdentity.privKeyHex);
           } else if (activeIdentity === null) {
-            sessionStorage.removeItem('cg_session_privkey');
+            localStorage.removeItem('cg_privkey');
+            localStorage.removeItem('cg_encrypted_vault'); // cleanup legacy
           } else if (activeIdentity && !activeIdentity.privKeyHex) {
-            const savedPrivKey = sessionStorage.getItem('cg_session_privkey');
+            const savedPrivKey = localStorage.getItem('cg_privkey');
             if (savedPrivKey) {
               activeIdentity = { ...activeIdentity, privKeyHex: savedPrivKey };
             }
@@ -355,7 +356,8 @@ export const useAppStore = create<AppState>()(
 
       resetStore: () => {
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('cg_session_privkey');
+          localStorage.removeItem('cg_privkey');
+          localStorage.removeItem('cg_encrypted_vault'); // cleanup legacy
         }
         set({
           identity: null,
@@ -387,14 +389,14 @@ export const useAppStore = create<AppState>()(
               state.identity = null;
             }
           }
-          // Restore privKeyHex from sessionStorage if available
+          // Restore privKeyHex from localStorage if available
           try {
-            const savedPrivKey = sessionStorage.getItem('cg_session_privkey');
+            const savedPrivKey = localStorage.getItem('cg_privkey');
             if (savedPrivKey && state?.identity && !state.identity.privKeyHex) {
               state.identity.privKeyHex = savedPrivKey;
             }
           } catch (e) {
-            // ignore sessionStorage error
+            // ignore localStorage error
           }
           if (state && state.listings) {
             state.listings = state.listings.map(migrateListingToRoomTypes);

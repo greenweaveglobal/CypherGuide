@@ -4,7 +4,7 @@ import { Shield, KeyRound, Eye, EyeOff, Save, Trash2, Fingerprint, Download, Che
 import { NostrIdentity } from '../types';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
-import { generateNostrIdentity, isNip07Available, loginWithNip07, sha256, encryptAndStoreKey, unlockWithPin } from '../utils/crypto';
+import { generateNostrIdentity, isNip07Available, loginWithNip07, sha256 } from '../utils/crypto';
 import { claimReferralReward, generateReferralCode } from '../utils/referral';
 import { nip19, getPublicKey, SimplePool } from 'nostr-tools';
 import { useTranslation } from '../hooks/useTranslation';
@@ -23,31 +23,16 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const claimReferral = useAppStore((state) => state.claimReferral);
   const bookings = useAppStore((state) => state.bookings);
 
-  const [step, setStep] = useState<'connect' | 'generate' | 'backup' | 'verify' | 'pin_setup' | 'pin_unlock' | 'ready'>(() => {
+  const [step, setStep] = useState<'connect' | 'generate' | 'backup' | 'verify' | 'ready'>(() => {
     if (identity) {
-      if (!identity.privKeyHex && typeof window !== 'undefined' && localStorage.getItem('cg_encrypted_vault')) {
-        return 'pin_unlock';
-      }
       return 'ready';
     }
     return 'connect';
   });
 
-  const [pin, setPin] = useState('');
-  const [pinConfirm, setPinConfirm] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [pinAttempts, setPinAttempts] = useState(0);
-  const [pinLockedUntil, setPinLockedUntil] = useState<number | null>(null);
-
   React.useEffect(() => {
     if (identity) {
-      if (step !== 'pin_setup' && step !== 'pin_unlock') {
-        if (!identity.privKeyHex && typeof window !== 'undefined' && localStorage.getItem('cg_encrypted_vault')) {
-          setStep('pin_unlock');
-        } else {
-          setStep('ready');
-        }
-      }
+      setStep('ready');
     } else {
       setStep('connect');
     }
@@ -126,12 +111,12 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
       if (typeof window !== 'undefined') {
         localStorage.removeItem('nip07_explicitly_logged_out');
         if (tempIdentity.privKeyHex) {
-          sessionStorage.setItem('cg_session_privkey', tempIdentity.privKeyHex);
+          localStorage.setItem('cg_privkey', tempIdentity.privKeyHex);
         }
       }
       onIdentityChange(tempIdentity);
       onAddLog('relay', t('sysLogs.createdKeys', { name: tempIdentity.name }));
-      setStep('pin_setup');
+      setStep('ready');
     } else {
       setStatusMsg({ message: t('identity.keyMismatch'), type: 'error' });
     }
@@ -157,11 +142,11 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
       };
       if (typeof window !== 'undefined') {
         localStorage.removeItem('nip07_explicitly_logged_out');
-        sessionStorage.setItem('cg_session_privkey', privKeyHex);
+        localStorage.setItem('cg_privkey', privKeyHex);
       }
       onIdentityChange(imported);
       onAddLog('relay', t('sysLogs.importedSecretKey', { npub: npub.slice(0, 16) }));
-      setStep('pin_setup');
+      setStep('ready');
     } catch (e) {
       setStatusMsg({ message: t('identity.invalidNsec'), type: 'error' });
     }
@@ -172,7 +157,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
     try {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('nip07_explicitly_logged_out');
-        sessionStorage.removeItem('cg_session_privkey');
+        localStorage.removeItem('cg_privkey');
       }
       const nip07Id = await loginWithNip07();
       onIdentityChange(nip07Id);
@@ -180,67 +165,6 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
       setStep('ready');
     } catch (e: any) {
       setStatusMsg({ message: t('identity.nip07Error', { msg: e.message }), type: 'error' });
-    }
-  };
-
-  const handlePinSetup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError('');
-    if (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
-      setPinError('PIN phải gồm 4-6 chữ số.');
-      return;
-    }
-    if (pin !== pinConfirm) {
-      setPinError('Mã PIN xác nhận không khớp.');
-      return;
-    }
-
-    try {
-      const privKey = sessionStorage.getItem('cg_session_privkey');
-      if (!privKey) throw new Error('Private key not found in session');
-      
-      await encryptAndStoreKey(privKey, pin);
-      setStep('ready');
-      setStatusMsg({ message: 'Đã tạo mã PIN bảo vệ khoá thành công.', type: 'success' });
-    } catch (err) {
-      console.error(err);
-      setPinError('Lỗi khi mã hoá khoá.');
-    }
-  };
-
-  const handlePinUnlock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pinLockedUntil && Date.now() < pinLockedUntil) {
-      setPinError(`Quá nhiều lần thử sai. Thử lại sau ${Math.ceil((pinLockedUntil - Date.now()) / 1000)}s.`);
-      return;
-    }
-
-    setPinError('');
-    try {
-      const decryptedKey = await unlockWithPin(pin);
-      if (decryptedKey) {
-        sessionStorage.setItem('cg_session_privkey', decryptedKey);
-        
-        // Update identity in store with decrypted key
-        if (identity) {
-          onIdentityChange({ ...identity, privKeyHex: decryptedKey });
-        }
-        
-        setPinAttempts(0);
-        setStep('ready');
-        setStatusMsg({ message: 'Đã mở khoá thành công.', type: 'success' });
-      } else {
-        const newAttempts = pinAttempts + 1;
-        setPinAttempts(newAttempts);
-        if (newAttempts >= 5) {
-          setPinLockedUntil(Date.now() + 30000);
-          setPinError('Sai PIN 5 lần. Khoá tạm thời 30 giây.');
-        } else {
-          setPinError('Mã PIN không đúng.');
-        }
-      }
-    } catch (err) {
-      setPinError('Lỗi giải mã.');
     }
   };
 
@@ -252,7 +176,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
     if (typeof window !== 'undefined') {
       localStorage.setItem('nip07_explicitly_logged_out', 'true');
       localStorage.removeItem('cg_encrypted_vault');
-      sessionStorage.removeItem('cg_session_privkey');
+      localStorage.removeItem('cg_privkey');
     }
     onAddLog('relay', t('sysLogs.loggedOut'));
     onIdentityChange(null);
@@ -439,92 +363,6 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                       {t('identity.confirm')}
                     </Button>
                   </div>
-                </div>
-              )}
-
-              {step === 'pin_setup' && (
-                <div className="space-y-4">
-                  <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
-                    <h3 className="text-sm font-bold text-primary mb-1">Thiết lập mã PIN bảo vệ</h3>
-                    <p className="text-xs text-text-secondary leading-relaxed">
-                      Mã PIN giúp bảo vệ khoá riêng tư của bạn trên thiết bị này. Lần sau mở máy, bạn chỉ cần nhập PIN thay vì chuỗi NSEC dài.
-                    </p>
-                  </div>
-                  
-                  <form onSubmit={handlePinSetup} className="space-y-3">
-                    <div>
-                      <label className="text-[10px] text-gray-400 font-mono uppercase mb-1 block">Nhập PIN (4-6 số)</label>
-                      <input
-                        type="password"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={pin}
-                        onChange={(e) => setPin(e.target.value)}
-                        placeholder="••••"
-                        className="w-full bg-black/40 border border-border rounded-lg p-2.5 text-white font-mono text-center tracking-[0.5em] focus:border-primary/50 focus:outline-none"
-                        maxLength={6}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-gray-400 font-mono uppercase mb-1 block">Xác nhận PIN</label>
-                      <input
-                        type="password"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={pinConfirm}
-                        onChange={(e) => setPinConfirm(e.target.value)}
-                        placeholder="••••"
-                        className="w-full bg-black/40 border border-border rounded-lg p-2.5 text-white font-mono text-center tracking-[0.5em] focus:border-primary/50 focus:outline-none"
-                        maxLength={6}
-                      />
-                    </div>
-                    
-                    {pinError && <p className="text-xs text-danger font-mono">{pinError}</p>}
-                    
-                    <Button fullWidth variant="primary" type="submit" className="gap-2">
-                      <Save className="w-4 h-4" /> Lưu mã PIN
-                    </Button>
-                  </form>
-                </div>
-              )}
-
-              {step === 'pin_unlock' && (
-                <div className="space-y-4 text-center">
-                  <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-                    <KeyRound className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="text-sm font-bold text-white">Mở khoá tài khoản</h3>
-                  <p className="text-xs text-text-secondary mb-4">
-                    Tài khoản của bạn đã được bảo vệ trên thiết bị này. Hãy nhập PIN để tiếp tục.
-                  </p>
-                  
-                  <form onSubmit={handlePinUnlock} className="space-y-3 max-w-[240px] mx-auto">
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={pin}
-                      onChange={(e) => setPin(e.target.value)}
-                      placeholder="••••"
-                      className="w-full bg-black/40 border border-border rounded-lg p-3 text-white font-mono text-center tracking-[0.5em] text-lg focus:border-primary/50 focus:outline-none"
-                      maxLength={6}
-                      autoFocus
-                    />
-                    
-                    {pinError && <p className="text-xs text-danger font-mono">{pinError}</p>}
-                    
-                    <Button fullWidth variant="primary" type="submit">
-                      Mở khoá
-                    </Button>
-                    
-                    <button 
-                      type="button" 
-                      onClick={handleDisconnectClick}
-                      className="text-[10px] text-text-secondary hover:text-danger underline mt-4"
-                    >
-                      Quên mã PIN? Xoá tài khoản khỏi máy
-                    </button>
-                  </form>
                 </div>
               )}
 
