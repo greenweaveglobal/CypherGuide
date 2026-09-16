@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { X, Heart, Zap, Coins, Check, Copy, CookingPot, Edit2, Save, Banknote, Sparkles, ShieldCheck, Loader2, Globe, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Heart, Zap, Coins, Check, Copy, Bitcoin, Edit2, Save, Banknote, Sparkles, ShieldCheck, Loader2, Globe, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
@@ -187,7 +187,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
           <Card variant="glass" className="border-primary/50 text-center py-12">
             <CardContent className="space-y-6 flex flex-col items-center">
               <div className="w-20 h-20 bg-warning/20 rounded-full flex items-center justify-center border border-warning">
-                <CookingPot className="w-10 h-10 text-warning animate-pulse" />
+                <Bitcoin className="w-10 h-10 text-warning animate-pulse" />
               </div>
               <div className="space-y-2">
                 <h2 className="text-2xl font-bold font-mono text-white">{t('donate.thankYou')}</h2>
@@ -222,7 +222,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
           
           <CardHeader>
             <div className="flex items-center gap-3">
-              <CookingPot className="w-6 h-6 text-warning shrink-0" />
+              <Bitcoin className="w-6 h-6 text-warning shrink-0" />
               <div>
                 <h2 className="text-lg font-bold font-mono text-warning">{t('donate.title')}</h2>
                 <p className="text-xs text-text-secondary font-mono mt-0.5">{t('donate.subtitle')}</p>
@@ -361,7 +361,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                     </span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
-                      <CookingPot className="w-4 h-4" />
+                      <Bitcoin className="w-4 h-4" />
                       <span>{t('donate.generateInvoice')}</span>
                     </span>
                   )}
@@ -527,7 +527,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                       <span className="animate-pulse text-xs truncate">{t('donate.processing')}</span>
                     ) : (
                       <span className="flex items-center justify-center gap-1.5 text-xs sm:text-sm truncate">
-                        <CookingPot className="w-4 h-4 shrink-0" />
+                        <Bitcoin className="w-4 h-4 shrink-0" />
                         <span className="truncate">{t('donate.payWebLN')}</span>
                       </span>
                     )}

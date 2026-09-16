@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, CookingPot, Sparkles, Navigation, Home, Globe, Github } from 'lucide-react';
+import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, Bitcoin, Sparkles, Navigation, Home, Globe, Github } from 'lucide-react';
 import { NostrIdentity } from '../types';
 import DonateModal from './DonateModal';
 import OnboardingTourModal from './OnboardingTourModal';
@@ -157,10 +157,10 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
 
           <button 
             onClick={() => setShowDonate(true)}
-            className="w-full mt-3 flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 text-white border border-primary/50 rounded-xl text-sm font-mono font-bold uppercase transition-all shadow-[0_0_15px_rgba(var(--primary),0.2)] hover:shadow-[0_0_25px_rgba(var(--primary),0.4)]"
+            className="w-full mt-3 flex items-center justify-center p-3 bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 text-white border border-primary/50 rounded-xl transition-all shadow-[0_0_15px_rgba(var(--primary),0.2)] hover:shadow-[0_0_25px_rgba(var(--primary),0.4)]"
+            title={t('layout.supportDev')}
           >
-            <CookingPot className="w-5 h-5 text-warning" />
-            {t('layout.supportDev')}
+            <Bitcoin className="w-5 h-5 text-warning" />
           </button>
 
           <div className="mt-2.5 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] font-mono">
@@ -227,10 +227,10 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
 
           <button
             onClick={() => setShowDonate(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-warning/10 hover:bg-warning/20 text-warning border border-warning/40 rounded-xl text-xs font-mono font-bold transition-all shadow-[0_0_12px_rgba(245,158,11,0.25)] active:scale-95"
+            className="flex items-center justify-center p-1.5 bg-warning/10 hover:bg-warning/20 text-warning border border-warning/40 rounded-xl transition-all shadow-[0_0_12px_rgba(245,158,11,0.25)] active:scale-95"
+            title={t('layout.donateShort')}
           >
-            <CookingPot className="w-4 h-4 text-warning animate-pulse" />
-            <span>{t('layout.donateShort')}</span>
+            <Bitcoin className="w-5 h-5 text-warning animate-pulse" />
           </button>
 
           <button 
@@ -354,10 +354,10 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
 
             <button
               onClick={() => setShowDonate(true)}
-              className="flex items-center gap-2 px-3.5 py-2 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/50 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95"
+              className="flex items-center justify-center p-2 sm:p-2.5 bg-warning/15 hover:bg-warning/25 text-warning border border-warning/50 rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95"
+              title={t('layout.supportDev')}
             >
-              <CookingPot className="w-4 h-4 text-warning animate-pulse" />
-              <span>{t('layout.supportDev')}</span>
+              <Bitcoin className="w-5 h-5 sm:w-6 sm:h-6 text-warning animate-pulse" />
             </button>
 
             <button
@@ -406,9 +406,8 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
               <Sparkles className="w-3 h-3 text-primary shrink-0" />
               <span>{t('docsAssistant.navButton')}</span>
             </button>
-            <button onClick={() => setShowDonate(true)} className="flex items-center gap-1 hover:text-warning transition-colors font-bold text-white px-1 py-0.5 rounded bg-warning/10 border border-warning/30 sm:bg-transparent sm:border-0">
-              <CookingPot className="w-3 h-3 text-warning shrink-0" />
-              <span>{t('layout.donateShort')}</span>
+            <button onClick={() => setShowDonate(true)} className="flex items-center hover:text-warning transition-colors text-white px-1 py-0.5 rounded bg-warning/10 border border-warning/30 sm:bg-transparent sm:border-0" title={t('layout.donateShort')}>
+              <Bitcoin className="w-3.5 h-3.5 text-warning shrink-0" />
             </button>
           </div>
         </footer>
