@@ -251,7 +251,6 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
   const handleConfirmDisconnect = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('nip07_explicitly_logged_out', 'true');
-      localStorage.removeItem('cg_encrypted_vault');
       sessionStorage.removeItem('cg_session_privkey');
     }
     onAddLog('relay', t('sysLogs.loggedOut'));
