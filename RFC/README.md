@@ -27,8 +27,10 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | 0011 | Ranh Giới Tài Chính Hóa (Financialization Boundary Principle) | Draft | Không có module riêng — nguyên tắc áp dụng ngược cho 0001, 0002, 0006, 0008, 0010 |
 | 0012 | Ranh Giới Chủ Quyền (Sovereignty Boundary Principle) | Draft | Không có module riêng — nguyên tắc áp dụng cho mọi tương tác Host/Khách & tài liệu pháp lý |
 | 0013 | Lưu Trú Sẵn Sàng Cho Agent (Agent-Ready Stay) — Tiện Nghi Cho Giới Cypher/Personal Business | Draft | Mở rộng hệ thống tag tiện nghi (`AGENT-READY`), mở rộng RFC-0007/0009, giữ nguyên RFC-0003, 0011, 0012 |
+| 0014 | Xác Minh Hành Vi Runtime Của Agent (Agent Runtime Verification) | Draft | Mở rộng RFC-0013 nhưng tập trung vào hành vi runtime của agent (probe, tool-call trace), không đụng chạm hạ tầng |
+| 0015 | Lộ Trình Treasury & Pháp Nhân (Treasury & Legal Entity Roadmap) | Draft | Không có module riêng — định hình cách treasury cộng đồng được quản lý qua từng giai đoạn phát triển |
 
-Số RFC tiếp theo: **0014**.
+Số RFC tiếp theo: **0016**.
 
 ## Quy ước đặt tên (đã thống nhất lại)
 
