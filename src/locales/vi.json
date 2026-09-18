@@ -946,7 +946,7 @@
     "resultTitle": "Kết quả tra cứu RFC / Code:",
     "modelBadge": "Gemini 3.6 Flash Khóa Ngữ Cảnh",
     "referenceIndex": "Mục Lục Tham Chiếu RFC-0005",
-    "scopeLabel": "Phạm vi: RFC/*.md + ARCHITECTURE.md + MATURITY.md"
+    "scopeLabel": "Phạm vi: RFC/*.md + ARCHITECTURE.md + MATURITY.md + POSITIONING.md"
   },
   "stillness": {
     "protocolTitle": "RFC-0010: Nghi Thức Tĩnh Tâm",

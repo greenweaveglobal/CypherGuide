@@ -946,7 +946,7 @@
     "resultTitle": "RFC / Code Lookup Result:",
     "modelBadge": "Gemini 3.6 Flash Context-Locked",
     "referenceIndex": "RFC-0005 Reference Index",
-    "scopeLabel": "Scope: RFC/*.md + ARCHITECTURE.md + MATURITY.md"
+    "scopeLabel": "Scope: RFC/*.md + ARCHITECTURE.md + MATURITY.md + POSITIONING.md"
   },
   "stillness": {
     "protocolTitle": "RFC-0010: Zen Stillness",

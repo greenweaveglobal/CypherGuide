@@ -53,6 +53,10 @@ const RFC_KNOWLEDGE_BASE: Record<string, { vi: string; en: string }> = {
   agentReady: {
     vi: "Theo **RFC-0013 (Lưu Trú Sẵn Sàng Cho Agent - Agent-Ready Stay)** (thay thế hoàn toàn bản nháp Compute-as-a-Stay cũ): CypherGuide khẳng định **khách luôn luôn là con người**, AI agent chỉ là hạ tầng/hành lý họ mang theo. Giao thức không trở thành chợ compute đối đầu với Akash hay io.net và không tạo danh tính/uy tín riêng cho bot. Thay vào đó, RFC-0013 chuẩn hóa tag tiện nghi **`AGENT-READY`** dành cho homestay đáp ứng đủ 3 tiêu chí kỹ thuật: 1. Có compute node riêng (SBC/mini-PC) không chia sẻ chung trong kỳ lưu trú; 2. Có Nostr relay riêng do host tự vận hành; 3. Cam kết sàn băng thông tối thiểu (Mbps) rõ ràng. Xác minh thông qua đo lường máy móc khách quan (uptime, ping) tương tự `VERIFIED_NODE`.",
     en: "According to **RFC-0013 (Agent-Ready Stay — An Amenity for the Cypher/Personal Business Crowd)** (fully replacing the earlier Compute-as-a-Stay draft): CypherGuide affirms that **the guest is always human**, while the AI agent is merely infrastructure/luggage brought along. The protocol avoids turning into a compute marketplace competing with Akash or io.net and creates no separate identity/reputation for bots. Instead, RFC-0013 defines a standardized **`AGENT-READY`** amenity tag requiring 3 mandatory criteria: 1. Dedicated, unshared compute node (SBC/mini-PC); 2. Host's own private Nostr relay; 3. Guaranteed sustained bandwidth floor (Mbps). Verified through objective machine metrics (uptime, ping) similar to `VERIFIED_NODE`."
+  },
+  positioning: {
+    vi: "Theo **Bản Định Vị AI Cục Bộ (POSITIONING.md)**: CypherGuide không tham gia cuộc đua AI tập trung hóa nghìn tỷ đô. Dự án thử nghiệm câu hỏi: liệu một mô hình nhỏ (SLM như Qwen2.5 1.5B chạy trên Raspberry Pi - RFC-0009) có thể trả lời đủ tốt cho đúng nhu cầu hẹp của người dùng mà không cần đám mây trung gian. Như TS. Phạm Hy Hiếu (Head of AI Transformation tại Techcombank, cựu Google Brain/OpenAI/xAI) nhận định, compute là 'bài toán tầm quốc gia' — do đó CypherGuide không cố xây chợ compute phi tập trung mà tập trung giúp cá nhân làm chủ phần cứng nhỏ của chính họ (RFC-0009, RFC-0013), kiểm chứng bằng thử nghiệm công khai.",
+    en: "According to the **Local AI Positioning Statement (POSITIONING.md)**: CypherGuide is not entering the trillion-dollar centralized AI race. Instead, it tests whether small language models (like Qwen2.5 1.5B on Raspberry Pi - RFC-0009) running on cheap user-owned hardware can answer well enough for narrow purposes without clouds. As independently noted by Dr. Phạm Hy Hiếu (Head of AI Transformation at Techcombank, ex-Google Brain/OpenAI/xAI), large-scale compute is a 'national-scale problem' — thus CypherGuide avoids building a compute marketplace and instead focuses on personal sovereignty over edge hardware, proven via public experiments."
   }
 };
 
@@ -62,6 +66,9 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
 
   if (qLower.includes('donation') || qLower.includes('quyên góp') || qLower.includes('địa chỉ') || qLower.includes('address') || qLower.includes('donate')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.donation.en : RFC_KNOWLEDGE_BASE.donation.vi, success: true };
+  }
+  if (qLower.includes('positioning') || qLower.includes('định vị') || qLower.includes('grant') || qLower.includes('tài trợ') || qLower.includes('phạm hy hiếu') || qLower.includes('hạ tầng ai') || qLower.includes('local ai') || qLower.includes('ai cục bộ') || qLower.includes('tiếng nói nhỏ')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.positioning.en : RFC_KNOWLEDGE_BASE.positioning.vi, success: true };
   }
   if (qLower.includes('fee') || qLower.includes('phí') || qLower.includes('rfc-0002') || qLower.includes('discount')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.fee.en : RFC_KNOWLEDGE_BASE.fee.vi, success: true };

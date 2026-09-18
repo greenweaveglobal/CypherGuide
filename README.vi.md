@@ -55,6 +55,8 @@
 │   └── types.ts         # Khai báo kiểu dữ liệu TypeScript
 ├── ARCHITECTURE.md      # Tài liệu tổng quan kiến trúc hệ thống
 ├── MATURITY.md          # Ma trận cấp độ trưởng thành an ninh & nhật ký kiểm toán
+├── POSITIONING.md       # Bản định vị AI cục bộ & luận điểm xin tài trợ
+├── HOST_LEGAL_REALITY.md # Tài liệu thực tế pháp lý cho host lưu trú
 ├── CONTRIBUTING.md      # Quy tắc đóng góp và quy trình RFC
 ├── server.ts            # Máy chủ phát triển và proxy tra cứu tài liệu
 └── LICENSE              # Giấy phép nguồn mở MIT

@@ -21,6 +21,9 @@ function loadProjectDocs(): string {
     "HOST_LEGAL_REALITY.md",
     "HOST_LEGAL_REALITY.vi.md",
     "HOST_LEGAL_REALITY.en.md",
+    "POSITIONING.md",
+    "POSITIONING.vi.md",
+    "POSITIONING.en.md",
     "HANDOFF_NOTES.md"
   ];
 

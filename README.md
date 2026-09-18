@@ -55,6 +55,8 @@
 │   └── types.ts         # TypeScript domain interfaces
 ├── ARCHITECTURE.md      # Comprehensive protocol system architecture
 ├── MATURITY.md          # Multi-tier security matrix and audit logs
+├── POSITIONING.md       # Local AI positioning statement & grant application rationale
+├── HOST_LEGAL_REALITY.md # Practical operational and legal reality reference for hosts
 ├── CONTRIBUTING.md      # Code standards, RFC lifecycle, and PR guides
 ├── server.ts            # Local development and documentation proxy server
 └── LICENSE              # Open-source MIT License
