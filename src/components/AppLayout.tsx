@@ -5,7 +5,7 @@ import { NostrIdentity } from '../types';
 import DonateModal from './DonateModal';
 import OnboardingTourModal from './OnboardingTourModal';
 import { DocsAssistant } from './DocsAssistant';
-import cypherLogo from '../assets/images/cypher_brand_identity_1784773030963.jpg';
+import { CypherGuideIcon } from './CypherGuideIcon';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface AppLayoutProps {
@@ -53,14 +53,8 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
       <aside className="hidden md:flex flex-col w-64 border-r border-border bg-surface h-screen sticky top-0 shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-primary/30 shadow-lg shrink-0">
-              <img 
-                src={cypherLogo} 
-                alt="Cypher Guide Logo" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-                onError={(e) => { e.currentTarget.src = '/logo.jpg'; }}
-              />
+            <div className="shrink-0">
+              <CypherGuideIcon size={40} />
             </div>
             <div>
               <h1 className="text-md font-bold tracking-wider font-mono text-white flex items-center gap-2">
@@ -191,14 +185,8 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b border-border bg-surface/90 backdrop-blur-md z-50 flex items-center justify-between px-3 sm:px-4">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-primary/30 shadow-md shrink-0">
-            <img 
-              src={cypherLogo} 
-              alt="Cypher Guide Logo" 
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-              onError={(e) => { e.currentTarget.src = '/logo.jpg'; }}
-            />
+          <div className="shrink-0">
+            <CypherGuideIcon size={32} />
           </div>
           <h1 className="font-bold font-mono tracking-wider text-xs sm:text-sm truncate">CYPHER GUIDE</h1>
         </div>
