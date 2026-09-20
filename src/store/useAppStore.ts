@@ -381,7 +381,7 @@ export const useAppStore = create<AppState>()(
     {
       name: '__mesh_store',
       storage: createJSONStorage(() => idbStorage),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => (state: AppState | undefined) => {
         if (typeof window !== 'undefined') {
           if (localStorage.getItem('nip07_explicitly_logged_out') === 'true') {
             if (state) {
