@@ -4,6 +4,7 @@ import { MessageSquare, Lock, User, Send, Clock, Shield, AlertTriangle, Papercli
 import { useTranslation } from '../hooks/useTranslation';
 import { DirectMessage, NostrIdentity, Booking, Listing } from '../types';
 import { signMessage, sha256, encryptNostrMessage, decryptNostrMessage, nsecToHex } from '../utils/crypto';
+import { safeRandomUUID } from '../utils/uuid';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 
@@ -172,7 +173,7 @@ export default function DirectMessages({ identity, listings, bookings, messages,
       const signature = await signMessage(hash, activeIdentity);
 
       const newMessage: DirectMessage = {
-        id: `msg_${Date.now()}`,
+        id: `msg_${safeRandomUUID().slice(0, 8)}`,
         senderNpub: activeIdentity.npub,
         receiverNpub: selectedContact.npub,
         content: realCiphertext,

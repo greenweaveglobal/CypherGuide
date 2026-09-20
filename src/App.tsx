@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, Terminal, AlertTriangle, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { HelpCircle, Terminal, AlertTriangle, Trash2, X, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Listing, Booking, Proposal, Payout } from './types';
 
 import LodgingListings from './components/LodgingListings';
@@ -50,6 +50,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'lodgings' | 'governance' | 'identity' | 'trips' | 'messages' | 'mesh' | 'guide' | 'host'>('lodgings');
   const [showResetModal, setShowResetModal] = useState(false);
   const [showProtocolLogs, setShowProtocolLogs] = useState(false);
+  const [isNonSecureContext, setIsNonSecureContext] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isLocalhost = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+      // Check if context is non-secure (plain HTTP over remote IP or non-local domain)
+      if (window.isSecureContext === false || (!window.isSecureContext && !isLocalhost && window.location.protocol === 'http:')) {
+        setIsNonSecureContext(true);
+      }
+    }
+  }, []);
 
   const hasHandledRefRef = React.useRef(false);
   const hasHandledListingRef = React.useRef(false);
@@ -227,7 +238,48 @@ export default function App() {
       onAddLog={addLog}
     >
       <div className="w-full flex flex-col gap-4 sm:gap-6 p-1 sm:p-4 md:p-6 pb-12">
-        
+        {/* RFC-0013 / Web Crypto Non-Secure Context Warning Banner */}
+        {isNonSecureContext && (
+          <div
+            id="non-secure-context-banner"
+            role="alert"
+            className="sticky top-0 z-40 w-full bg-gradient-to-r from-red-950 via-amber-950 to-red-950 border-2 border-red-500 rounded-2xl p-4 sm:p-5 shadow-[0_0_30px_rgba(239,68,68,0.4)] text-white backdrop-blur-md"
+          >
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 bg-red-600/30 text-red-400 rounded-xl border border-red-500/60 shrink-0 mt-0.5 animate-pulse">
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="bg-red-600 text-white font-mono text-[10px] sm:text-xs uppercase px-2 py-0.5 rounded font-black tracking-wider">
+                      Cảnh Báo Bảo Mật (HTTP)
+                    </span>
+                    <span className="text-amber-400 font-mono text-xs font-bold">
+                      NON-SECURE CONTEXT DETECTED
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm font-sans text-red-100 leading-relaxed font-medium">
+                    Bạn đang truy cập qua kết nối không an toàn (HTTP). Các tính năng ký giao dịch Nostr/Lightning sẽ không hoạt động. Vui lòng truy cập qua <a href="https://cypherguide.org" target="_blank" rel="noopener noreferrer" className="text-white underline decoration-amber-400 font-bold hover:text-amber-300">https://cypherguide.org</a> hoặc <a href="https://media.cypherguide.org" target="_blank" rel="noopener noreferrer" className="text-white underline decoration-amber-400 font-bold hover:text-amber-300">https://media.cypherguide.org</a>
+                  </p>
+                  <p className="text-[11px] font-sans text-amber-200/80">
+                    Trình duyệt chặn Web Crypto API (SubtleCrypto & getRandomValues) khi kết nối không mã hóa HTTPS hoặc không phải localhost.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                <a
+                  href="https://media.cypherguide.org"
+                  className="px-3.5 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-mono text-xs font-bold rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center gap-1.5 whitespace-nowrap border border-amber-400/40"
+                >
+                  <span>Chuyển sang HTTPS</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           <motion.div
             key={selectedListingForBooking ? 'listing_detail' : activeTab}

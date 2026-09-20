@@ -273,7 +273,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         description,
         roomTypes: [
           {
-            id: `rt_${Math.random().toString(36).substring(2, 9)}`,
+            id: `rt_${safeRandomUUID().slice(0, 8)}`,
             name: title,
             maxGuests: parsedMaxGuests,
             priceSats: basePrice,

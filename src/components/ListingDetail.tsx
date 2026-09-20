@@ -14,6 +14,7 @@ import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../util
 import { DEFAULT_ARBITRATOR_POOL } from '../utils/insuranceFund';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
+import { safeRandomUUID } from '../utils/uuid';
 import { useTranslation } from '../hooks/useTranslation';
 import { validateKycAttestationForBooking, createKycAttestation, DEMO_VERIFIER_NPUB_1, DEMO_VERIFIER_HEX_1 } from '../utils/kycAttestation';
 import { nip19 } from 'nostr-tools';
@@ -117,7 +118,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       const currentRoom = getRoomType(effectiveListing, selectedRoomTypeId);
 
       const newBooking: Booking = {
-        id: `bk_dana_${Date.now()}`,
+        id: `bk_dana_${safeRandomUUID().slice(0, 8)}`,
         listingId: listing.id,
         listingTitle: listing.title,
         roomTypeId: currentRoom.id,
@@ -316,11 +317,12 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       const arbitratorPubKeyHex = primaryArbitrator.pubKeyHex;
       const depositAmountSats = calculateRequiredDeposit(listing.priceSats, effectiveNights);
 
+      const bookingId = `bk_${safeRandomUUID().slice(0, 8)}`;
       const escrow = await generateEscrowMultisigAddress(
         identity!.npub,
         hostNpub,
         arbitratorPubKeyHex,
-        `bk_${Date.now()}`,
+        bookingId,
         depositAmountSats
       );
 
@@ -330,7 +332,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       const currentRoom = getRoomType(effectiveListing, selectedRoomTypeId);
       
       const newBooking: Booking = {
-        id: `bk_${Date.now()}`,
+        id: bookingId,
         listingId: listing.id,
         listingTitle: listing.title,
         roomTypeId: currentRoom.id,
@@ -368,7 +370,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       if (eligibility.eligible && referrerNpub) {
         const rewardSats = calculateReferralBonus(totalPriceSats);
         useAppStore.getState().addReferral({
-          id: 'ref_' + Math.random().toString(36).substring(2, 9),
+          id: 'ref_' + safeRandomUUID().slice(0, 8),
           referrerNpub: referrerNpub,
           refereeNpub: identity?.npub || 'unknown',
           bookingId: newBooking.id,

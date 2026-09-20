@@ -11,6 +11,7 @@ import { generateEscrowMultisigAddress } from '../utils/depositEscrow';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
 import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
+import { safeRandomUUID } from '../utils/uuid';
 
 interface Props {
   listing: Listing | null;
@@ -263,7 +264,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
         if (eligibility.eligible && referrerNpub) {
           const rewardSats = calculateReferralBonus(totalPriceSats);
           useAppStore.getState().addReferral({
-            id: 'ref_' + Math.random().toString(36).substring(2, 9),
+            id: 'ref_' + safeRandomUUID().slice(0, 8),
             referrerNpub,
             refereeNpub: identity?.npub || 'unknown',
             bookingId: 'bk_' + paymentHash.slice(0, 12),
