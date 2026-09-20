@@ -5,6 +5,8 @@ import { GovernanceAct } from '../types';
  * Handles the snapshotting and reconstruction of the entity's "genetic code".
  */
 
+import { safeRandomUUID } from './uuid';
+
 export interface ProtocolSnapshot {
   protocolSettings: {
     securityLevel: number;
@@ -27,7 +29,7 @@ export const createProtocolSnapshot = (
     protocolSettings: settings,
     evolutionLog: logs,
     lastUpdate: Math.floor(Date.now() / 1000),
-    signature: 'Cypher_Core_Auth_Verified_0x' + crypto.randomUUID().slice(0, 8)
+    signature: 'Cypher_Core_Auth_Verified_0x' + safeRandomUUID().slice(0, 8)
   };
 
   const content = `

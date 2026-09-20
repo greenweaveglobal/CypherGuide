@@ -399,58 +399,167 @@ ${docsContent}`;
     }
   });
 
-  // Media Server (NIP-96 style minimalist upload)
+  // Media Server (NIP-96 style minimalist upload with diskStorage & rate-limiting)
   const uploadDir = path.join(process.cwd(), "dist", "media");
+  const tempUploadDir = path.join(uploadDir, ".tmp");
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
+  if (!fs.existsSync(tempUploadDir)) {
+    fs.mkdirSync(tempUploadDir, { recursive: true });
+  }
+
+  // Disk storage: streams directly to disk to prevent OOM on 1GB RAM VPS
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, tempUploadDir);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      const ext = path.extname(file.originalname) || ".jpg";
+      cb(null, `tmp-${uniqueSuffix}${ext}`);
+    }
+  });
 
   const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 15 * 1024 * 1024 } // 15MB matching frontend limit
+    storage,
+    limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit matching frontend & suited for 25GB disk
+    fileFilter: (_req, file, cb) => {
+      const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Invalid file type. Only JPEG, PNG, WEBP, GIF, and SVG images are allowed."));
+      }
+    }
   });
 
   // Serve static media files
   app.use("/media", express.static(uploadDir, { maxAge: "30d" }));
 
-  app.post("/api/media/upload", upload.single("file"), (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "no file" });
+  // In-memory rate limiter for media uploads: max 30 uploads per 15 minutes per IP
+  const uploadRateLimitWindowMs = 15 * 60 * 1000;
+  const maxUploadsPerWindow = 30;
+  const uploadCounts = new Map<string, { count: number; resetTime: number }>();
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of uploadCounts.entries()) {
+      if (now > record.resetTime) {
+        uploadCounts.delete(ip);
       }
-
-      const hash = crypto.createHash("sha256").update(req.file.buffer).digest("hex");
-      const ext = path.extname(req.file.originalname) || ".jpg";
-      const filename = `${hash}${ext}`;
-      const filepath = path.join(uploadDir, filename);
-
-      if (!fs.existsSync(filepath)) {
-        fs.writeFileSync(filepath, req.file.buffer);
-      }
-
-      // Generate the public URL
-      const publicUrl = `${req.protocol}://${req.get("host")}/media/${filename}`;
-
-      // Return strictly in NIP-96 format as requested
-      return res.json({
-        status: "success",
-        nip94_event: {
-          tags: [
-            ["url", publicUrl],
-            ["ox", hash],
-            ["m", req.file.mimetype]
-          ]
-        }
-      });
-    } catch (error: any) {
-      console.error("Media upload error:", error);
-      return res.status(500).json({ error: error.message || "Internal Server Error" });
     }
+  }, 5 * 60 * 1000).unref();
+
+  const uploadRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const forwarded = req.headers["x-forwarded-for"];
+    const ip = (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.socket.remoteAddress) || "unknown";
+    const now = Date.now();
+    const record = uploadCounts.get(ip);
+
+    if (!record || now > record.resetTime) {
+      uploadCounts.set(ip, { count: 1, resetTime: now + uploadRateLimitWindowMs });
+      return next();
+    }
+
+    if (record.count >= maxUploadsPerWindow) {
+      const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
+      res.setHeader("Retry-After", retryAfterSeconds);
+      return res.status(429).json({
+        error: "Too many upload requests. Please try again later to prevent disk abuse.",
+        retryAfter: retryAfterSeconds
+      });
+    }
+
+    record.count++;
+    next();
+  };
+
+  app.post(
+    "/api/media/upload",
+    uploadRateLimiter,
+    (req, res, next) => {
+      upload.single("file")(req, res, (err: any) => {
+        if (err) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(413).json({ error: "File size exceeds 15MB limit." });
+          }
+          return res.status(400).json({ error: err.message || "File upload failed." });
+        }
+        next();
+      });
+    },
+    async (req, res) => {
+      const tempFilePath = req.file?.path;
+      try {
+        if (!req.file || !tempFilePath) {
+          return res.status(400).json({ error: "no file" });
+        }
+
+        // Compute SHA256 of file from disk stream without loading entire file into memory buffer
+        const hash = await new Promise<string>((resolve, reject) => {
+          const hashGenerator = crypto.createHash("sha256");
+          const stream = fs.createReadStream(tempFilePath);
+          stream.on("data", (chunk) => hashGenerator.update(chunk));
+          stream.on("end", () => resolve(hashGenerator.digest("hex")));
+          stream.on("error", (err) => reject(err));
+        });
+
+        const ext = path.extname(req.file.originalname) || ".jpg";
+        const filename = `${hash}${ext}`;
+        const finalFilePath = path.join(uploadDir, filename);
+
+        // Deduplication: if target exists, delete temp file; otherwise move to permanent storage
+        if (fs.existsSync(finalFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch {}
+        } else {
+          fs.renameSync(tempFilePath, finalFilePath);
+        }
+
+        // Generate the public URL
+        const publicUrl = `${req.protocol}://${req.get("host")}/media/${filename}`;
+
+        // Return strictly in NIP-96 format as requested
+        return res.json({
+          status: "success",
+          nip94_event: {
+            tags: [
+              ["url", publicUrl],
+              ["ox", hash],
+              ["m", req.file.mimetype]
+            ]
+          }
+        });
+      } catch (error: any) {
+        console.error("Media upload error:", error);
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch {}
+        }
+        return res.status(500).json({ error: error.message || "Internal Server Error" });
+      }
+    }
+  );
+
+  // Health check endpoints for monitoring and systemd
+  app.get("/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString()
+    });
   });
 
-  // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", service: "Cypher Guide Server" });
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      service: "Cypher Guide Server"
+    });
   });
 
   // Vite middleware setup

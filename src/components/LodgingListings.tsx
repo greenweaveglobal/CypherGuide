@@ -3,11 +3,12 @@ import { motion } from 'motion/react';
 import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap, Sparkles, Bot } from 'lucide-react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import { getEffectivePrice, getEffectivePriceRule, migrateListingToRoomTypes } from '../utils/pricing';
-import HostRegistrationModal from './HostRegistrationModal';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { useTranslation } from '../hooks/useTranslation';
+
+const HostRegistrationModal = React.lazy(() => import('./HostRegistrationModal'));
 
 interface Props {
   listings: Listing[];
@@ -272,12 +273,14 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
       </div>
 
       {showHostModal && (
-        <HostRegistrationModal 
-          onClose={() => setShowHostModal(false)} 
-          identity={identity} 
-          onAddListing={onAddListing}
-          onAddLog={onAddLog}
-        />
+        <React.Suspense fallback={null}>
+          <HostRegistrationModal 
+            onClose={() => setShowHostModal(false)} 
+            identity={identity} 
+            onAddListing={onAddListing}
+            onAddLog={onAddLog}
+          />
+        </React.Suspense>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as Image
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, NostrIdentity, CoOwner } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
+import { safeRandomUUID } from '../utils/uuid';
 import { isValidNpub } from '../utils/kycAttestation';
 
 const COMPRESSION_SETTINGS = {
@@ -237,7 +238,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     setIsSubmitting(true);
 
     try {
-      const listingId = 'list_' + crypto.randomUUID().split('-')[0].toUpperCase();
+      const listingId = 'list_' + safeRandomUUID().split('-')[0].toUpperCase();
       const payload = `register_${listingId}_${title}_${priceSats}_${identity.npub}`;
       const payloadHash = await sha256(payload);
       const signature = await signMessage(payloadHash, identity);

@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, Bitcoin, Sparkles, Navigation, Home, Globe, Github } from 'lucide-react';
 import { NostrIdentity } from '../types';
-import DonateModal from './DonateModal';
-import OnboardingTourModal from './OnboardingTourModal';
-import { DocsAssistant } from './DocsAssistant';
 import { CypherGuideIcon } from './CypherGuideIcon';
 import { useTranslation } from '../hooks/useTranslation';
+
+const DonateModal = React.lazy(() => import('./DonateModal'));
+const OnboardingTourModal = React.lazy(() => import('./OnboardingTourModal'));
+const DocsAssistant = React.lazy(() => import('./DocsAssistant').then(m => ({ default: m.DocsAssistant })));
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -401,21 +402,27 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
         </footer>
       </main>
 
-      {showDonate && (
-        <DonateModal onClose={() => setShowDonate(false)} onAddLog={onAddLog} />
-      )}
+      <React.Suspense fallback={null}>
+        {showDonate && (
+          <DonateModal onClose={() => setShowDonate(false)} onAddLog={onAddLog} />
+        )}
 
-      <OnboardingTourModal
-        isOpen={showTour}
-        onClose={() => setShowTour(false)}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+        {showTour && (
+          <OnboardingTourModal
+            isOpen={showTour}
+            onClose={() => setShowTour(false)}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
+        )}
 
-      <DocsAssistant
-        isOpen={showDocsAssistant}
-        onClose={() => setShowDocsAssistant(false)}
-      />
+        {showDocsAssistant && (
+          <DocsAssistant
+            isOpen={showDocsAssistant}
+            onClose={() => setShowDocsAssistant(false)}
+          />
+        )}
+      </React.Suspense>
     </div>
   );
 }

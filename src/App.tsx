@@ -3,21 +3,34 @@ import { motion, AnimatePresence } from 'motion/react';
 import { HelpCircle, Terminal, AlertTriangle, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Listing, Booking, Proposal, Payout } from './types';
 
-import NostrIdentityManager from './components/NostrIdentityManager';
-import RelayLogs from './components/RelayLogs';
 import LodgingListings from './components/LodgingListings';
-import ListingDetail from './components/ListingDetail';
-import GovernancePanel from './components/GovernancePanel';
-import MyTrips from './components/MyTrips';
-import DirectMessages from './components/DirectMessages';
-import MeshNeighborhood from './components/MeshNeighborhood';
 import AppLayout from './components/AppLayout';
-import Guide from './components/Guide';
-import SystemAudit from './components/SystemAudit';
-import HostDashboard from './components/HostDashboard';
 import { useAppStore } from './store/useAppStore';
 import { isValidNpub } from './utils/referral';
 import { useTranslation } from './hooks/useTranslation';
+
+// Code-splitting heavy tabs and panels to optimize initial bundle size
+const NostrIdentityManager = React.lazy(() => import('./components/NostrIdentityManager'));
+const RelayLogs = React.lazy(() => import('./components/RelayLogs'));
+const ListingDetail = React.lazy(() => import('./components/ListingDetail'));
+const GovernancePanel = React.lazy(() => import('./components/GovernancePanel'));
+const MyTrips = React.lazy(() => import('./components/MyTrips'));
+const DirectMessages = React.lazy(() => import('./components/DirectMessages'));
+const MeshNeighborhood = React.lazy(() => import('./components/MeshNeighborhood'));
+const Guide = React.lazy(() => import('./components/Guide'));
+const SystemAudit = React.lazy(() => import('./components/SystemAudit'));
+const HostDashboard = React.lazy(() => import('./components/HostDashboard'));
+
+function TabLoadingFallback() {
+  return (
+    <div className="w-full min-h-[300px] flex flex-col items-center justify-center p-8 text-center font-mono">
+      <div className="w-8 h-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-3" />
+      <p className="text-xs text-text-secondary tracking-wider uppercase animate-pulse">
+        Đang tải mô-đun...
+      </p>
+    </div>
+  );
+}
 
 export default function App() {
   const { t } = useTranslation();
@@ -225,17 +238,19 @@ export default function App() {
             className="w-full flex flex-col"
           >
             {selectedListingForBooking ? (
-              <ListingDetail
-                listing={selectedListingForBooking}
-                identity={identity}
-                    bookings={bookings}
-                onBack={() => setSelectedListingForBooking(null)}
-                onBookingSuccess={handleBookingSuccess}
-                onAddReply={handleAddReply}
-                onAddLog={addLog}
-              />
+              <React.Suspense fallback={<TabLoadingFallback />}>
+                <ListingDetail
+                  listing={selectedListingForBooking}
+                  identity={identity}
+                  bookings={bookings}
+                  onBack={() => setSelectedListingForBooking(null)}
+                  onBookingSuccess={handleBookingSuccess}
+                  onAddReply={handleAddReply}
+                  onAddLog={addLog}
+                />
+              </React.Suspense>
             ) : (
-              <>
+              <React.Suspense fallback={<TabLoadingFallback />}>
                 {activeTab === 'guide' && <Guide />}
 
                 {activeTab === 'lodgings' && (
@@ -321,7 +336,7 @@ export default function App() {
                     onAddLog={addLog}
                   />
                 )}
-              </>
+              </React.Suspense>
             )}
           </motion.div>
         </AnimatePresence>
@@ -379,7 +394,9 @@ export default function App() {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden pt-4 mt-3 border-t border-border/40"
               >
-                <RelayLogs logs={logs} identity={identity} bookings={bookings} onAddLog={addLog} />
+                <React.Suspense fallback={<div className="p-4 text-xs font-mono text-text-disabled">Đang tải bảng nhật ký giao thức...</div>}>
+                  <RelayLogs logs={logs} identity={identity} bookings={bookings} onAddLog={addLog} />
+                </React.Suspense>
               </motion.div>
             )}
           </AnimatePresence>

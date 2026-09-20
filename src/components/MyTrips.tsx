@@ -4,6 +4,7 @@ import { Compass, Calendar, History, Shield, PenTool, CheckCircle2, Star, AlertC
 import { useTranslation } from '../hooks/useTranslation';
 import { Booking, Listing, NostrIdentity, Review } from '../types';
 import { signMessage, sha256 } from '../utils/crypto';
+import { safeRandomUUID } from '../utils/uuid';
 import { createProofOfStay } from '../utils/proofOfStay';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -66,7 +67,7 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
     const signature = await signMessage(hash, identity);
 
     const newReview: Review = {
-      id: crypto.randomUUID().slice(0, 8),
+      id: safeRandomUUID().slice(0, 8),
       guestNpub: identity.npub,
       rating,
       text: reviewText.trim(),

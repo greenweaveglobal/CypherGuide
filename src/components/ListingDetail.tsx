@@ -4,7 +4,6 @@ import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as Calen
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
-import BookingModal from './BookingModal';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
@@ -13,13 +12,15 @@ import { generateBolt11, isWebLNAvailable, payViaWebLN } from '../utils/lightnin
 import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../utils/depositEscrow';
 import { DEFAULT_ARBITRATOR_POOL } from '../utils/insuranceFund';
-import QrScannerModal from './QrScannerModal';
-import StillnessRitual from './StillnessRitual';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
 import { useTranslation } from '../hooks/useTranslation';
 import { validateKycAttestationForBooking, createKycAttestation, DEMO_VERIFIER_NPUB_1, DEMO_VERIFIER_HEX_1 } from '../utils/kycAttestation';
 import { nip19 } from 'nostr-tools';
+
+const BookingModal = React.lazy(() => import('./BookingModal'));
+const QrScannerModal = React.lazy(() => import('./QrScannerModal'));
+const StillnessRitual = React.lazy(() => import('./StillnessRitual'));
 
 interface Props {
   listing: Listing;
@@ -1164,11 +1165,13 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
 
                       {/* Modal QR Scanner */}
                       {showQrScanner && (
-                        <QrScannerModal
-                          onClose={() => setShowQrScanner(false)}
-                          onScanSuccess={handleScanSuccess}
-                          expectedAmountSats={totalPriceSats + dynamicFeeInfo.totalFeeSats}
-                        />
+                        <React.Suspense fallback={null}>
+                          <QrScannerModal
+                            onClose={() => setShowQrScanner(false)}
+                            onScanSuccess={handleScanSuccess}
+                            expectedAmountSats={totalPriceSats + dynamicFeeInfo.totalFeeSats}
+                          />
+                        </React.Suspense>
                       )}
 
                       {/* Payment Terminal */}
@@ -1206,29 +1209,35 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       </Card>
 
       {/* RFC-0010 Zen Stillness Ritual Modal */}
-      <StillnessRitual
-        isOpen={showStillnessModal}
-        onClose={() => setShowStillnessModal(false)}
-        listingTitle={listing.title}
-      />
+      {showStillnessModal && (
+        <React.Suspense fallback={null}>
+          <StillnessRitual
+            isOpen={showStillnessModal}
+            onClose={() => setShowStillnessModal(false)}
+            listingTitle={listing.title}
+          />
+        </React.Suspense>
+      )}
 
       {/* Booking Modal with Room Selection */}
       {showBookingModal && (
-        <BookingModal
-          listing={listing}
-          preselectedRoomTypeId={bookingModalRoomTypeId || selectedRoomTypeId}
-          onClose={() => {
-            setShowBookingModal(false);
-            setBookingModalRoomTypeId(undefined);
-          }}
-          onBookingSuccess={(booking) => {
-            setShowBookingModal(false);
-            setBookingModalRoomTypeId(undefined);
-            onBookingSuccess(booking);
-          }}
-          identity={identity}
-          onAddLog={onAddLog}
-        />
+        <React.Suspense fallback={null}>
+          <BookingModal
+            listing={listing}
+            preselectedRoomTypeId={bookingModalRoomTypeId || selectedRoomTypeId}
+            onClose={() => {
+              setShowBookingModal(false);
+              setBookingModalRoomTypeId(undefined);
+            }}
+            onBookingSuccess={(booking) => {
+              setShowBookingModal(false);
+              setBookingModalRoomTypeId(undefined);
+              onBookingSuccess(booking);
+            }}
+            identity={identity}
+            onAddLog={onAddLog}
+          />
+        </React.Suspense>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { FileText, Plus, Check, X, ShieldAlert, Vote, Cpu, Coins, Sparkles, FileSpreadsheet, Clock, TrendingUp, Wallet, CheckCircle2, ShieldCheck, Zap, Network, Share2, History, Pencil } from 'lucide-react';
 import { Proposal, Listing, NostrIdentity, Booking, Payout, PropertyDocument, GovernanceAct } from '../types';
 import { signMessage, sha256 } from '../utils/crypto';
+import { safeRandomUUID } from '../utils/uuid';
 import { useAppStore } from '../store/useAppStore';
 import { parseGovernanceContent } from '../utils/governanceSchema';
 import { useTranslation } from '../hooks/useTranslation';
@@ -187,7 +188,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     }
 
     try {
-      const propId = 'prop_' + crypto.randomUUID().split('-')[0].toUpperCase();
+      const propId = 'prop_' + safeRandomUUID().split('-')[0].toUpperCase();
       const proposalPayload = `${propId}_${currentListing.id}_${newTitle}_${newCategory}_${newValue}`;
       const payloadHash = await sha256(proposalPayload);
       const signature = await signMessage(payloadHash, identity);

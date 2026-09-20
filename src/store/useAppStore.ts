@@ -6,6 +6,7 @@ import { INITIAL_LISTINGS, INITIAL_PROPOSALS } from '../data';
 import { DataReconciler, IntegrityReport } from '../utils/reconciler';
 import { DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
 import { migrateListingToRoomTypes } from '../utils/pricing';
+import { safeRandomUUID } from '../utils/uuid';
 
 const idbStorage = {
   getItem: async (name: string): Promise<string | null> => {
@@ -299,7 +300,7 @@ export const useAppStore = create<AppState>()(
         logs: [
           ...state.logs,
           {
-            id: `log-${Date.now()}-${crypto.randomUUID()}`,
+            id: `log-${Date.now()}-${safeRandomUUID()}`,
             timestamp: new Date().toLocaleTimeString(),
             type,
             message,

@@ -18,12 +18,25 @@ export default defineConfig(() => {
           vi: path.resolve(__dirname, 'vi/index.html'),
         },
         output: {
-          manualChunks: {
-            react: ['react', 'react-dom'],
-            nostr: ['nostr-tools'],
-            charts: ['recharts'],
-            qr: ['html5-qrcode'],
-            motion: ['motion/react']
+          manualChunks(id) {
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/scheduler')) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') || id.includes('node_modules/victory-vendor')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('node_modules/nostr-tools') || id.includes('node_modules/@noble') || id.includes('node_modules/@scure')) {
+              return 'vendor-nostr';
+            }
+            if (id.includes('node_modules/html5-qrcode') || id.includes('node_modules/qrcode.react')) {
+              return 'vendor-qr';
+            }
+            if (id.includes('node_modules/motion')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('node_modules/lucide-react')) {
+              return 'vendor-lucide';
+            }
           }
         }
       }
