@@ -57,6 +57,10 @@ const RFC_KNOWLEDGE_BASE: Record<string, { vi: string; en: string }> = {
   positioning: {
     vi: "Theo **Bản Định Vị AI Cục Bộ (POSITIONING.md)**: CypherGuide không tham gia cuộc đua AI tập trung hóa nghìn tỷ đô. Dự án thử nghiệm câu hỏi: liệu một mô hình nhỏ (SLM như Qwen2.5 1.5B chạy trên Raspberry Pi - RFC-0009) có thể trả lời đủ tốt cho đúng nhu cầu hẹp của người dùng mà không cần đám mây trung gian. Như TS. Phạm Hy Hiếu (Head of AI Transformation tại Techcombank, cựu Google Brain/OpenAI/xAI) nhận định, compute là 'bài toán tầm quốc gia' — do đó CypherGuide không cố xây chợ compute phi tập trung mà tập trung giúp cá nhân làm chủ phần cứng nhỏ của chính họ (RFC-0009, RFC-0013), kiểm chứng bằng thử nghiệm công khai.",
     en: "According to the **Local AI Positioning Statement (POSITIONING.md)**: CypherGuide is not entering the trillion-dollar centralized AI race. Instead, it tests whether small language models (like Qwen2.5 1.5B on Raspberry Pi - RFC-0009) running on cheap user-owned hardware can answer well enough for narrow purposes without clouds. As independently noted by Dr. Phạm Hy Hiếu (Head of AI Transformation at Techcombank, ex-Google Brain/OpenAI/xAI), large-scale compute is a 'national-scale problem' — thus CypherGuide avoids building a compute marketplace and instead focuses on personal sovereignty over edge hardware, proven via public experiments."
+  },
+  nodeIncentive: {
+    vi: "Theo **RFC-0016 (Khuyến Khích Nút Hạ Tầng - Infrastructure Node Incentive)**: Cơ chế thưởng cho relay/mesh node chuyển từ mô phỏng sang thực tế bằng cách giải quyết 2 bài toán:\n1. **Oracle đo lường chống gian lận**: Kết hợp Proof-of-Usage (D - client thật ghi nhận và ký báo cáo bằng Nostr) trong giai đoạn đầu và Witness Network (C - thách thức ngẫu nhiên đa bên) khi mạng lớn hơn. Loại bỏ PoW vì sai bản chất.\n2. **Dòng chảy thanh khoản Lightning**: Thưởng Sats được phân phối lại từ quỹ treasury (trích % phí booking theo RFC-0002) qua LNURL-pay / NWC, tích hợp circuit breaker ngắt nút claim khi quỹ không đủ.",
+    en: "According to **RFC-0016 (Infrastructure Node Incentive — Proof-of-Relay + Lightning Payout Flow)**: The node incentive mechanism transitions from simulation to production by solving two distinct problems:\n1. **Fraud-Resistant Oracle**: Combines crowdsourced Proof-of-Usage (D - real clients logging and signing with Nostr keys) initially with Witness Networks (C - random challenges with quorum) as the network grows. Bitcoin-style PoW is rejected as a mismatch.\n2. **Lightning Payout Liquidity**: Sats rewards are redistributed from a dedicated treasury funded by a % of booking fees (RFC-0002) via LNURL-pay / NWC, with mandatory circuit breakers disabling claims when treasury funds are low."
   }
 };
 
@@ -102,6 +106,9 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
   }
   if (qLower.includes('agent-ready') || qLower.includes('agent ready') || qLower.includes('agentready') || qLower.includes('agent') || qLower.includes('compute') || qLower.includes('rfc-0013') || qLower.includes('rfc0013') || qLower.includes('moltbook') || qLower.includes('astra') || qLower.includes('băng thông sàn') || qLower.includes('bandwidth floor')) {
     return { answer: isEn ? RFC_KNOWLEDGE_BASE.agentReady.en : RFC_KNOWLEDGE_BASE.agentReady.vi, success: true };
+  }
+  if (qLower.includes('rfc-0016') || qLower.includes('rfc0016') || qLower.includes('incentive') || qLower.includes('khuyến khích') || qLower.includes('proof-of-relay') || qLower.includes('proof of relay') || qLower.includes('proof-of-usage') || qLower.includes('proof of usage') || qLower.includes('witness network') || qLower.includes('node reward') || qLower.includes('thưởng node')) {
+    return { answer: isEn ? RFC_KNOWLEDGE_BASE.nodeIncentive.en : RFC_KNOWLEDGE_BASE.nodeIncentive.vi, success: true };
   }
 
   return {
