@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { get, set as idbSet, del } from 'idb-keyval';
-import { Listing, Booking, Proposal, NostrIdentity, P2PLog, Payout, PropertyDocument, GovernanceAct, ReferralRecord, NodeIncentiveRecord, KycAttestationRecord } from '../types';
+import { Listing, Booking, Proposal, NostrIdentity, P2PLog, Payout, PropertyDocument, GovernanceAct, ReferralRecord, NodeIncentiveRecord, KycAttestationRecord, RelayNode } from '../types';
 import { INITIAL_LISTINGS, INITIAL_PROPOSALS } from '../data';
 import { DataReconciler, IntegrityReport } from '../utils/reconciler';
 import { DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
@@ -87,12 +87,47 @@ interface AppState {
   fetchProtocolConfig: () => Promise<void>;
   updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string }>;
 
+  customRelays: RelayNode[];
+  addCustomRelay: (relay: RelayNode) => void;
+  removeCustomRelay: (id: string) => void;
+
   resetStore: () => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      customRelays: [],
+      addCustomRelay: (relay) => {
+        set((state) => {
+          const current = state.customRelays || [];
+          if (relay.readOnly) return state;
+          if (current.some(r => r.url.toLowerCase() === relay.url.toLowerCase() || r.id === relay.id)) {
+            return state;
+          }
+          return {
+            customRelays: [
+              ...current,
+              {
+                id: relay.id,
+                url: relay.url,
+                name: relay.name,
+                type: relay.type,
+                status: 'testing',
+                ping: -1,
+                lastChecked: 0,
+                readOnly: false
+              }
+            ]
+          };
+        });
+      },
+      removeCustomRelay: (id) => {
+        set((state) => ({
+          customRelays: (state.customRelays || []).filter((r) => r.id !== id)
+        }));
+      },
+
       devLnAddress: 'cypherguide@zaps.lol',
       setDevLnAddress: (address) => set({ devLnAddress: address }),
 
@@ -374,7 +409,8 @@ export const useAppStore = create<AppState>()(
           payouts: [],
           documents: [],
           logs: [],
-          integrityReport: null
+          integrityReport: null,
+          customRelays: []
         });
       }
     }),
@@ -402,6 +438,15 @@ export const useAppStore = create<AppState>()(
           }
           if (state && (!state.devLnAddress || state.devLnAddress === 'cypherguide@breez.tips' || state.devLnAddress === 'solidsleep11@walletofsatoshi.com')) {
             state.devLnAddress = 'cypherguide@zaps.lol';
+          }
+          if (state && state.customRelays) {
+            state.customRelays = state.customRelays.map((r) => ({
+              ...r,
+              status: 'testing',
+              ping: -1,
+              lastChecked: 0,
+              readOnly: false,
+            }));
           }
         }
       },

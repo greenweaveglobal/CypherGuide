@@ -261,3 +261,14 @@ export interface DirectMessage {
   timestamp: string;
   signature: string;
 }
+
+export interface RelayNode {
+  id: string;
+  url: string;
+  name: string;
+  type: 'public_relay' | 'local_mesh' | 'custom_node';
+  status: 'connected' | 'testing' | 'offline';
+  ping: number; // in ms
+  lastChecked: number;
+  readOnly?: boolean;
+}

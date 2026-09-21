@@ -12,17 +12,10 @@ import { getNWCConnectionString, saveNWCConnectionString, removeNWCConnection, p
 import { useAppStore } from '../store/useAppStore';
 import { calculateNodeIncentiveReward, claimNodeIncentive } from '../utils/infraContribution';
 import { useTranslation } from '../hooks/useTranslation';
+import { RelayNode } from '../types';
+import { safeRandomUUID } from '../utils/uuid';
 
-export interface RelayNode {
-  id: string;
-  url: string;
-  name: string;
-  type: 'public_relay' | 'local_mesh' | 'custom_node';
-  status: 'connected' | 'testing' | 'offline';
-  ping: number; // in ms
-  lastChecked: number;
-  readOnly?: boolean;
-}
+export type { RelayNode };
 
 interface Props {
   identity: any;
@@ -93,12 +86,41 @@ const DEFAULT_RELAYS: RelayNode[] = [
   }
 ];
 
+function mergeInitialRelays(customRelays: RelayNode[]): RelayNode[] {
+  const defaultUrls = new Set(DEFAULT_RELAYS.map(r => r.url.toLowerCase()));
+  const seenUrls = new Set(defaultUrls);
+  const validCustoms: RelayNode[] = [];
+
+  for (const cr of customRelays) {
+    const normUrl = cr.url.toLowerCase();
+    if (!seenUrls.has(normUrl)) {
+      seenUrls.add(normUrl);
+      validCustoms.push({
+        id: cr.id,
+        url: cr.url,
+        name: cr.name,
+        type: cr.type || 'custom_node',
+        status: 'testing',
+        ping: -1,
+        lastChecked: cr.lastChecked || 0,
+        readOnly: false
+      });
+    }
+  }
+
+  return [...DEFAULT_RELAYS, ...validCustoms];
+}
+
 export default function MeshNeighborhood({ onAddLog }: Props) {
   const { t } = useTranslation();
   const nodeIncentives = useAppStore((state) => state.nodeIncentives);
   const claimNodeIncentive = useAppStore((state) => state.claimNodeIncentive);
+  const customRelaysFromStore = useAppStore((state) => state.customRelays);
 
-  const [relays, setRelays] = useState<RelayNode[]>(DEFAULT_RELAYS);
+  const [relays, setRelays] = useState<RelayNode[]>(() => {
+    const stored = useAppStore.getState().customRelays || [];
+    return mergeInitialRelays(stored);
+  });
   const [isScanning, setIsScanning] = useState(false);
   const [customUrl, setCustomUrl] = useState('');
   const [addRelayError, setAddRelayError] = useState<string | null>(null);
@@ -183,6 +205,54 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
     });
   }, []);
 
+  // Sync custom relays from store (e.g. after async IDB rehydration or external store updates)
+  useEffect(() => {
+    if (!customRelaysFromStore) return;
+    setRelays(prev => {
+      const storeIds = new Set(customRelaysFromStore.map(r => r.id));
+      const prevIds = new Set(prev.map(r => r.id));
+      const prevUrls = new Set(prev.map(r => r.url.toLowerCase()));
+
+      // Keep default relays and any custom relay currently in store
+      const kept = prev.filter(r => r.readOnly || storeIds.has(r.id));
+
+      // Append any custom relay from store that hasn't been added yet
+      const missing: RelayNode[] = [];
+      for (const cr of customRelaysFromStore) {
+        if (!prevUrls.has(cr.url.toLowerCase()) && !prevIds.has(cr.id)) {
+          const freshNode: RelayNode = {
+            id: cr.id,
+            url: cr.url,
+            name: cr.name,
+            type: cr.type || 'custom_node',
+            status: 'testing',
+            ping: -1,
+            lastChecked: 0,
+            readOnly: false
+          };
+          missing.push(freshNode);
+          prevUrls.add(cr.url.toLowerCase());
+          prevIds.add(cr.id);
+        }
+      }
+
+      if (kept.length === prev.length && missing.length === 0) {
+        return prev;
+      }
+
+      if (missing.length > 0) {
+        // Test any newly arrived custom relays from rehydration
+        missing.forEach(node => {
+          testSingleRelay(node).then(tested => {
+            setRelays(current => current.map(r => r.id === tested.id ? tested : r));
+          });
+        });
+      }
+
+      return [...kept, ...missing];
+    });
+  }, [customRelaysFromStore, testSingleRelay]);
+
   // Ping all relays connected
   const scanAllRelays = useCallback(async () => {
     setIsScanning(true);
@@ -218,7 +288,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
     }
 
     const newRelay: RelayNode = {
-      id: `custom_${Date.now()}`,
+      id: `custom_${safeRandomUUID().slice(0, 8)}`,
       url: formattedUrl,
       name: `Custom Relay (${formattedUrl.replace('wss://', '').replace('ws://', '')})`,
       type: 'custom_node',
@@ -228,7 +298,8 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
       readOnly: false
     };
 
-    setRelays(prev => [newRelay, ...prev]);
+    setRelays(prev => [...prev, newRelay]);
+    useAppStore.getState().addCustomRelay(newRelay);
     setCustomUrl('');
     setAddRelayError(null);
     onAddLog('relay', t('mesh.logAddedRelay', { url: formattedUrl }));
@@ -240,7 +311,11 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
   };
 
   const handleRemoveRelay = (id: string) => {
+    const target = relays.find(r => r.id === id);
+    if (target?.readOnly) return;
+
     setRelays(prev => prev.filter(r => r.id !== id));
+    useAppStore.getState().removeCustomRelay(id);
     onAddLog('relay', t('mesh.logRemovedRelay'));
   };
 
