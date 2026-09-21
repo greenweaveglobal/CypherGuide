@@ -1,11 +1,35 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle, Scale, Bot } from 'lucide-react';
+import { 
+  X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, 
+  Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle, 
+  Scale, Bot, Server, RefreshCw, AlertTriangle, Clock, Loader2 
+} from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, NostrIdentity, CoOwner } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
 import { safeRandomUUID } from '../utils/uuid';
 import { isValidNpub } from '../utils/kycAttestation';
+import {
+  selectBestMediaServer,
+  uploadFileXHR,
+  SelectedServerResult,
+  setSimulatePrimaryOffline,
+  getSimulatePrimaryOffline,
+  PRIMARY_MEDIA_SERVER_URL
+} from '../utils/mediaServer';
+
+export interface BatchUploadItem {
+  id: string;
+  file: File;
+  fileName: string;
+  fileSize: number;
+  previewUrl: string;
+  status: 'queued' | 'compressing' | 'uploading' | 'done' | 'error';
+  progress: number;
+  error?: string;
+  uploadedUrl?: string;
+}
 
 const COMPRESSION_SETTINGS = {
   low: { maxWidth: 1200, quality: 0.7 },
@@ -51,40 +75,6 @@ async function compressImage(file: File, level: 'low' | 'medium' | 'high'): Prom
   });
 }
 
-const MEDIA_SERVER_URL = import.meta.env.VITE_MEDIA_SERVER_URL || '/api/media';
-
-async function uploadToMediaServer(blob: Blob, filename: string): Promise<{ url: string; hash: string }> {
-  try {
-    const formData = new FormData();
-    formData.append('file', blob, filename);
-
-    const res = await fetch(`${MEDIA_SERVER_URL}/upload`, { 
-      method: 'POST', 
-      body: formData 
-    });
-    
-    if (!res.ok) {
-      throw new Error(`Media Server lỗi: ${res.status}`);
-    }
-    
-    const data = await res.json();
-    if (data.status === 'success' && data.nip94_event && data.nip94_event.tags) {
-      const urlTag = data.nip94_event.tags.find((t: string[]) => t[0] === 'url');
-      const hashTag = data.nip94_event.tags.find((t: string[]) => t[0] === 'ox');
-      
-      return { 
-        url: urlTag ? urlTag[1] : '', 
-        hash: hashTag ? hashTag[1] : '' 
-      };
-    } else {
-      throw new Error('Dữ liệu từ Media Server không hợp lệ');
-    }
-  } catch (e: any) {
-    console.error('Lỗi tải ảnh lên Media Server:', e);
-    throw new Error(e.message || 'Lỗi tải ảnh.');
-  }
-}
-
 interface Props {
   identity: NostrIdentity | null;
   onClose: () => void;
@@ -114,35 +104,117 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [compressionLevel, setCompressionLevel] = useState<'low' | 'medium' | 'high'>('medium');
+
+  // Media server resilience & individual upload progress state
+  const [activeServerInfo, setActiveServerInfo] = useState<SelectedServerResult | null>(null);
+  const [isTestingServer, setIsTestingServer] = useState(false);
+  const [simulateOffline, setSimulateOffline] = useState(getSimulatePrimaryOffline());
+
+  const [coverUploadState, setCoverUploadState] = useState<{
+    status: 'idle' | 'compressing' | 'uploading' | 'done' | 'error';
+    progress: number;
+    error?: string;
+  }>({ status: 'idle', progress: 0 });
+
+  const [uploadQueue, setUploadQueue] = useState<BatchUploadItem[]>([]);
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const nip94FileInputRef = useRef<HTMLInputElement>(null);
 
-  // File upload handlers
-  const handleCoverFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMsg(t('hostReg.errImgOver10MB'));
-      return;
-    }
-    
-    setIsUploading(true);
+  // Initial media server check on modal mount
+  useEffect(() => {
+    let isMounted = true;
+    setIsTestingServer(true);
+    selectBestMediaServer()
+      .then((res) => {
+        if (isMounted) {
+          setActiveServerInfo(res);
+          setIsTestingServer(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.warn('Initial media server probe error:', err);
+          setIsTestingServer(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Handler for toggling simulated offline to test automatic fallback
+  const handleToggleSimulateOffline = async () => {
+    const nextVal = !simulateOffline;
+    setSimulateOffline(nextVal);
+    setSimulatePrimaryOffline(nextVal);
+    setIsTestingServer(true);
     try {
-      const compressedBlob = await compressImage(file, compressionLevel);
-      const { url } = await uploadToMediaServer(compressedBlob, file.name || 'cover.jpg');
-      setImageUrl(url);
+      const res = await selectBestMediaServer();
+      setActiveServerInfo(res);
     } catch (err: any) {
-      console.error('Image upload error:', err);
-      setErrorMsg(err.message || 'Lỗi khi tải ảnh lên máy chủ Nostr.');
+      console.warn('Media server probe after toggle failed:', err);
     } finally {
-      setIsUploading(false);
+      setIsTestingServer(false);
     }
   };
 
+  // Cover image upload handler with real-time XHR byte progress
+  const handleCoverFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      const msg = t('hostReg.errImgOver10MB') || 'Dung lượng ảnh vượt quá 10MB! Vui lòng chọn ảnh nhỏ hơn.';
+      setErrorMsg(msg);
+      setCoverUploadState({ status: 'error', progress: 0, error: msg });
+      return;
+    }
+
+    try {
+      setCoverUploadState({ status: 'compressing', progress: 0 });
+      setErrorMsg('');
+
+      // Test/select server once for this upload
+      let currentServer = activeServerInfo;
+      if (!currentServer) {
+        currentServer = await selectBestMediaServer();
+        setActiveServerInfo(currentServer);
+      }
+
+      const compressedBlob = await compressImage(file, compressionLevel);
+      setCoverUploadState({ status: 'uploading', progress: 0 });
+
+      const res = await uploadFileXHR(
+        currentServer.server.url,
+        compressedBlob,
+        file.name || 'cover.jpg',
+        (info) => {
+          setCoverUploadState(prev => ({ ...prev, progress: info.percent }));
+        }
+      );
+
+      setImageUrl(res.url);
+      setCoverUploadState({ status: 'done', progress: 100 });
+      setTimeout(() => {
+        setCoverUploadState({ status: 'idle', progress: 0 });
+      }, 1500);
+    } catch (err: any) {
+      console.error('Image upload error:', err);
+      const errMsg = err.message || 'Lỗi khi tải ảnh bìa lên máy chủ Nostr.';
+      setCoverUploadState({ status: 'error', progress: 0, error: errMsg });
+      setErrorMsg(errMsg);
+    } finally {
+      if (coverFileInputRef.current) {
+        coverFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Batch NIP-94 upload handler with item-level queue and real byte progress
   const handleNip94FilesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -152,26 +224,107 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       return;
     }
 
-    setIsUploading(true);
-    for (const file of Array.from(files) as File[]) {
-      if (file.size > 10 * 1024 * 1024) {
-        setErrorMsg(t('hostReg.errSomeImgOver10MB'));
+    const fileList = Array.from(files) as File[];
+
+    // Build queued item entries with individual object URL thumbnails
+    const newItems: BatchUploadItem[] = fileList.map((file) => {
+      const isOverSize = file.size > 10 * 1024 * 1024;
+      let previewUrl = '';
+      try {
+        previewUrl = URL.createObjectURL(file);
+      } catch {}
+      return {
+        id: safeRandomUUID(),
+        file,
+        fileName: file.name,
+        fileSize: file.size,
+        previewUrl,
+        status: isOverSize ? 'error' : 'queued',
+        progress: 0,
+        error: isOverSize ? (t('hostReg.errImgOver10MB') || 'Kích thước vượt quá 10MB') : undefined
+      };
+    });
+
+    setUploadQueue(prev => [...prev, ...newItems]);
+    setIsBatchProcessing(true);
+    setErrorMsg('');
+
+    // Test/select server ONCE for this entire batch to avoid redundant delays
+    let currentServer: SelectedServerResult;
+    try {
+      currentServer = await selectBestMediaServer();
+      setActiveServerInfo(currentServer);
+    } catch (serverErr: any) {
+      setUploadQueue(prev => prev.map(item => {
+        if (newItems.some(ni => ni.id === item.id) && item.status === 'queued') {
+          return { ...item, status: 'error', error: serverErr.message || 'Không tìm thấy server media khả dụng' };
+        }
+        return item;
+      }));
+      setIsBatchProcessing(false);
+      return;
+    }
+
+    // Sequentially process each queued item
+    for (const item of newItems) {
+      if (item.status === 'error') {
+        // Individual file failed upfront validation (e.g. >10MB); keep error for this file and continue other files!
         continue;
       }
-      
+
+      // Step 1: Compressing
+      setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'compressing' } : q));
+      let compressedBlob: Blob;
       try {
-        const compressedBlob = await compressImage(file, compressionLevel);
-        const { url } = await uploadToMediaServer(compressedBlob, file.name || `image_${Date.now()}.jpg`);
-        setNip94Urls((prev) => [...prev.filter(u => u.trim() !== ''), url]);
-        // Delay 300ms to allow mobile browser Garbage Collector to clean up canvas/img memory
-        // This prevents the "Aw, Snap!" (OOM Crash) when picking 5-10 huge photos at once
-        await new Promise(r => setTimeout(r, 300));
-      } catch (err: any) {
-        console.error('Image upload error:', err);
-        setErrorMsg(`Một số ảnh không tải lên được: ${err.message || 'Lỗi không xác định'}`);
+        compressedBlob = await compressImage(item.file, compressionLevel);
+      } catch (compErr: any) {
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'error', error: 'Lỗi nén ảnh: ' + compErr.message } : q));
+        continue;
       }
+
+      // Step 2: Uploading via XMLHttpRequest with real-time percentage
+      setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'uploading', progress: 0 } : q));
+      try {
+        const res = await uploadFileXHR(
+          currentServer.server.url,
+          compressedBlob,
+          item.file.name || `image_${Date.now()}.jpg`,
+          (info) => {
+            setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, progress: info.percent } : q));
+          }
+        );
+
+        // Upload success: mark done, immediately append to nip94Urls gallery
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'done', progress: 100, uploadedUrl: res.url } : q));
+        setNip94Urls(prev => [...prev.filter(u => u.trim() !== ''), res.url]);
+
+        // After visual confirmation (1.2s), remove completed item from pending queue so it only lives in uploaded list
+        setTimeout(() => {
+          setUploadQueue(prev => prev.filter(q => q.id !== item.id));
+          if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+        }, 1200);
+      } catch (uploadErr: any) {
+        console.error('Batch item upload error:', uploadErr);
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'error', error: uploadErr.message || 'Lỗi tải ảnh' } : q));
+      }
+
+      // Delay 300ms to allow mobile browser Garbage Collector to clean up canvas/img memory
+      // This prevents the "Aw, Snap!" (OOM Crash) when picking 5-10 huge photos at once
+      await new Promise(r => setTimeout(r, 300));
     }
-    setIsUploading(false);
+
+    setIsBatchProcessing(false);
+    if (nip94FileInputRef.current) {
+      nip94FileInputRef.current.value = '';
+    }
+  };
+
+  const removeQueueItem = (id: string) => {
+    setUploadQueue(prev => {
+      const target = prev.find(q => q.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(q => q.id !== id);
+    });
   };
 
   const handleNip94UrlChange = (index: number, value: string) => {
@@ -396,21 +549,88 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 />
               </div>
 
+              {/* Media Server Routing & Resilience Status */}
+              <div className="p-3 rounded-xl border text-xs font-mono transition-all space-y-2 bg-black/50 border-white/10 shadow-sm">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Server className="w-3.5 h-3.5 text-cyber-blue shrink-0" />
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Máy chủ Media (NIP-96):</span>
+                    {isTestingServer ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-cyber-amber">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Đang kiểm tra kết nối...
+                      </span>
+                    ) : activeServerInfo ? (
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        activeServerInfo.isFallback
+                          ? 'bg-cyber-amber/15 text-cyber-amber border-cyber-amber/30'
+                          : 'bg-cyber-green/15 text-cyber-green border-cyber-green/30'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${activeServerInfo.isFallback ? 'bg-cyber-amber animate-pulse' : 'bg-cyber-green'}`} />
+                        {activeServerInfo.server.name} ({activeServerInfo.latency}ms)
+                        {activeServerInfo.isFallback && ' [Dự phòng]'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-gray-500">Chưa kiểm tra</span>
+                    )}
+                  </div>
+
+                  {/* Dev / Acceptance test toggle: simulate primary offline */}
+                  <button
+                    type="button"
+                    onClick={handleToggleSimulateOffline}
+                    className={`text-[9px] px-2 py-0.5 rounded border transition-all flex items-center gap-1 font-mono ${
+                      simulateOffline
+                        ? 'bg-danger/20 border-danger/40 text-danger hover:bg-danger/30'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                    }`}
+                    title="Mô phỏng máy chủ chính bị tắt để kiểm tra tính năng tự động chuyển sang máy chủ dự phòng"
+                  >
+                    <RefreshCw className={`w-2.5 h-2.5 ${isTestingServer ? 'animate-spin' : ''}`} />
+                    <span>{simulateOffline ? '🧪 Server chính: ĐANG TẮT (Giả lập)' : '🧪 Giả lập tắt server chính'}</span>
+                  </button>
+                </div>
+
+                {/* Clear prominent banner when using fallback */}
+                {activeServerInfo?.isFallback && (
+                  <div className="p-2 bg-cyber-amber/10 border border-cyber-amber/30 rounded-lg text-[10px] text-cyber-amber flex items-start gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-cyber-amber" />
+                    <div>
+                      <span className="font-bold">Cảnh báo chuyển hướng:</span> {activeServerInfo.warning}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Cover Image Upload */}
               <div className="space-y-1.5">
                 <label className="text-[10px] text-gray-400 font-mono uppercase block">{t('hostReg.coverImg')}</label>
                 
                 <div className="flex gap-2">
-                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/40 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/40 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${(coverUploadState.status === 'compressing' || coverUploadState.status === 'uploading' || isBatchProcessing) ? 'opacity-50 pointer-events-none' : ''}`}>
                     <input
+                      ref={coverFileInputRef}
                       type="file"
                       onChange={handleCoverFileUpload}
                       accept="image/*"
                       className="hidden"
-                      disabled={isUploading}
+                      disabled={coverUploadState.status === 'compressing' || coverUploadState.status === 'uploading' || isBatchProcessing}
                     />
-                    <Upload className="w-4 h-4" />
-                    <span>{isUploading ? 'Đang tải lên...' : t('hostReg.uploadFromFile')}</span>
+                    {coverUploadState.status === 'compressing' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span>Nén ảnh bìa...</span>
+                      </>
+                    ) : coverUploadState.status === 'uploading' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span>Đang tải lên {coverUploadState.progress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>{imageUrl ? 'Đổi ảnh bìa từ tệp' : t('hostReg.uploadFromFile')}</span>
+                      </>
+                    )}
                   </label>
                   {imageUrl && (
                     <button
@@ -423,6 +643,23 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     </button>
                   )}
                 </div>
+
+                {/* Cover real-time progress bar */}
+                {coverUploadState.status === 'uploading' && (
+                  <div className="w-full bg-black/60 rounded-full h-1.5 overflow-hidden border border-primary/20">
+                    <div
+                      className="bg-primary h-full transition-all duration-150"
+                      style={{ width: `${coverUploadState.progress}%` }}
+                    />
+                  </div>
+                )}
+
+                {coverUploadState.status === 'error' && coverUploadState.error && (
+                  <div className="text-[10px] text-danger font-mono flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{coverUploadState.error}</span>
+                  </div>
+                )}
 
                 <div className="relative">
                   <input
@@ -475,17 +712,27 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 </div>
 
                 <div className="flex gap-2">
-                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/40 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-cyber-blue/10 hover:bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/40 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${(isBatchProcessing || coverUploadState.status === 'uploading') ? 'opacity-50 pointer-events-none' : ''}`}>
                     <input
+                      ref={nip94FileInputRef}
                       type="file"
                       onChange={handleNip94FilesUpload}
                       accept="image/*"
                       multiple
                       className="hidden"
-                      disabled={isUploading}
+                      disabled={isBatchProcessing || coverUploadState.status === 'uploading'}
                     />
-                    <Upload className="w-4 h-4" />
-                    <span>{isUploading ? 'Đang tải lên...' : t('hostReg.uploadMultiple')}</span>
+                    {isBatchProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-cyber-blue" />
+                        <span>Đang xử lý tải ảnh...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>{t('hostReg.uploadMultiple')}</span>
+                      </>
+                    )}
                   </label>
                   <button
                     type="button"
@@ -496,6 +743,116 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     <span>{t('hostReg.pasteUrl')}</span>
                   </button>
                 </div>
+
+                {/* Live Batch Upload Queue with individual progress and status */}
+                {uploadQueue.length > 0 && (
+                  <div className="space-y-1.5 p-2.5 bg-black/60 rounded-xl border border-white/10">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
+                      <span className="font-bold flex items-center gap-1 text-white">
+                        <Clock className="w-3 h-3 text-cyber-blue" />
+                        Tiến trình từng ảnh ({uploadQueue.filter(q => q.status === 'done').length}/{uploadQueue.length}):
+                      </span>
+                      {isBatchProcessing && (
+                        <span className="text-cyber-blue text-[9px] animate-pulse">
+                          Đang tải lên tuần tự...
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {uploadQueue.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`flex items-center gap-2.5 p-1.5 rounded-lg border text-xs font-mono transition-all ${
+                            item.status === 'error'
+                              ? 'bg-danger/10 border-danger/30 text-danger'
+                              : item.status === 'done'
+                              ? 'bg-cyber-green/10 border-cyber-green/30 text-cyber-green'
+                              : item.status === 'uploading'
+                              ? 'bg-cyber-blue/10 border-cyber-blue/30 text-cyber-blue'
+                              : 'bg-black/40 border-white/5 text-gray-300'
+                          }`}
+                        >
+                          {/* Thumbnail */}
+                          <div className="w-10 h-10 rounded overflow-hidden bg-black/60 border border-white/10 shrink-0 relative">
+                            {item.previewUrl ? (
+                              <img src={item.previewUrl} alt={item.fileName} className="w-full h-full object-cover" />
+                            ) : (
+                              <ImageIcon className="w-full h-full p-2 text-gray-500" />
+                            )}
+                            {item.status === 'uploading' && (
+                              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-cyber-blue" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Details & Live Progress */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="truncate text-[11px] font-medium text-white max-w-[130px] sm:max-w-[190px]" title={item.fileName}>
+                                {item.fileName}
+                              </span>
+                              <span className="text-[9px] text-gray-400 shrink-0">
+                                {(item.fileSize / 1024).toFixed(0)} KB
+                              </span>
+                            </div>
+
+                            {/* Status indicator */}
+                            <div className="flex items-center justify-between gap-1 mt-0.5">
+                              {item.status === 'queued' && (
+                                <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" /> Đang chờ...
+                                </span>
+                              )}
+                              {item.status === 'compressing' && (
+                                <span className="text-[10px] text-cyber-blue flex items-center gap-1">
+                                  <Loader2 className="w-3 h-3 animate-spin" /> Nén ảnh...
+                                </span>
+                              )}
+                              {item.status === 'uploading' && (
+                                <span className="text-[10px] text-cyber-blue font-bold flex items-center gap-1">
+                                  <span>Đang tải lên {item.progress}%</span>
+                                </span>
+                              )}
+                              {item.status === 'done' && (
+                                <span className="text-[10px] text-cyber-green flex items-center gap-1 font-bold">
+                                  <CheckCircle2 className="w-3 h-3" /> Đã xong ✓
+                                </span>
+                              )}
+                              {item.status === 'error' && (
+                                <span className="text-[10px] text-danger flex items-center gap-1 truncate" title={item.error}>
+                                  <AlertTriangle className="w-3 h-3 shrink-0" /> {item.error || 'Lỗi tải ảnh'}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Live byte-level progress bar */}
+                            {item.status === 'uploading' && (
+                              <div className="w-full bg-black/60 rounded-full h-1.5 mt-1 overflow-hidden border border-cyber-blue/20">
+                                <div
+                                  className="bg-cyber-blue h-full transition-all duration-150"
+                                  style={{ width: `${item.progress}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action button if error */}
+                          {item.status === 'error' && (
+                            <button
+                              type="button"
+                              onClick={() => removeQueueItem(item.id)}
+                              className="p-1 hover:bg-danger/20 text-danger rounded transition-colors shrink-0"
+                              title="Xóa thông báo lỗi này"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Thumbnails grid */}
                 {nip94Urls.length > 0 && (
@@ -918,11 +1275,11 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isBatchProcessing || coverUploadState.status === 'uploading' || coverUploadState.status === 'compressing'}
               className="px-6 py-2.5 bg-cyber-green hover:bg-cyber-green/80 text-black rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 disabled:opacity-50"
             >
               <ShieldCheck className="w-4 h-4" />
-              {isSubmitting ? t('hostReg.signingBtn') : t('hostReg.signAndBroadcast')}
+              {isSubmitting ? t('hostReg.signingBtn') : (isBatchProcessing || coverUploadState.status === 'uploading') ? 'Đang tải ảnh...' : t('hostReg.signAndBroadcast')}
             </button>
           </div>
         </form>

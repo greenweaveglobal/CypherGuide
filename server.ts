@@ -475,8 +475,17 @@ ${docsContent}`;
     next();
   };
 
+  app.get(["/api/media", "/api/media/health", "/api/media-fallback", "/api/media-fallback/health"], (req, res) => {
+    const isFallback = req.path.includes("fallback");
+    res.json({
+      status: "ok",
+      service: isFallback ? "CypherGuide Backup Media Node" : "CypherGuide Primary Media Server",
+      timestamp: new Date().toISOString()
+    });
+  });
+
   app.post(
-    "/api/media/upload",
+    ["/api/media/upload", "/api/media-fallback/upload"],
     uploadRateLimiter,
     (req, res, next) => {
       upload.single("file")(req, res, (err: any) => {
