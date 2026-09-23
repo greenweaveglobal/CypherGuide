@@ -57,6 +57,14 @@ This is the user's second question — **this is not "mining new Sats"** the way
 - **Mandatory circuit breaker:** if treasury balance falls below a safe threshold, disable the Claim button and show an "insufficient treasury" state — `claimNodeIncentive` must NOT return a fake `success: true` when the payout hasn't actually happened (unlike the current simulated code).
 - **Batch payouts** (bundling many small claims into a single periodic payout, e.g. daily) should be considered over paying each claim instantly, to reduce LN routing fees as the node network grows.
 
+### ⚠️ Privacy risk: payment graph analysis (added after community feedback)
+
+Publishing one **static, fixed** treasury address for repeated payouts creates a leakage risk distinct from the "operator identity exposure" already discussed above: even without an address being directly tied to an identity, **the frequency and volume of transactions through that address still maps out network activity** (payout count, cadence regularity, scaling up/down over time) — meaning key sovereignty does not automatically imply anonymity if opacity is missing at the payment-hop layer.
+
+**Mitigation direction (not yet implemented, open for discussion):**
+- Use a **rotating LNURL or BOLT12 offer per payout cycle** instead of one address used indefinitely — each treasury payout round generates a fresh offer, reducing the ability to link transactions together.
+- **Batch payouts** (already proposed above for routing-fee reasons) have a secondary benefit here too: bundling many small amounts into one transaction lowers the resolution available to payment-graph analysis.
+
 ## Security / decentralization trade-offs
 
 - **Who is trusted, and how much:** in the D stage (Proof-of-Usage), the system trusts the *aggregate of many real clients* rather than the node operator — but a minimum threshold of independent client reports is required before a reward is computed; otherwise a single client (even one controlled by the operator) could still push a fraudulent report through.

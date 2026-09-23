@@ -57,6 +57,14 @@ Kết hợp **C + D** theo từng giai đoạn, không chọn 1 mô hình cố �
 - **Circuit breaker bắt buộc:** nếu số dư treasury dưới ngưỡng an toàn → khóa nút Claim, hiển thị trạng thái "quỹ tạm hết", KHÔNG được để `claimNodeIncentive` trả `success: true` giả khi thực tế chưa trả được (khác hẳn code giả lập hiện tại).
 - **Batch payout** (gộp nhiều claim nhỏ trả 1 lần theo chu kỳ, vd hàng ngày) nên cân nhắc thay vì trả tức thời từng claim, để giảm phí routing LN khi mạng lưới node lớn dần.
 
+### ⚠️ Rủi ro riêng tư: payment graph analysis (bổ sung sau phản hồi cộng đồng)
+
+Việc công khai 1 địa chỉ treasury **tĩnh, cố định** để trả thưởng lặp đi lặp lại tạo ra rủi ro rò rỉ thông tin khác với rủi ro "lộ danh tính operator" đã bàn ở trên: dù địa chỉ không gắn trực tiếp với danh tính, **tần suất và khối lượng giao dịch qua địa chỉ đó vẫn vẽ ra được bản đồ hoạt động mạng lưới** (bao nhiêu payout, chu kỳ đều đặn cỡ nào, quy mô tăng/giảm theo thời gian) — tức "chủ quyền khóa" (key sovereignty) không tự động đồng nghĩa với ẩn danh nếu thiếu tính opaque ở tầng payment hop.
+
+**Hướng giảm thiểu (chưa triển khai, cần thảo luận thêm):**
+- Dùng **địa chỉ LNURL hoặc BOLT12 offer xoay vòng theo mỗi chu kỳ payout** thay vì 1 địa chỉ tĩnh dùng mãi mãi — mỗi lần trả treasury tạo offer mới, giảm khả năng liên kết các giao dịch với nhau.
+- **Batch payout** (đã đề xuất ở trên vì lý do phí routing) có thêm lợi ích phụ: gộp nhiều khoản nhỏ thành 1 giao dịch giảm độ phân giải khi phân tích đồ thị thanh toán.
+
 ## Đánh đổi bảo mật / phi tập trung
 
 - **Tin ai, tin đến mức nào:** ở giai đoạn D (Proof-of-Usage), hệ thống tin vào *số đông client thật* thay vì tin node operator — nhưng vẫn cần threshold tối thiểu số client báo cáo trước khi tính thưởng, nếu không 1 client (kể cả của chính operator) tự báo cáo giả vẫn qua được.

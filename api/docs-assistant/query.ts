@@ -1,6 +1,28 @@
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import path from "path";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+// Upstash Redis Distributed Rate Limiter (20 requests / 15 minutes / IP)
+let ratelimit: Ratelimit | null = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  try {
+    ratelimit = new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(20, "15 m"),
+      analytics: true,
+      prefix: "cg_ratelimit_docs"
+    });
+  } catch (err) {
+    console.error("[RateLimit] Error initializing Upstash Redis client:", err);
+  }
+}
+
+// In-memory fallback if Upstash environment variables are not configured
+const fallbackCounts = new Map<string, { count: number; resetTime: number }>();
+const FALLBACK_WINDOW_MS = 15 * 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 20;
 
 function loadProjectDocs(): string {
   const docs: string[] = [];
@@ -64,6 +86,43 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
+  }
+
+  // Extract client IP address reliably (supporting Vercel Edge / proxies)
+  const forwarded = req.headers?.["x-forwarded-for"];
+  const ip = (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.socket?.remoteAddress) || "unknown";
+
+  // Enforce distributed Upstash rate limiting (20 req / 15 min / IP)
+  if (ratelimit) {
+    try {
+      const { success, reset } = await ratelimit.limit(ip);
+      if (!success) {
+        const retryAfterSeconds = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+        res.setHeader("Retry-After", retryAfterSeconds);
+        return res.status(429).json({
+          error: "Too many requests. Please try again later.",
+          retryAfter: retryAfterSeconds
+        });
+      }
+    } catch (err) {
+      console.error("[RateLimit] Error executing Upstash rate check:", err);
+    }
+  } else {
+    // In-memory fallback for local dev / environments missing Upstash credentials
+    const now = Date.now();
+    const record = fallbackCounts.get(ip);
+    if (!record || now > record.resetTime) {
+      fallbackCounts.set(ip, { count: 1, resetTime: now + FALLBACK_WINDOW_MS });
+    } else if (record.count >= MAX_REQUESTS_PER_WINDOW) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((record.resetTime - now) / 1000));
+      res.setHeader("Retry-After", retryAfterSeconds);
+      return res.status(429).json({
+        error: "Too many requests. Please try again later.",
+        retryAfter: retryAfterSeconds
+      });
+    } else {
+      record.count++;
+    }
   }
 
   try {

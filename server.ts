@@ -283,8 +283,8 @@ async function startServer() {
     next();
   });
 
-  // In-memory rate limiter for docs assistant: max 20 queries per 10 minutes per IP
-  const docsRateLimitWindowMs = 10 * 60 * 1000;
+  // In-memory rate limiter for docs assistant: max 20 queries per 15 minutes per IP
+  const docsRateLimitWindowMs = 15 * 60 * 1000;
   const maxDocsPerWindow = 20;
   const docsCounts = new Map<string, { count: number; resetTime: number }>();
 
