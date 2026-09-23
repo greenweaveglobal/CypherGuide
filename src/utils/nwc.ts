@@ -6,6 +6,7 @@
 
 import { finalizeEvent, nip04, getPublicKey } from 'nostr-tools';
 import { hexToBytes, bytesToHex } from './crypto';
+import { parseBolt11, isSimulatedInvoice, verifyLightningPreimage, PAYMENT_MODE } from './lightning';
 
 export interface NWCConnection {
   walletPubkey: string;
@@ -177,8 +178,8 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
     return { success: false, error: 'Chuỗi kết nối NWC (NIP-47) không hợp lệ!' };
   }
 
-  // If invoice is a simulated sandbox invoice (_sim), return clean simulated NIP-47 RPC response
-  if (invoice.endsWith('_sim') || invoice.includes('_sim') || !invoice.startsWith('lnbc')) {
+  // If in demo mode and invoice is explicitly simulated (_sim), return demo RPC response
+  if (PAYMENT_MODE === 'demo' && isSimulatedInvoice(invoice)) {
     return new Promise((resolve) => {
       setTimeout(() => {
         const mockPreimage = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
@@ -198,7 +199,7 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
     try {
       const secretBytes = hexToBytes(connection.secretHex);
       const appPubKey = getPublicKey(secretBytes);
-      const cleanInvoice = invoice.replace('_sim', '');
+      const cleanInvoice = invoice.trim();
 
       // Encrypt NIP-47 RPC Payload (Kind 23194)
       const rpcContent = JSON.stringify({
@@ -244,12 +245,30 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
 
             if (ws) ws.close();
 
-            if (parsedResp.result?.preimage) {
-              resolve({ success: true, preimage: parsedResp.result.preimage });
+            const preimage = parsedResp.result?.preimage;
+
+            // Strict Preimage Requirement: must have real preimage
+            if (preimage) {
+              const parsedInv = parseBolt11(cleanInvoice);
+              if (parsedInv && parsedInv.paymentHash) {
+                const isValidPreimage = await verifyLightningPreimage(preimage, parsedInv.paymentHash);
+                if (!isValidPreimage) {
+                  resolve({
+                    success: false,
+                    error: 'Chữ ký preimage từ ví không khớp payment_hash của invoice! Giao dịch bị từ chối do rủi ro giả mạo.'
+                  });
+                  return;
+                }
+              }
+              resolve({ success: true, preimage });
             } else if (parsedResp.error) {
               resolve({ success: false, error: parsedResp.error.message || 'Ví NWC từ chối thanh toán' });
             } else {
-              resolve({ success: true, preimage: 'nwc_confirmed_' + Date.now().toString(16) });
+              // Thiếu preimage -> KHÔNG coi là thành công!
+              resolve({
+                success: false,
+                error: 'Ví NWC phản hồi nhưng thiếu bằng chứng Preimage thanh toán. Giao dịch chưa được xác nhận!'
+              });
             }
           }
         } catch (err) {

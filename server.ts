@@ -5,6 +5,203 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import multer from "multer";
 import crypto from "crypto";
+import { verifyEvent, nip19 } from "nostr-tools";
+
+// Authorized Admin Public Keys (Hex representation)
+const AUTHORIZED_ADMIN_PUBKEYS = new Set([
+  // npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh
+  "96dfc17448bdc132c22623c7febf89c587a8be269d41d9572a90f8b105b73c79",
+  // npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6
+  "f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941"
+]);
+
+/**
+ * Validates NIP-98 HTTP Authentication (Kind 27235)
+ */
+function verifyNip98Auth(req: express.Request, targetUrlPath: string, targetMethod: string): { authorized: boolean; pubkey?: string; error?: string; status: number } {
+  const authHeader = req.headers["authorization"] || req.headers["Authorization"];
+  if (!authHeader || typeof authHeader !== "string") {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Missing Authorization header. NIP-98 authentication (Kind 27235) is strictly required."
+    };
+  }
+
+  const trimmed = authHeader.trim();
+  if (!trimmed.toLowerCase().startsWith("nostr ")) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Invalid Authorization scheme. Expected 'Nostr <base64_kind_27235_event>'."
+    };
+  }
+
+  const base64Payload = trimmed.slice(6).trim();
+  let event: any;
+  try {
+    const decodedStr = Buffer.from(base64Payload, "base64").toString("utf-8");
+    event = JSON.parse(decodedStr);
+  } catch (err) {
+    return {
+      authorized: false,
+      status: 400,
+      error: "Malformed base64 or JSON in NIP-98 Authorization header."
+    };
+  }
+
+  // 1. Kind must be 27235
+  if (event.kind !== 27235) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Invalid event kind. NIP-98 requires kind 27235."
+    };
+  }
+
+  // 2. Cryptographic signature verification (Schnorr over Secp256k1)
+  try {
+    const isValidSig = verifyEvent(event);
+    if (!isValidSig) {
+      return {
+        authorized: false,
+        status: 401,
+        error: "Invalid Nostr Schnorr signature on NIP-98 authentication event."
+      };
+    }
+  } catch (sigErr) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Signature verification failed."
+    };
+  }
+
+  // 3. Timestamp anti-replay check (within +/- 60 seconds)
+  const now = Math.floor(Date.now() / 1000);
+  const timeDelta = Math.abs(now - (event.created_at || 0));
+  if (timeDelta > 60) {
+    return {
+      authorized: false,
+      status: 401,
+      error: `NIP-98 timestamp expired or outside +/- 60s tolerance (delta: ${timeDelta}s).`
+    };
+  }
+
+  // 4. Tags validation: u and method
+  const tags: string[][] = Array.isArray(event.tags) ? event.tags : [];
+  const uTag = tags.find(t => t[0] === "u")?.[1];
+  const methodTag = tags.find(t => t[0] === "method")?.[1];
+
+  if (!methodTag || methodTag.toUpperCase() !== targetMethod.toUpperCase()) {
+    return {
+      authorized: false,
+      status: 401,
+      error: `NIP-98 method tag mismatch. Expected '${targetMethod.toUpperCase()}'.`
+    };
+  }
+
+  if (!uTag || (!uTag.endsWith(targetUrlPath) && !uTag.includes("/api/protocol/config"))) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "NIP-98 URL tag does not match target endpoint."
+    };
+  }
+
+  // 5. Admin Authorization Check
+  if (!AUTHORIZED_ADMIN_PUBKEYS.has(event.pubkey)) {
+    return {
+      authorized: false,
+      status: 403,
+      error: `Forbidden: Nostr pubkey '${event.pubkey}' is not an authorized protocol admin.`
+    };
+  }
+
+  return {
+    authorized: true,
+    pubkey: event.pubkey,
+    status: 200
+  };
+}
+
+/**
+ * Validates authentic image binary signatures (magic bytes) to prevent Stored XSS and non-image payloads
+ */
+interface ImageValidationResult {
+  valid: boolean;
+  mime?: string;
+  ext?: string;
+  error?: string;
+}
+
+function validateImageMagicBytes(filePath: string): ImageValidationResult {
+  try {
+    const fd = fs.openSync(filePath, "r");
+    const buffer = Buffer.alloc(32);
+    const bytesRead = fs.readSync(fd, buffer, 0, 32, 0);
+    fs.closeSync(fd);
+
+    if (bytesRead < 4) {
+      return { valid: false, error: "File too small to be a valid image." };
+    }
+
+    // Check JPEG: FF D8 FF
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+      return { valid: true, mime: "image/jpeg", ext: ".jpg" };
+    }
+
+    // Check PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (
+      bytesRead >= 8 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47 &&
+      buffer[4] === 0x0d &&
+      buffer[5] === 0x0a &&
+      buffer[6] === 0x1a &&
+      buffer[7] === 0x0a
+    ) {
+      return { valid: true, mime: "image/png", ext: ".png" };
+    }
+
+    // Check GIF: GIF87a or GIF89a
+    if (
+      bytesRead >= 6 &&
+      buffer[0] === 0x47 &&
+      buffer[1] === 0x49 &&
+      buffer[2] === 0x46 &&
+      buffer[3] === 0x38 &&
+      (buffer[4] === 0x37 || buffer[4] === 0x39) &&
+      buffer[5] === 0x61
+    ) {
+      return { valid: true, mime: "image/gif", ext: ".gif" };
+    }
+
+    // Check WebP: RIFF at 0..3 and WEBP at 8..11
+    if (
+      bytesRead >= 12 &&
+      buffer[0] === 0x52 &&
+      buffer[1] === 0x49 &&
+      buffer[2] === 0x46 &&
+      buffer[3] === 0x46 &&
+      buffer[8] === 0x57 &&
+      buffer[9] === 0x45 &&
+      buffer[10] === 0x42 &&
+      buffer[11] === 0x50
+    ) {
+      return { valid: true, mime: "image/webp", ext: ".webp" };
+    }
+
+    return {
+      valid: false,
+      error: "Invalid file format. Only authentic binary JPEG, PNG, WEBP, and GIF images are allowed. SVG and non-images are strictly prohibited."
+    };
+  } catch (err: any) {
+    return { valid: false, error: err.message || "Failed to inspect file magic bytes." };
+  }
+}
 
 function loadProjectDocs(): string {
   const docs: string[] = [];
@@ -64,9 +261,20 @@ async function startServer() {
 
   app.use(express.json({ limit: "2mb" }));
 
-  // CORS middleware for API endpoints
+  // CORS configuration for API endpoints
   app.use("/api", (req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
+    const origin = req.headers.origin;
+    const isAllowedOrigin = !origin || 
+      origin.endsWith("cypherguide.org") || 
+      origin.includes("localhost") || 
+      origin.includes("127.0.0.1") ||
+      origin.includes("run.app");
+      
+    if (isAllowedOrigin && origin) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else if (!origin) {
+      res.header("Access-Control-Allow-Origin", "https://cypherguide.org");
+    }
     res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     if (req.method === "OPTIONS") {
@@ -74,6 +282,44 @@ async function startServer() {
     }
     next();
   });
+
+  // In-memory rate limiter for docs assistant: max 20 queries per 10 minutes per IP
+  const docsRateLimitWindowMs = 10 * 60 * 1000;
+  const maxDocsPerWindow = 20;
+  const docsCounts = new Map<string, { count: number; resetTime: number }>();
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of docsCounts.entries()) {
+      if (now > record.resetTime) {
+        docsCounts.delete(ip);
+      }
+    }
+  }, 5 * 60 * 1000).unref();
+
+  const docsRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const forwarded = req.headers["x-forwarded-for"];
+    const ip = (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.socket.remoteAddress) || "unknown";
+    const now = Date.now();
+    const record = docsCounts.get(ip);
+
+    if (!record || now > record.resetTime) {
+      docsCounts.set(ip, { count: 1, resetTime: now + docsRateLimitWindowMs });
+      return next();
+    }
+
+    if (record.count >= maxDocsPerWindow) {
+      const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
+      res.setHeader("Retry-After", retryAfterSeconds);
+      return res.status(429).json({
+        error: "Too many documentation queries. Please wait a few minutes.",
+        retryAfter: retryAfterSeconds
+      });
+    }
+
+    record.count++;
+    next();
+  };
 
   // API endpoint for Documentation Lookup Assistant (RFC-0005)
   const docsQueryHandler = async (req: express.Request, res: express.Response) => {
@@ -83,6 +329,10 @@ async function startServer() {
 
       if (!question || typeof question !== "string") {
         return res.status(400).json({ error: "Missing or invalid question parameter." });
+      }
+
+      if (question.length > 500) {
+        return res.status(400).json({ error: "Question exceeds maximum allowed length of 500 characters." });
       }
 
       const apiKey = process.env.GEMINI_API_KEY;
@@ -208,12 +458,11 @@ ${docsContent}`;
     }
   };
 
-  app.all("/api/docs-assistant/query", docsQueryHandler);
-  app.all("/api/docs-assistant/query/", docsQueryHandler);
+  app.all("/api/docs-assistant/query", docsRateLimiter, docsQueryHandler);
+  app.all("/api/docs-assistant/query/", docsRateLimiter, docsQueryHandler);
 
   // Protocol Config file path
   const configFilePath = path.join(process.cwd(), "data", "protocol_config.json");
-  const MARKETING_NPUB = "npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh";
 
   const getProtocolConfig = () => {
     try {
@@ -252,10 +501,19 @@ ${docsContent}`;
     res.json(config);
   });
 
-  // API: Update protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress) - Restricted to authorized admins
+  // API: Update protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress) - Strictly guarded by NIP-98 authentication
   app.post("/api/protocol/config", (req, res) => {
     try {
-      const { devLnAddress, infraIncentiveTreasuryLightningAddress, npub } = req.body;
+      // 1. Enforce strict NIP-98 HTTP Auth check (Kind 27235 signed by authorized admin key)
+      const auth = verifyNip98Auth(req, "/api/protocol/config", "POST");
+      if (!auth.authorized) {
+        return res.status(auth.status).json({
+          success: false,
+          error: auth.error
+        });
+      }
+
+      const { devLnAddress, infraIncentiveTreasuryLightningAddress } = req.body || {};
 
       if (!devLnAddress && !infraIncentiveTreasuryLightningAddress) {
         return res.status(400).json({ success: false, error: "No configuration fields provided to update" });
@@ -266,7 +524,7 @@ ${docsContent}`;
       let trimmedDevAddress: string | undefined;
       if (devLnAddress) {
         if (typeof devLnAddress !== "string") {
-          return res.status(400).json({ success: false, error: "Invalid devLnAddress" });
+          return res.status(400).json({ success: false, error: "Invalid devLnAddress format" });
         }
         trimmedDevAddress = devLnAddress.trim().toLowerCase();
         if (!lnRegex.test(trimmedDevAddress) && !trimmedDevAddress.startsWith("lnurl")) {
@@ -277,20 +535,12 @@ ${docsContent}`;
       let trimmedTreasuryAddress: string | undefined;
       if (infraIncentiveTreasuryLightningAddress) {
         if (typeof infraIncentiveTreasuryLightningAddress !== "string") {
-          return res.status(400).json({ success: false, error: "Invalid infraIncentiveTreasuryLightningAddress" });
+          return res.status(400).json({ success: false, error: "Invalid infraIncentiveTreasuryLightningAddress format" });
         }
         trimmedTreasuryAddress = infraIncentiveTreasuryLightningAddress.trim().toLowerCase();
         if (!lnRegex.test(trimmedTreasuryAddress) && !trimmedTreasuryAddress.startsWith("lnurl")) {
           return res.status(400).json({ success: false, error: "Invalid Lightning Address format for infraIncentiveTreasuryLightningAddress. Example: user@domain.com" });
         }
-      }
-
-      // Check admin authorization - only official dev/guardian npub
-      const isAuthorized = npub === MARKETING_NPUB || 
-        npub === "npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6";
-
-      if (!isAuthorized) {
-        return res.status(403).json({ success: false, error: "Unauthorized: Only official admin/guardians can update protocol configuration." });
       }
 
       const current = getProtocolConfig();
@@ -299,7 +549,7 @@ ${docsContent}`;
         ...(trimmedDevAddress ? { devLnAddress: trimmedDevAddress } : {}),
         ...(trimmedTreasuryAddress ? { infraIncentiveTreasuryLightningAddress: trimmedTreasuryAddress } : {}),
         updatedAt: Date.now(),
-        updatedBy: npub || "admin"
+        updatedBy: auth.pubkey ? nip19.npubEncode(auth.pubkey) : "admin"
       };
 
       const saved = saveProtocolConfig(updated);
@@ -444,17 +694,25 @@ ${docsContent}`;
     storage,
     limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit matching frontend & suited for 25GB disk
     fileFilter: (_req, file, cb) => {
-      const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
+      const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       if (allowedMimes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new Error("Invalid file type. Only JPEG, PNG, WEBP, GIF, and SVG images are allowed."));
+        cb(new Error("Invalid file type. Only JPEG, PNG, WEBP, and GIF images are allowed. SVG is strictly prohibited."));
       }
     }
   });
 
-  // Serve static media files
-  app.use("/media", express.static(uploadDir, { maxAge: "30d" }));
+  // Serve static media files with security headers against Stored XSS
+  app.use(
+    "/media",
+    (_req, res, next) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+      next();
+    },
+    express.static(uploadDir, { maxAge: "30d" })
+  );
 
   // In-memory rate limiter for media uploads: max 30 uploads per 15 minutes per IP
   const uploadRateLimitWindowMs = 15 * 60 * 1000;
@@ -524,6 +782,15 @@ ${docsContent}`;
           return res.status(400).json({ error: "no file" });
         }
 
+        // Strict Magic Bytes binary validation: prevent SVG, HTML, and disguised executables
+        const validation = validateImageMagicBytes(tempFilePath);
+        if (!validation.valid) {
+          if (fs.existsSync(tempFilePath)) {
+            try { fs.unlinkSync(tempFilePath); } catch {}
+          }
+          return res.status(400).json({ error: validation.error || "File is not a valid image." });
+        }
+
         // Compute SHA256 of file from disk stream without loading entire file into memory buffer
         const hash = await new Promise<string>((resolve, reject) => {
           const hashGenerator = crypto.createHash("sha256");
@@ -533,7 +800,9 @@ ${docsContent}`;
           stream.on("error", (err) => reject(err));
         });
 
-        const ext = path.extname(req.file.originalname) || ".jpg";
+        // Enforce extension and MIME derived STRICTLY from verified magic bytes
+        const ext = validation.ext || ".jpg";
+        const verifiedMime = validation.mime || "image/jpeg";
         const filename = `${hash}${ext}`;
         const finalFilePath = path.join(uploadDir, filename);
 
@@ -556,7 +825,7 @@ ${docsContent}`;
             tags: [
               ["url", publicUrl],
               ["ox", hash],
-              ["m", req.file.mimetype]
+              ["m", verifiedMime]
             ]
           }
         });

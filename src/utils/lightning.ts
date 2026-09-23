@@ -1,4 +1,10 @@
-import { toBech32 } from './crypto';
+import { toBech32, verifyLightningPreimage } from './crypto';
+import bolt11 from 'light-bolt11-decoder';
+
+export { verifyLightningPreimage };
+
+// Build-time / Environment payment mode flag (defaults to 'live' for real payments)
+export const PAYMENT_MODE = (import.meta.env.VITE_PAYMENT_MODE || 'live').toLowerCase();
 
 // WebLN standard type definitions
 export interface WebLNProvider {
@@ -26,7 +32,7 @@ export function satsToLightningMultiplier(sats: number): string {
   }
 }
 
-// Generate an authentic-looking BOLT11 invoice
+// Generate an authentic-looking BOLT11 invoice for sandbox/demo testing
 export function generateBolt11(amountSats: number, memo: string): string {
   const prefix = 'lnbc' + satsToLightningMultiplier(amountSats);
   const timestamp = Math.floor(Date.now() / 1000).toString(16);
@@ -44,8 +50,18 @@ export function generateBolt11(amountSats: number, memo: string): string {
   return `${invoice}_sim`;
 }
 
+/**
+ * Kiểm tra xem invoice có phải là invoice giả lập (simulated) hay không.
+ * QUY TẮC BẢO MẬT:
+ * - Khi PAYMENT_MODE là 'live' (production), KHÔNG BAO GIỜ coi bất kỳ invoice nào là simulated!
+ * - Chỉ coi là simulated khi PAYMENT_MODE === 'demo' VÀ chuỗi kết thúc rõ ràng bằng '_sim'.
+ * - TUYỆT ĐỐI KHÔNG dùng tiền tố hay định dạng chuỗi hoa/thường để suy đoán invoice giả lập.
+ */
 export function isSimulatedInvoice(invoice: string): boolean {
-  return invoice.endsWith('_sim') || invoice.includes('_sim') || !invoice.startsWith('lnbc');
+  if (PAYMENT_MODE !== 'demo') {
+    return false;
+  }
+  return invoice.endsWith('_sim') || invoice.includes('_sim');
 }
 
 // Parse a BOLT11 invoice to extract its details for the interactive UI
@@ -57,43 +73,49 @@ export interface ParsedInvoice {
   expirySeconds: number;
 }
 
+/**
+ * Decode BOLT11 invoice sử dụng thư viện chuẩn light-bolt11-decoder
+ * Hỗ trợ cả chữ thường (lnbc...) và chữ hoa (LNBC...), testnet (lntb...), v.v.
+ */
 export function parseBolt11(invoice: string): ParsedInvoice | null {
-  try {
-    const cleanInvoice = invoice.replace('_sim', '');
-    if (!cleanInvoice.startsWith('lnbc')) return null;
-    
-    // Extract multiplier and amount
-    const amountPart = cleanInvoice.match(/^lnbc([0-9.]+)([pnum])/);
-    let amountSats = 0;
-    if (amountPart) {
-      const num = parseFloat(amountPart[1]);
-      const multiplier = amountPart[2];
-      if (multiplier === 'p') amountSats = num / 10;
-      else if (multiplier === 'n') amountSats = num * 100;
-      else if (multiplier === 'u') amountSats = num * 100000;
-      else if (multiplier === 'm') amountSats = num * 100000000;
-    } else {
-      const simpleMatch = cleanInvoice.match(/^lnbc([0-9]+)/);
-      if (simpleMatch) {
-        amountSats = parseInt(simpleMatch[1]) / 10;
-      }
-    }
+  if (!invoice) return null;
+  const cleanInvoice = invoice.trim();
 
-    let memo = "Room Booking at Cypherpunk Lodge";
-    let paymentHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    
-    if (cleanInvoice.length > 50) {
-      paymentHash = cleanInvoice.slice(15, 79);
-    }
-
+  // Chế độ demo chỉ chấp nhận invoice kết thúc bằng _sim nếu ở PAYMENT_MODE === 'demo'
+  if (PAYMENT_MODE === 'demo' && cleanInvoice.endsWith('_sim')) {
     return {
-      amountSats: Math.round(amountSats) || 5000,
-      memo,
-      paymentHash,
+      amountSats: 21000,
+      memo: "Phòng Trọ Cypherpunk (Demo)",
+      paymentHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       timestamp: Math.floor(Date.now() / 1000),
       expirySeconds: 3600,
     };
-  } catch (e) {
+  }
+
+  try {
+    const rawInv = cleanInvoice.replace('_sim', '').toLowerCase();
+    const decoded: any = bolt11.decode(rawInv);
+    const sections: any[] = decoded?.sections || [];
+
+    const paymentHashObj = sections.find((s: any) => s.name === 'payment_hash');
+    const amountObj = sections.find((s: any) => s.name === 'amount');
+    const descObj = sections.find((s: any) => s.name === 'description');
+    const timestampObj = sections.find((s: any) => s.name === 'timestamp');
+    const expiryObj = sections.find((s: any) => s.name === 'expiry');
+
+    // amount trong bolt11 là millisatoshis
+    const millisats = amountObj?.value ? parseInt(String(amountObj.value), 10) : 0;
+    const amountSats = Math.round(millisats / 1000);
+
+    return {
+      amountSats: amountSats || 0,
+      memo: descObj?.value ? String(descObj.value) : "Cypher Guide Lightning Payment",
+      paymentHash: paymentHashObj?.value ? String(paymentHashObj.value) : "",
+      timestamp: timestampObj?.value ? Number(timestampObj.value) : Math.floor(Date.now() / 1000),
+      expirySeconds: expiryObj?.value ? Number(expiryObj.value) : 3600,
+    };
+  } catch (err) {
+    console.error('[BOLT11] Failed to decode invoice with light-bolt11-decoder:', err);
     return null;
   }
 }
@@ -199,6 +221,18 @@ export async function payViaWebLN(invoice: string): Promise<{ success: boolean; 
   try {
     await window.webln!.enable();
     const result = await window.webln!.sendPayment(invoice);
+    if (!result || !result.preimage) {
+      return { success: false, error: 'Ví WebLN không trả về bằng chứng Preimage thanh toán.' };
+    }
+
+    const parsedInv = parseBolt11(invoice);
+    if (parsedInv && parsedInv.paymentHash) {
+      const isValid = await verifyLightningPreimage(result.preimage, parsedInv.paymentHash);
+      if (!isValid) {
+        return { success: false, error: 'Chữ ký preimage từ ví không khớp payment_hash của invoice!' };
+      }
+    }
+
     return { success: true, preimage: result.preimage };
   } catch (error: any) {
     console.error('WebLN Payment failed:', error);

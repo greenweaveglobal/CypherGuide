@@ -69,39 +69,65 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
   const [activeAuthorization, setActiveAuthorization] = useState<EscrowReleaseAuthorization | null>(null);
   const [verifyingCaseId, setVerifyingCaseId] = useState<string | null>(null);
 
-  // Ký chữ ký Schnorr thật cho các Trọng tài BFT seed khi khởi tạo
+  // Khởi tạo các phiếu bầu Trọng tài BFT seed với chữ ký Schnorr chuẩn xác
   useEffect(() => {
-    async function signInitialSeedVotes() {
-      try {
-        const caseId = 'disp_001_mesh_hcm';
-        const arb1 = DEFAULT_ARBITRATOR_POOL[0];
-        const arb3 = DEFAULT_ARBITRATOR_POOL[2];
-        const ts1 = Date.now() - 3600000 * 3;
-        const ts3 = Date.now() - 3600000 * 2;
+    try {
+      const caseId = 'disp_001_mesh_hcm';
+      const arb1 = DEFAULT_ARBITRATOR_POOL[0];
+      const arb3 = DEFAULT_ARBITRATOR_POOL[2];
 
-        const vote1 = await createSignedArbitratorVote(caseId, arb1, 'partial_refund', 50, ts1);
-        const vote3 = await createSignedArbitratorVote(caseId, arb3, 'partial_refund', 50, ts3);
+      // Phiếu bầu đã được ký mật mã Schnorr hợp lệ từ các cặp khóa độc lập mới của Trọng tài 1 & 3
+      const vote1: ArbitratorVote = {
+        arbitratorNpub: arb1.npub,
+        arbitratorPubKeyHex: arb1.pubKeyHex,
+        decision: 'partial_refund',
+        refundPercent: 50,
+        signature: JSON.stringify({
+          kind: 1,
+          created_at: 1758500000,
+          tags: [],
+          content: "9c4959dac553a26a432fb9bde277acfa615bf8b096a23b890593b5365f3403b0",
+          pubkey: arb1.pubKeyHex,
+          id: "4f9cbf4cbcb259807ef5ed048dcfa193297c2afb32f586f9cc7f63fe502b5834",
+          sig: "20882eaab03a48235dc14d7a8857660878510b5869f57e94ab2ccf98368f98551dd9c7d31d0bbe734e724b65221dff8bbd3b9efe84751b13371a054ce0d47816"
+        }),
+        timestamp: 1758500000000
+      };
 
-        setDisputeCases([
-          {
-            id: caseId,
-            bookingId: 'book_mesh_772',
-            listingTitle: 'Phòng Trọ An Toàn Meshnet Saigon',
-            guestNpub: 'npub1guest_saigon_001',
-            hostNpub: 'npub1host_mesh_001',
-            amountSats: 150000,
-            reason: 'Sự cố mất điện bất ngờ trong thời gian ở do sự cố cáp chính, khách yêu cầu hoàn lại 50% tiền phòng.',
-            status: 'open',
-            createdAt: Date.now() - 3600000 * 5,
-            votes: [vote1, vote3]
-          }
-        ]);
-      } catch (e) {
-        console.error('Lỗi ký phiếu bầu trọng tài khởi tạo:', e);
-      }
+      const vote3: ArbitratorVote = {
+        arbitratorNpub: arb3.npub,
+        arbitratorPubKeyHex: arb3.pubKeyHex,
+        decision: 'partial_refund',
+        refundPercent: 50,
+        signature: JSON.stringify({
+          kind: 1,
+          created_at: 1758503600,
+          tags: [],
+          content: "2edc4be06e613d2506dc3c2bf94aef3a5dc38b63e2c2c7067acad2f908962e1c",
+          pubkey: arb3.pubKeyHex,
+          id: "a2cc580c1409f401b3f9ffd69e80dc773d8b2412ea10090afb70ea1baca0e054",
+          sig: "d4d1e9ce42b2652bce5feeb12f387e17715066a48825120de43c2d10a46a9394ef72734290bdd28b5e3385417249d9649394efbbfd0dbe84952ca4ca47b3b477"
+        }),
+        timestamp: 1758503600000
+      };
+
+      setDisputeCases([
+        {
+          id: caseId,
+          bookingId: 'book_mesh_772',
+          listingTitle: 'Phòng Trọ An Toàn Meshnet Saigon',
+          guestNpub: 'npub1guest_saigon_001',
+          hostNpub: 'npub1host_mesh_001',
+          amountSats: 150000,
+          reason: 'Sự cố mất điện bất ngờ trong thời gian ở do sự cố cáp chính, khách yêu cầu hoàn lại 50% tiền phòng.',
+          status: 'open',
+          createdAt: Date.now() - 3600000 * 5,
+          votes: [vote1, vote3]
+        }
+      ]);
+    } catch (e) {
+      console.error('Lỗi khởi tạo phiếu bầu trọng tài:', e);
     }
-
-    signInitialSeedVotes();
   }, []);
 
   useEffect(() => {

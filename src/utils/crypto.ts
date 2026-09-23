@@ -360,6 +360,40 @@ export async function sha256(message: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+export async function sha256Bytes(bytes: Uint8Array): Promise<string> {
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', bytes);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Xác minh bằng chứng thanh toán Lightning (Preimage Verification):
+ * Kiểm tra SHA256(preimage_bytes) === payment_hash
+ */
+export async function verifyLightningPreimage(preimageHex: string, expectedPaymentHashHex: string): Promise<boolean> {
+  if (!preimageHex || !expectedPaymentHashHex) return false;
+  try {
+    const cleanPreimage = preimageHex.trim().toLowerCase();
+    const cleanExpected = expectedPaymentHashHex.trim().toLowerCase();
+
+    // Chuẩn Lightning: Preimage là 32 bytes (64 hex characters)
+    if (/^[0-9a-f]{64}$/.test(cleanPreimage)) {
+      const bytes = hexToBytes(cleanPreimage);
+      const computedHash = await sha256Bytes(bytes);
+      if (computedHash.toLowerCase() === cleanExpected) {
+        return true;
+      }
+    }
+
+    // Fallback: nếu preimage là chuỗi text UTF-8
+    const textHash = await sha256(cleanPreimage);
+    return textHash.toLowerCase() === cleanExpected;
+  } catch (err) {
+    console.error('[Crypto] Preimage verification error:', err);
+    return false;
+  }
+}
+
 export async function signRawSchnorr(messageHashHex: string, privKeyHex: string): Promise<string> {
   let cleanHash = messageHashHex;
   if (!/^[0-9a-fA-F]{64}$/.test(cleanHash)) {

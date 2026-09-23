@@ -7,7 +7,7 @@ import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../u
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
-import { sha256, signMessage, hexToBytes } from '../utils/crypto';
+import { sha256, signMessage, hexToBytes, bytesToHex, npubToHex } from '../utils/crypto';
 import { generateBolt11, isWebLNAvailable, payViaWebLN } from '../utils/lightning';
 import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../utils/depositEscrow';
@@ -16,8 +16,8 @@ import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
 import { safeRandomUUID } from '../utils/uuid';
 import { useTranslation } from '../hooks/useTranslation';
-import { validateKycAttestationForBooking, createKycAttestation, DEMO_VERIFIER_NPUB_1, DEMO_VERIFIER_HEX_1 } from '../utils/kycAttestation';
-import { nip19 } from 'nostr-tools';
+import { validateKycAttestationForBooking, createKycAttestation, DEMO_VERIFIER_NPUB_1 } from '../utils/kycAttestation';
+import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 
 const BookingModal = React.lazy(() => import('./BookingModal'));
 const QrScannerModal = React.lazy(() => import('./QrScannerModal'));
@@ -198,13 +198,18 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
     if (!identity) return;
     setIsMintingAttestation(true);
     try {
-      const verifierNpub = targetVerifierNpub || listing.acceptedKycVerifiers?.[0] || DEMO_VERIFIER_NPUB_1;
+      const ephemeralSk = generateSecretKey();
+      const ephemeralSkHex = bytesToHex(ephemeralSk);
+      const ephemeralPkHex = getPublicKey(ephemeralSk);
+      const ephemeralNpub = nip19.npubEncode(ephemeralPkHex);
+
+      const verifierNpub = targetVerifierNpub || listing.acceptedKycVerifiers?.[0] || ephemeralNpub;
       const mockVerifierIdentity: NostrIdentity = {
         npub: verifierNpub,
-        nsec: nip19.nsecEncode(hexToBytes(DEMO_VERIFIER_HEX_1)),
-        pubKeyHex: DEMO_VERIFIER_HEX_1,
+        nsec: nip19.nsecEncode(ephemeralSk),
+        pubKeyHex: verifierNpub === ephemeralNpub ? ephemeralPkHex : (npubToHex(verifierNpub) || ephemeralPkHex),
         name: 'VASP Authorized Verifier Node',
-        privKeyHex: DEMO_VERIFIER_HEX_1
+        privKeyHex: ephemeralSkHex
       };
       const att = await createKycAttestation(
         identity.npub,

@@ -4,7 +4,6 @@ import { hexToBytes, sha256, verifySignature } from './crypto';
 export interface Arbitrator {
   npub: string;
   pubKeyHex: string;
-  privKeyHex?: string;
   name: string;
   reputationScore: number; // e.g., 1 to 100
   isActive: boolean;
@@ -49,28 +48,27 @@ export interface EscrowReleaseAuthorization {
 /**
  * Mẫu Trọng tài mặc định trong Cypher Protocol (Arbitrator Pool)
  * Sử dụng Public Key Hex 64 ký tự tiêu chuẩn Nostr (Schnorr over Secp256k1)
+ * LƯU Ý BẢO MẬT: Private key trọng tài KHÔNG BAO GIỜ được lưu trong codebase!
+ * Trọng tài chỉ ký qua NIP-07 extension hoặc hardware/remote bunker signer độc lập.
  */
 export const DEFAULT_ARBITRATOR_POOL: Arbitrator[] = [
   {
-    npub: 'npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6',
-    pubKeyHex: 'f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941',
-    privKeyHex: '8b51f7dddaa97bbe4bf367c2b42cacd034a1ef420e1ebef0b7e6853ecfea7db9',
+    npub: 'npub1zx89hptyxhket9facdl22lntxk9emeymn6ywnp98p9j58tu28xcsa76xmz',
+    pubKeyHex: '118e5b856435ed95953dc37ea57e6b358b9de49b9e88e984a7096543af8a39b1',
     name: 'CypherpunkDAO Node #1',
     reputationScore: 90,
     isActive: true,
   },
   {
-    npub: 'npub1fgrk9t9zkt5z228w80682znc3r3fk9m4x477grgm8etdhv4lmt3sy6f2qm',
-    pubKeyHex: '4a0762aca2b2e82528ee3bf4750a7888e29b1775357de40d1b3e56dbb2bfdae3',
-    privKeyHex: '4856e9db7d78115bc0534283ec1f35c5980b3dff818eb43ae71563fe2bf4db53',
+    npub: 'npub169ztqjcxwu0a8vz7y6tv0rqvrgkk02qzwaqwgll43veewn8sluas065lv8',
+    pubKeyHex: 'd144b04b06771fd3b05e2696c78c0c1a2d67a8027740e47ff58b33974cf0ff3b',
     name: 'Meshnet Sentinel #2',
     reputationScore: 85,
     isActive: true,
   },
   {
-    npub: 'npub1v22u564g0yxxk0xp9yeqce950qvwq32ttf72c2a3rhqaznx3tqnspqv2t3',
-    pubKeyHex: '6295ca6aa8790c6b3cc129320c64b47818e0454b5a7cac2bb11dc1d14cd15827',
-    privKeyHex: '4cd960f210cc1c7ff2f4abd4b773d04e23421b9dbb80b0fd404376f919ec3981',
+    npub: 'npub1j7tjv8ttdlv943grv056svev8r27xltmhlq4d30fln99pwd8vjqq4hey34',
+    pubKeyHex: '9797261d6b6fd85ac50363e9a8332c38d5e37d7bbfc156c5e9fcca50b9a76480',
     name: 'Nostr Escrow Trustee #3',
     reputationScore: 95,
     isActive: true,
@@ -78,36 +76,43 @@ export const DEFAULT_ARBITRATOR_POOL: Arbitrator[] = [
 ];
 
 /**
-  * Tạo một phiếu bầu Trọng tài được ký Schnorr mật mã thật bằng Nostr Event.
-  */
+ * Tạo một phiếu bầu Trọng tài được ký Schnorr mật mã thật bằng Nostr Event.
+ * Chấp nhận ký qua NIP-07 (window.nostr) hoặc hàm signer bên ngoài.
+ */
 export async function createSignedArbitratorVote(
   disputeCaseId: string,
   arbitrator: Arbitrator,
   decision: 'refund_guest' | 'pay_host' | 'partial_refund',
   refundPercent: number,
-  timestamp: number = Date.now()
+  timestamp: number = Date.now(),
+  externalSigner?: (contentHash: string) => Promise<string>
 ): Promise<ArbitratorVote> {
-  if (!arbitrator.privKeyHex) {
-    throw new Error(`Trọng tài ${arbitrator.name} không có privKeyHex để ký`);
-  }
-
   const expectedMsg = `dispute_vote_${disputeCaseId}_${arbitrator.npub}_${decision}_${refundPercent}_${timestamp}`;
   const expectedHash = await sha256(expectedMsg);
 
-  const sk = hexToBytes(arbitrator.privKeyHex);
-  const signedEvent = finalizeEvent({
-    kind: 1,
-    created_at: Math.floor(timestamp / 1000),
-    tags: [],
-    content: expectedHash
-  }, sk);
+  let signature = '';
+
+  if (externalSigner) {
+    signature = await externalSigner(expectedHash);
+  } else if (typeof window !== 'undefined' && (window as any).nostr) {
+    const template = {
+      kind: 1,
+      created_at: Math.floor(timestamp / 1000),
+      tags: [],
+      content: expectedHash
+    };
+    const signedEvent = await (window as any).nostr.signEvent(template);
+    signature = JSON.stringify(signedEvent);
+  } else {
+    throw new Error(`Trọng tài ${arbitrator.name} cần kết nối NIP-07 Nostr extension để ký phiếu bầu bảo mật.`);
+  }
 
   return {
     arbitratorNpub: arbitrator.npub,
     arbitratorPubKeyHex: arbitrator.pubKeyHex,
     decision,
     refundPercent,
-    signature: JSON.stringify(signedEvent),
+    signature,
     timestamp
   };
 }

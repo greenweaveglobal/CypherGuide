@@ -56,7 +56,9 @@ function loadProjectDocs(): string {
 
 export default async function handler(req: any, res: any) {
   // CORS configuration
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers?.origin || "";
+  const isAllowedOrigin = origin.endsWith("cypherguide.org") || origin.includes("localhost") || origin.includes("127.0.0.1");
+  res.setHeader("Access-Control-Allow-Origin", isAllowedOrigin ? origin : "https://cypherguide.org");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -70,6 +72,10 @@ export default async function handler(req: any, res: any) {
 
     if (!question || typeof question !== "string") {
       return res.status(400).json({ error: "Missing or invalid question parameter." });
+    }
+
+    if (question.length > 500) {
+      return res.status(400).json({ error: "Question exceeds maximum allowed length of 500 characters." });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
