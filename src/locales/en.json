@@ -275,7 +275,15 @@
     "claimedReward": "✓ INFRASTRUCTURE REWARD CLAIMED",
     "claimLog": "INFRASTRUCTURE REWARD: Successfully transferred {sats} Sats to node {node}!",
     "claimToast": "Received {sats} Sats infrastructure reward for node [{node}]!",
-    "claimBtn": "CLAIM SATS INFRASTRUCTURE REWARD"
+    "claimBtn": "CLAIM SATS INFRASTRUCTURE REWARD",
+    "treasuryTitle": "Infrastructure Treasury Pool Wallet",
+    "treasuryBadge": "Protocol Treasury (RFC-0016)",
+    "treasuryDesc": "Independent treasury pool funding Sats rewards for Relay & LoRa Mesh nodes maintaining uptime. Funded via transaction redistribution.",
+    "devDonationTitle": "Developer Donation Wallet",
+    "devDonationBadge": "Voluntary Contribution",
+    "devDonationDesc": "Voluntary community support address for the CypherGuide core development team. Completely separate from the Infrastructure Treasury.",
+    "copyAddress": "Copy address",
+    "copied": "Copied!"
   },
   "listingDetail": {
     "back": "Back",

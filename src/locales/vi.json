@@ -275,7 +275,15 @@
     "claimedReward": "✓ ĐÃ RÚT THƯỞNG HẠ TẦNG",
     "claimLog": "RÚT THƯỞNG HẠ TẦNG: Chuyển thành công {sats} Sats về nút {node}!",
     "claimToast": "Đã nhận {sats} Sats thưởng hạ tầng cho trạm [{node}]!",
-    "claimBtn": "NHẬN THƯỞNG SATS HẠ TẦNG"
+    "claimBtn": "NHẬN THƯỞNG SATS HẠ TẦNG",
+    "treasuryTitle": "Ví Quỹ Thưởng Hạ Tầng (Treasury Pool)",
+    "treasuryBadge": "Quỹ Giao Thức (RFC-0016)",
+    "treasuryDesc": "Nguồn quỹ độc lập chi trả thưởng Sats cho các nút Relay & LoRa Mesh duy trì uptime mạng lưới. Phân phối lại từ phí giao dịch.",
+    "devDonationTitle": "Ví Quyên Góp Nhà Phát Triển (Dev Donation)",
+    "devDonationBadge": "Ủng Hộ Tự Nguyện",
+    "devDonationDesc": "Ví tiếp nhận ủng hộ tự nguyện từ cộng đồng dành cho đội ngũ phát triển CypherGuide. Hoàn toàn tách biệt với Quỹ Hạ Tầng.",
+    "copyAddress": "Sao chép địa chỉ",
+    "copied": "Đã chép!"
   },
   "listingDetail": {
     "back": "Quay lại",

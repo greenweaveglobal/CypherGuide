@@ -3,6 +3,8 @@
  * Ghi nhận đóng góp hạ tầng Meshnet/Relay Node và thưởng phí chia sẻ tài nguyên.
  */
 
+export const DEFAULT_INFRA_TREASURY_LN_ADDRESS = 'peevishtender468@walletofsatoshi.com';
+
 export interface InfraNodeMetrics {
   nodePubKeyHex: string;
   alias: string;
@@ -25,15 +27,22 @@ export function calculateNodeIncentiveReward(metrics: InfraNodeMetrics): number 
 }
 
 /**
- * Thực thi phân phối thưởng đóng góp hạ tầng qua Lightning Network.
+ * Thực thi phân phối thưởng đóng góp hạ tầng qua Lightning Network từ Quỹ Treasury.
  */
 export async function claimNodeIncentive(
   metrics: InfraNodeMetrics,
-  nodeOperatorLnAddress: string
-): Promise<{ success: boolean; rewardSats: number; txHash: string; message: string }> {
+  nodeOperatorLnAddress: string,
+  treasuryAddress: string = DEFAULT_INFRA_TREASURY_LN_ADDRESS
+): Promise<{ success: boolean; rewardSats: number; txHash: string; message: string; treasuryAddress: string }> {
   const rewardSats = calculateNodeIncentiveReward(metrics);
   if (rewardSats <= 0) {
-    return { success: false, rewardSats: 0, txHash: '', message: 'Chưa đủ điều kiện thưởng hạ tầng.' };
+    return { 
+      success: false, 
+      rewardSats: 0, 
+      txHash: '', 
+      message: 'Chưa đủ điều kiện thưởng hạ tầng.',
+      treasuryAddress 
+    };
   }
 
   const mockTxHash = `node_payout_${Date.now()}_${metrics.nodePubKeyHex.slice(0, 8)}`;
@@ -44,7 +53,8 @@ export async function claimNodeIncentive(
         success: true,
         rewardSats,
         txHash: mockTxHash,
-        message: `Đã thanh toán ${rewardSats} Sats thưởng hạ tầng Relay Node [${metrics.alias}] tới [${nodeOperatorLnAddress}]`
+        message: `Đã trích từ Quỹ Hạ Tầng [${treasuryAddress}] thanh toán ${rewardSats} Sats thưởng Relay Node [${metrics.alias}] tới [${nodeOperatorLnAddress}]`,
+        treasuryAddress
       });
     }, 1200);
   });

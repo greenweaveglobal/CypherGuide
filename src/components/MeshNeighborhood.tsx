@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Network, SignalHigh, Server, Globe, Zap, 
   Info, Plus, RefreshCw, CheckCircle2, XCircle, ShieldCheck, 
-  BookOpen, Layers, Radio, Trash2, Bluetooth, Smartphone, Key, WifiOff, Check, Save, Link2, Cpu
+  BookOpen, Layers, Radio, Trash2, Bluetooth, Smartphone, Key, WifiOff, Check, Save, Link2, Cpu,
+  Landmark, Heart, Copy
 } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
@@ -116,6 +117,25 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
   const nodeIncentives = useAppStore((state) => state.nodeIncentives);
   const claimNodeIncentive = useAppStore((state) => state.claimNodeIncentive);
   const customRelaysFromStore = useAppStore((state) => state.customRelays);
+  const infraIncentiveTreasuryLightningAddress = useAppStore((state) => state.infraIncentiveTreasuryLightningAddress);
+  const devLnAddress = useAppStore((state) => state.devLnAddress);
+  const fetchProtocolConfig = useAppStore((state) => state.fetchProtocolConfig);
+
+  const [copiedType, setCopiedType] = useState<'treasury' | 'dev' | null>(null);
+
+  useEffect(() => {
+    fetchProtocolConfig();
+  }, [fetchProtocolConfig]);
+
+  const handleCopyAddress = (address: string, type: 'treasury' | 'dev') => {
+    try {
+      navigator.clipboard.writeText(address);
+      setCopiedType(type);
+      setTimeout(() => setCopiedType(null), 2000);
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const [relays, setRelays] = useState<RelayNode[]>(() => {
     const stored = useAppStore.getState().customRelays || [];
@@ -913,6 +933,103 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
             <Info className="w-4 h-4 shrink-0 mt-0.5 text-cyber-blue" />
             <div>
               <strong>{t('mesh.simModeTitle')}</strong> {t('mesh.simModeDesc')}
+            </div>
+          </div>
+
+          {/* Distinct Wallets: Treasury Pool vs Dev Donation */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            {/* 1. Infrastructure Treasury Pool */}
+            <div className="p-4 rounded-xl border border-cyber-green/40 bg-cyber-green/10 flex flex-col justify-between space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-cyber-green uppercase tracking-wider">
+                    <Landmark className="w-4 h-4 shrink-0 text-cyber-green" />
+                    {t('mesh.treasuryTitle')}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyber-green/20 text-cyber-green border border-cyber-green/30">
+                    {t('mesh.treasuryBadge')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-300 leading-relaxed font-sans">
+                  {t('mesh.treasuryDesc')}
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-cyber-green/20">
+                <span className="text-[9px] uppercase tracking-wider text-gray-400 block mb-1">
+                  Lightning Address (Quỹ Hạ Tầng):
+                </span>
+                <div className="flex items-center justify-between gap-2 p-2 bg-black/60 border border-cyber-green/30 rounded-lg">
+                  <span className="text-xs font-mono font-bold text-cyber-green truncate select-all" title={infraIncentiveTreasuryLightningAddress}>
+                    {infraIncentiveTreasuryLightningAddress}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyAddress(infraIncentiveTreasuryLightningAddress, 'treasury')}
+                    className="p-1.5 hover:bg-cyber-green/20 text-cyber-green rounded transition-colors shrink-0 flex items-center gap-1 text-[10px] cursor-pointer"
+                    title={t('mesh.copyAddress')}
+                  >
+                    {copiedType === 'treasury' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-cyber-green" />
+                        <span className="text-[10px] text-cyber-green font-bold">{t('mesh.copied')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span className="text-[10px]">{t('mesh.copyAddress')}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Developer Donation Wallet */}
+            <div className="p-4 rounded-xl border border-warning/40 bg-warning/5 flex flex-col justify-between space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-warning uppercase tracking-wider">
+                    <Heart className="w-4 h-4 shrink-0 text-warning" />
+                    {t('mesh.devDonationTitle')}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-warning/20 text-warning border border-warning/30">
+                    {t('mesh.devDonationBadge')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-300 leading-relaxed font-sans">
+                  {t('mesh.devDonationDesc')}
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-warning/20">
+                <span className="text-[9px] uppercase tracking-wider text-gray-400 block mb-1">
+                  Lightning Address (Ủng Hộ Dev):
+                </span>
+                <div className="flex items-center justify-between gap-2 p-2 bg-black/60 border border-warning/30 rounded-lg">
+                  <span className="text-xs font-mono font-bold text-warning truncate select-all" title={devLnAddress}>
+                    {devLnAddress}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyAddress(devLnAddress, 'dev')}
+                    className="p-1.5 hover:bg-warning/20 text-warning rounded transition-colors shrink-0 flex items-center gap-1 text-[10px] cursor-pointer"
+                    title={t('mesh.copyAddress')}
+                  >
+                    {copiedType === 'dev' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-warning" />
+                        <span className="text-[10px] text-warning font-bold">{t('mesh.copied')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span className="text-[10px]">{t('mesh.copyAddress')}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

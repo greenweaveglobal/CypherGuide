@@ -226,6 +226,7 @@ ${docsContent}`;
     }
     return {
       devLnAddress: "cypherguide@zaps.lol",
+      infraIncentiveTreasuryLightningAddress: "peevishtender468@walletofsatoshi.com",
       updatedAt: Date.now(),
       updatedBy: "system"
     };
@@ -245,26 +246,43 @@ ${docsContent}`;
     }
   };
 
-  // API: Get protocol config (devLnAddress, etc.)
+  // API: Get protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress, etc.)
   app.get("/api/protocol/config", (req, res) => {
     const config = getProtocolConfig();
     res.json(config);
   });
 
-  // API: Update protocol config (devLnAddress) - Restricted to authorized admins
+  // API: Update protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress) - Restricted to authorized admins
   app.post("/api/protocol/config", (req, res) => {
     try {
-      const { devLnAddress, npub } = req.body;
+      const { devLnAddress, infraIncentiveTreasuryLightningAddress, npub } = req.body;
 
-      if (!devLnAddress || typeof devLnAddress !== "string") {
-        return res.status(400).json({ success: false, error: "Invalid devLnAddress" });
+      if (!devLnAddress && !infraIncentiveTreasuryLightningAddress) {
+        return res.status(400).json({ success: false, error: "No configuration fields provided to update" });
       }
 
-      const trimmedAddress = devLnAddress.trim().toLowerCase();
-      // Allow valid email/lightning address format
       const lnRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
-      if (!lnRegex.test(trimmedAddress) && !trimmedAddress.startsWith("lnurl")) {
-        return res.status(400).json({ success: false, error: "Invalid Lightning Address format. Example: user@domain.com" });
+
+      let trimmedDevAddress: string | undefined;
+      if (devLnAddress) {
+        if (typeof devLnAddress !== "string") {
+          return res.status(400).json({ success: false, error: "Invalid devLnAddress" });
+        }
+        trimmedDevAddress = devLnAddress.trim().toLowerCase();
+        if (!lnRegex.test(trimmedDevAddress) && !trimmedDevAddress.startsWith("lnurl")) {
+          return res.status(400).json({ success: false, error: "Invalid Lightning Address format for devLnAddress. Example: user@domain.com" });
+        }
+      }
+
+      let trimmedTreasuryAddress: string | undefined;
+      if (infraIncentiveTreasuryLightningAddress) {
+        if (typeof infraIncentiveTreasuryLightningAddress !== "string") {
+          return res.status(400).json({ success: false, error: "Invalid infraIncentiveTreasuryLightningAddress" });
+        }
+        trimmedTreasuryAddress = infraIncentiveTreasuryLightningAddress.trim().toLowerCase();
+        if (!lnRegex.test(trimmedTreasuryAddress) && !trimmedTreasuryAddress.startsWith("lnurl")) {
+          return res.status(400).json({ success: false, error: "Invalid Lightning Address format for infraIncentiveTreasuryLightningAddress. Example: user@domain.com" });
+        }
       }
 
       // Check admin authorization - only official dev/guardian npub
@@ -272,13 +290,14 @@ ${docsContent}`;
         npub === "npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6";
 
       if (!isAuthorized) {
-        return res.status(403).json({ success: false, error: "Unauthorized: Only official admin/guardians can update network donation wallet." });
+        return res.status(403).json({ success: false, error: "Unauthorized: Only official admin/guardians can update protocol configuration." });
       }
 
       const current = getProtocolConfig();
       const updated = {
         ...current,
-        devLnAddress: trimmedAddress,
+        ...(trimmedDevAddress ? { devLnAddress: trimmedDevAddress } : {}),
+        ...(trimmedTreasuryAddress ? { infraIncentiveTreasuryLightningAddress: trimmedTreasuryAddress } : {}),
         updatedAt: Date.now(),
         updatedBy: npub || "admin"
       };

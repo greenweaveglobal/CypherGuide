@@ -84,8 +84,11 @@ interface AppState {
 
   devLnAddress: string;
   setDevLnAddress: (address: string) => void;
+  infraIncentiveTreasuryLightningAddress: string;
+  setInfraIncentiveTreasuryLightningAddress: (address: string) => void;
   fetchProtocolConfig: () => Promise<void>;
   updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string }>;
+  updateInfraIncentiveTreasuryLightningAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string }>;
 
   customRelays: RelayNode[];
   addCustomRelay: (relay: RelayNode) => void;
@@ -131,6 +134,9 @@ export const useAppStore = create<AppState>()(
       devLnAddress: 'cypherguide@zaps.lol',
       setDevLnAddress: (address) => set({ devLnAddress: address }),
 
+      infraIncentiveTreasuryLightningAddress: 'peevishtender468@walletofsatoshi.com',
+      setInfraIncentiveTreasuryLightningAddress: (address) => set({ infraIncentiveTreasuryLightningAddress: address }),
+
       fetchProtocolConfig: async () => {
         try {
           const res = await fetch('/api/protocol/config', {
@@ -143,9 +149,12 @@ export const useAppStore = create<AppState>()(
             if (data.devLnAddress && typeof data.devLnAddress === 'string') {
               set({ devLnAddress: data.devLnAddress });
             }
+            if (data.infraIncentiveTreasuryLightningAddress && typeof data.infraIncentiveTreasuryLightningAddress === 'string') {
+              set({ infraIncentiveTreasuryLightningAddress: data.infraIncentiveTreasuryLightningAddress });
+            }
           }
         } catch (e) {
-          // Silent fallback to persisted or default devLnAddress
+          // Silent fallback to persisted or default addresses
         }
       },
 
@@ -173,6 +182,34 @@ export const useAppStore = create<AppState>()(
         } catch (e: any) {
           // If server call fails, still update locally as fallback
           set({ devLnAddress: address });
+          return { success: true };
+        }
+      },
+
+      updateInfraIncentiveTreasuryLightningAddress: async (address: string, npub?: string) => {
+        try {
+          const res = await fetch('/api/protocol/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ infraIncentiveTreasuryLightningAddress: address, npub }),
+            signal: AbortSignal.timeout(5000)
+          });
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && contentType.includes('application/json')) {
+            const data = await res.json();
+            if (data.success) {
+              set({ infraIncentiveTreasuryLightningAddress: data.infraIncentiveTreasuryLightningAddress });
+              return { success: true };
+            }
+            return { success: false, error: data.error || 'Failed to update treasury configuration on server' };
+          } else {
+            // Client-side local fallback update
+            set({ infraIncentiveTreasuryLightningAddress: address });
+            return { success: true };
+          }
+        } catch (e: any) {
+          // If server call fails, still update locally as fallback
+          set({ infraIncentiveTreasuryLightningAddress: address });
           return { success: true };
         }
       },
@@ -438,6 +475,9 @@ export const useAppStore = create<AppState>()(
           }
           if (state && (!state.devLnAddress || state.devLnAddress === 'cypherguide@breez.tips' || state.devLnAddress === 'solidsleep11@walletofsatoshi.com')) {
             state.devLnAddress = 'cypherguide@zaps.lol';
+          }
+          if (state && !state.infraIncentiveTreasuryLightningAddress) {
+            state.infraIncentiveTreasuryLightningAddress = 'peevishtender468@walletofsatoshi.com';
           }
           if (state && state.customRelays) {
             state.customRelays = state.customRelays.map((r) => ({
