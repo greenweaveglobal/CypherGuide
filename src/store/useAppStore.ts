@@ -175,14 +175,15 @@ export const useAppStore = create<AppState>()(
             }
             return { success: false, error: data.error || 'Failed to update configuration on server' };
           } else {
-            // Client-side local fallback update
-            set({ devLnAddress: address });
-            return { success: true };
+            let errorMsg = 'Failed to reach server to update configuration';
+            try {
+              const errData = await res.json();
+              if (errData.error) errorMsg = errData.error;
+            } catch (_) {}
+            return { success: false, error: errorMsg };
           }
         } catch (e: any) {
-          // If server call fails, still update locally as fallback
-          set({ devLnAddress: address });
-          return { success: true };
+          return { success: false, error: e.message || 'Network error: Cannot reach server to save configuration' };
         }
       },
 
@@ -203,14 +204,15 @@ export const useAppStore = create<AppState>()(
             }
             return { success: false, error: data.error || 'Failed to update treasury configuration on server' };
           } else {
-            // Client-side local fallback update
-            set({ infraIncentiveTreasuryLightningAddress: address });
-            return { success: true };
+            let errorMsg = 'Failed to reach server to update treasury configuration';
+            try {
+              const errData = await res.json();
+              if (errData.error) errorMsg = errData.error;
+            } catch (_) {}
+            return { success: false, error: errorMsg };
           }
         } catch (e: any) {
-          // If server call fails, still update locally as fallback
-          set({ infraIncentiveTreasuryLightningAddress: address });
-          return { success: true };
+          return { success: false, error: e.message || 'Network error: Cannot reach server to save treasury configuration' };
         }
       },
 
