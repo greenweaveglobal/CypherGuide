@@ -1,28 +1,36 @@
 import { generateSecretKey, getPublicKey, nip19, finalizeEvent, verifyEvent, getEventHash, nip04, nip44 } from 'nostr-tools';
+import * as nip49 from 'nostr-tools/nip49';
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { NostrIdentity } from '../types';
 
-export async function encryptAndStoreKey(privKeyHex: string, pin: string) {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']
-  );
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
-  );
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv }, key, enc.encode(privKeyHex)
-  );
-  localStorage.setItem('cg_encrypted_vault', JSON.stringify({
-    salt: Array.from(salt), iv: Array.from(iv),
-    data: Array.from(new Uint8Array(encrypted))
-  }));
+/**
+ * NIP-49 Encrypted Vault using scrypt key derivation.
+ * Eliminates weak 4-6 digit PIN brute-force risk.
+ */
+export function encryptAndStoreNip49Vault(privKeyHex: string, passphrase: string): string {
+  if (!passphrase || passphrase.length < 8) {
+    throw new Error('Mật khẩu bảo vệ (Passphrase) phải có ít nhất 8 ký tự.');
+  }
+
+  const sk = hexToBytes(privKeyHex);
+  const encrypted = nip49.encrypt(sk, passphrase);
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('cg_nip49_vault', encrypted);
+    // Remove legacy PIN vault once migrated
+    localStorage.removeItem('cg_encrypted_vault');
+    // Ensure raw private key is completely wiped from sessionStorage
+    sessionStorage.removeItem('cg_session_privkey');
+  }
+
+  return encrypted;
 }
 
-export async function unlockWithPin(pin: string): Promise<string | null> {
+/**
+ * Legacy PBKDF2 vault unlock for migration backwards compatibility.
+ */
+export async function unlockWithLegacyPin(pin: string): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
   const vault = localStorage.getItem('cg_encrypted_vault');
   if (!vault) return null;
   try {
@@ -41,6 +49,64 @@ export async function unlockWithPin(pin: string): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * Unlocks either NIP-49 vault (preferred) or Legacy PIN vault (with migration flag).
+ */
+export async function unlockVault(passphraseOrPin: string): Promise<{ privKeyHex: string; isLegacyMigrated: boolean } | null> {
+  if (typeof window === 'undefined') return null;
+
+  // 1. Try NIP-49 scrypt-based vault first
+  const nip49Vault = localStorage.getItem('cg_nip49_vault');
+  if (nip49Vault) {
+    try {
+      const sk = nip49.decrypt(nip49Vault, passphraseOrPin);
+      const privKeyHex = bytesToHex(sk);
+      return { privKeyHex, isLegacyMigrated: false };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 2. Fallback to Legacy PIN vault for smooth user migration
+  const legacyVault = localStorage.getItem('cg_encrypted_vault');
+  if (legacyVault) {
+    const legacyKey = await unlockWithLegacyPin(passphraseOrPin);
+    if (legacyKey) {
+      return { privKeyHex: legacyKey, isLegacyMigrated: true };
+    }
+  }
+
+  return null;
+}
+
+export function hasVault(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(localStorage.getItem('cg_nip49_vault') || localStorage.getItem('cg_encrypted_vault'));
+}
+
+export function hasLegacyVault(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(localStorage.getItem('cg_encrypted_vault') && !localStorage.getItem('cg_nip49_vault'));
+}
+
+export function removeVault(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('cg_nip49_vault');
+  localStorage.removeItem('cg_encrypted_vault');
+  sessionStorage.removeItem('cg_session_privkey');
+}
+
+// Backward-compatible alias for existing callers
+export const encryptAndStoreKey = (privKeyHex: string, pinOrPass: string) => {
+  if (pinOrPass.length >= 8) {
+    return encryptAndStoreNip49Vault(privKeyHex, pinOrPass);
+  }
+  // If legacy 4-6 pin provided during migration/fallback
+  return encryptAndStoreNip49Vault(privKeyHex, pinOrPass);
+};
+
+export const unlockWithPin = unlockWithLegacyPin;
 
 export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -178,14 +244,7 @@ export async function encryptNostrMessage(
   identity: NostrIdentity,
   standard: 'NIP-04' | 'NIP-44' = 'NIP-44'
 ): Promise<string> {
-  let privKeyHex = identity.privKeyHex;
-  if (!privKeyHex && typeof window !== 'undefined') {
-    const saved = sessionStorage.getItem('cg_session_privkey');
-    if (saved) {
-      privKeyHex = saved;
-      identity.privKeyHex = saved;
-    }
-  }
+  const privKeyHex = identity.privKeyHex;
 
   // Try NIP-07 Extension first if present and no local privKey
   const nostr = (window as any).nostr;
@@ -198,7 +257,7 @@ export async function encryptNostrMessage(
     }
   }
 
-  // Use local session private key if available
+  // Use in-memory private key if available
   if (privKeyHex) {
     try {
       const sk = hexToBytes(privKeyHex);
@@ -215,7 +274,7 @@ export async function encryptNostrMessage(
 
   // Strict Cypherpunk refusal: Do not silently fallback to unencrypted or public-key-derived keys!
   throw new Error(
-    "THIẾU PRIVKEY TRONG PHIÊN: Vì lý do bảo mật, nsec không lưu trên localStorage sau khi reload trang. Vui lòng nhập nsec trong phiên làm việc hoặc bật NIP-07 Extension để gửi tin nhắn mã hóa E2EE."
+    "THIẾU PRIVKEY TRONG PHIÊN: Vì lý do bảo mật, nsec không lưu trên trình duyệt sau khi tải lại trang. Vui lòng mở khóa Vault bằng Passphrase hoặc bật NIP-07 Extension để gửi tin nhắn mã hóa E2EE."
   );
 }
 
@@ -233,14 +292,7 @@ export async function decryptNostrMessage(
     return '[🔐 Tin nhắn được gửi từ phiên thử nghiệm cũ]';
   }
 
-  let privKeyHex = identity.privKeyHex;
-  if (!privKeyHex && typeof window !== 'undefined') {
-    const saved = sessionStorage.getItem('cg_session_privkey');
-    if (saved) {
-      privKeyHex = saved;
-      identity.privKeyHex = saved;
-    }
-  }
+  const privKeyHex = identity.privKeyHex;
 
   // Try NIP-07 Extension if no local privKeyHex
   const nostr = (window as any).nostr;
@@ -273,7 +325,7 @@ export async function decryptNostrMessage(
   }
 
   // Clear notice that private key is needed to decrypt
-  return '[🔐 Tin nhắn đã mã hóa E2EE — Cần nhập nsec phiên này hoặc kích hoạt NIP-07 extension để giải mã]';
+  return '[🔐 Tin nhắn đã mã hóa E2EE — Cần mở khóa Vault hoặc kích hoạt NIP-07 extension để giải mã]';
 }
 
 export async function signMessage(message: string, identity: NostrIdentity): Promise<string> {
@@ -284,33 +336,21 @@ export async function signMessage(message: string, identity: NostrIdentity): Pro
     content: message,
   };
 
-  let privKeyHex = identity.privKeyHex;
-  if (!privKeyHex && typeof window !== 'undefined') {
-    const saved = sessionStorage.getItem('cg_session_privkey');
-    if (saved) {
-      privKeyHex = saved;
-      identity.privKeyHex = saved;
-    }
-  }
+  const privKeyHex = identity.privKeyHex;
 
   if (!identity.nsec && !privKeyHex) {
     const nostr = (window as any).nostr;
-    if (!nostr) throw new Error("NIP-07 extension not found");
+    if (!nostr) {
+      throw new Error("Không có khóa riêng tư trong bộ nhớ. Vui lòng mở khóa Vault bằng Passphrase hoặc kết nối extension NIP-07.");
+    }
     const signedEvent = await nostr.signEvent(eventTemplate);
     return JSON.stringify(signedEvent);
+  } else if (privKeyHex) {
+    const sk = hexToBytes(privKeyHex);
+    const signedEvent = finalizeEvent(eventTemplate, sk);
+    return JSON.stringify(signedEvent);
   } else {
-    try {
-      const sk = hexToBytes(privKeyHex);
-      const signedEvent = finalizeEvent(eventTemplate, sk);
-      return JSON.stringify(signedEvent);
-    } catch (e) {
-      return JSON.stringify({
-        ...eventTemplate,
-        pubkey: identity.pubKeyHex,
-        id: await sha256(message),
-        sig: 'sig_mock_' + bytesToHex(window.crypto.getRandomValues(new Uint8Array(32)))
-      });
-    }
+    throw new Error("Không thể ký thông điệp: Thiếu khóa riêng tư hợp lệ.");
   }
 }
 

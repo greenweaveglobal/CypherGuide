@@ -302,3 +302,35 @@ export async function redeemP2PKLockedToken(
 ): Promise<{ success: boolean; totalSats: number; mint?: string; error?: string }> {
   return redeemCashuToken(tokenString, signatures, userPubkeyHex);
 }
+
+/**
+ * Calculates total satoshi amount from an array of Cashu Proofs.
+ */
+export function calculateTotalEcashAmount(proofs: CashuProof[]): number {
+  if (!proofs || !Array.isArray(proofs)) return 0;
+  return proofs.reduce((sum, p) => sum + (p.amount || 0), 0);
+}
+
+/**
+ * Splits ecash proofs into targeted amount and change proofs.
+ */
+export function splitProofsForAmount(
+  proofs: CashuProof[],
+  targetAmount: number
+): { targetProofs: CashuProof[]; changeProofs: CashuProof[] } {
+  const targetProofs: CashuProof[] = [];
+  const changeProofs: CashuProof[] = [];
+  let accumulated = 0;
+
+  for (const p of proofs) {
+    if (accumulated < targetAmount) {
+      targetProofs.push(p);
+      accumulated += p.amount;
+    } else {
+      changeProofs.push(p);
+    }
+  }
+
+  return { targetProofs, changeProofs };
+}
+

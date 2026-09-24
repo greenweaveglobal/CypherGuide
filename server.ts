@@ -1,11 +1,13 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import helmet from "helmet";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
 import multer from "multer";
 import crypto from "crypto";
 import { verifyEvent, nip19 } from "nostr-tools";
+import { queryDocsAssistant } from "./lib/docsAssistant";
+import { resolveLightningInvoice } from "./lib/lnurlResolver";
 
 // Authorized Admin Public Keys (Hex representation)
 const AUTHORIZED_ADMIN_PUBKEYS = new Set([
@@ -203,61 +205,18 @@ function validateImageMagicBytes(filePath: string): ImageValidationResult {
   }
 }
 
-function loadProjectDocs(): string {
-  const docs: string[] = [];
-  const filesToRead = [
-    "ARCHITECTURE.md",
-    "ARCHITECTURE.vi.md",
-    "ARCHITECTURE.en.md",
-    "MATURITY.md",
-    "MATURITY.vi.md",
-    "MATURITY.en.md",
-    "CONTRIBUTING.md",
-    "CONTRIBUTING.vi.md",
-    "CONTRIBUTING.en.md",
-    "HOST_LEGAL_REALITY.md",
-    "HOST_LEGAL_REALITY.vi.md",
-    "HOST_LEGAL_REALITY.en.md",
-    "POSITIONING.md",
-    "POSITIONING.vi.md",
-    "POSITIONING.en.md",
-    "HANDOFF_NOTES.md"
-  ];
-
-  for (const relPath of filesToRead) {
-    const fullPath = path.join(process.cwd(), relPath);
-    if (fs.existsSync(fullPath)) {
-      try {
-        const content = fs.readFileSync(fullPath, "utf-8");
-        docs.push(`=== FILE: ${relPath} ===\n${content}`);
-      } catch (err) {
-        console.error(`Error reading ${relPath}:`, err);
-      }
-    }
-  }
-
-  const rfcDir = path.join(process.cwd(), "RFC");
-  if (fs.existsSync(rfcDir)) {
-    try {
-      const rfcFiles = fs.readdirSync(rfcDir);
-      for (const file of rfcFiles) {
-        if (file.endsWith(".md")) {
-          const fullPath = path.join(rfcDir, file);
-          const content = fs.readFileSync(fullPath, "utf-8");
-          docs.push(`=== FILE: RFC/${file} ===\n${content}`);
-        }
-      }
-    } catch (err) {
-      console.error("Error reading RFC dir:", err);
-    }
-  }
-
-  return docs.join("\n\n");
-}
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Trust proxy for reverse proxy IP extraction (Rate limiters & audit logs)
+  app.set('trust proxy', 1);
+
+  // Security Headers via Helmet (relaxed CSP for Vite SPA client)
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  }));
 
   app.use(express.json({ limit: "2mb" }));
 
@@ -321,7 +280,7 @@ async function startServer() {
     next();
   };
 
-  // API endpoint for Documentation Lookup Assistant (RFC-0005)
+  // API endpoint for Documentation Lookup Assistant (RFC-0005) - Unified via lib/docsAssistant
   const docsQueryHandler = async (req: express.Request, res: express.Response) => {
     try {
       const question = req.body?.question || req.query?.question;
@@ -335,120 +294,8 @@ async function startServer() {
         return res.status(400).json({ error: "Question exceeds maximum allowed length of 500 characters." });
       }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        return res.status(200).json({
-          answer: locale === 'en'
-            ? "Error: GEMINI_API_KEY environment variable is not set on server."
-            : "Lỗi: GEMINI_API_KEY chưa được thiết lập trong hằng số môi trường của server. Vui lòng kiểm tra lại cấu hình Settings > Secrets.",
-          success: false
-        });
-      }
-
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build'
-          }
-        }
-      });
-
-      const docsContent = loadProjectDocs();
-      const userLocale = locale === 'en' ? 'en' : 'vi';
-
-      const systemInstruction = `You are the Cypher Guide Documentation Lookup Assistant (Trợ Lý Tra Cứu Tài Liệu Cypher Guide).
-Your ONLY task is to look up and answer questions based strictly on the official project documentation provided below.
-
-STRICT MANDATORY RULES YOU MUST FOLLOW WITHOUT EXCEPTION:
-1. Answer strictly and only based on the provided official documentation context.
-2. IF A QUESTION CANNOT BE ANSWERED DIRECTLY FROM THE PROVIDED DOCUMENTATION (or asks about features, policies, code, or topics not mentioned in the documentation), YOU MUST RESPOND EXACTLY WITH:
-${userLocale === 'en' ? '"There is no documentation about this yet"' : '"Chưa có tài liệu về việc này"'}
-3. DO NOT speculate, assume, guess, or invent any features, protocols, algorithms, dates, policies, or mechanisms that are not explicitly documented.
-4. DO NOT present yourself as an official representative, spokesperson, or decision-maker of the Cypher Guide project. You are purely an automated document lookup index tool.
-5. Provide clear, direct, concise, and truthful answers with reference to the specific RFCs or Architecture section where applicable.
-6. LANGUAGE MANDATE: ${userLocale === 'en' ? 'Respond in English.' : 'ALWAYS respond in Vietnamese (Tiếng Việt). Translate concepts into clear Vietnamese where appropriate while keeping RFC citations in English filenames.'}
-
---- OFFICIAL PROJECT DOCUMENTATION CONTEXT ---
-${docsContent}`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: question,
-        config: {
-          systemInstruction
-        }
-      });
-
-      // Post-process model output using the agreed JSON-marker protocol.
-      // Design: model MUST append a single-line JSON marker on the last line of its output.
-      // The server will take the last non-empty, non-code-fence line only and attempt to JSON.parse it.
-      // - If parsing succeeds and marker.grounded === true: return the model answer with the marker line removed.
-      // - If parsing fails or marker.grounded !== true: return the strict fallback phrase (do not return model text).
-      // NOTE: the JSON marker MUST NOT be leaked to the client.
-
-      const rawOutput = (response as any).text ?? "";
-      const fallback = userLocale === 'en' ? "There is no documentation about this yet" : "Chưa có tài liệu về việc này";
-
-      let finalAnswer = fallback;
-
-      try {
-        const normalized = rawOutput.replace(/\r\n/g, "\n").trimEnd();
-        if (normalized.length > 0) {
-          const lines = normalized.split(/\n/);
-
-          // Find last non-empty line index
-          let idx = lines.length - 1;
-          while (idx >= 0 && lines[idx].trim() === "") idx--;
-
-          // Skip trailing code-fence closers/backticks if present
-          // This handles cases where model wraps the JSON marker in a code fence:
-          // ```json\n{...}\n``` --> lines end with ``` so we skip those markers to reach JSON line.
-          if (idx >= 0 && lines[idx].trim().startsWith('```')) {
-            // skip the closing fence
-            idx--;
-            // skip any additional empty lines
-            while (idx >= 0 && lines[idx].trim() === "") idx--;
-          }
-
-          if (idx >= 0) {
-            const candidate = lines[idx].trim();
-
-            let marker: any = null;
-            try {
-              marker = JSON.parse(candidate);
-            } catch (e) {
-              marker = null;
-            }
-
-            if (marker && typeof marker.grounded !== 'undefined') {
-              if (marker.grounded === true) {
-                // Remove the marker line (and any trailing empty lines/fences) from the output
-                const answerLines = lines.slice(0, idx).join('\n').trim();
-                finalAnswer = answerLines.length > 0 ? answerLines : fallback;
-              } else {
-                // Explicitly ungrounded
-                finalAnswer = fallback;
-              }
-            } else {
-              // Marker missing or not parsable
-              finalAnswer = fallback;
-            }
-          } else {
-            finalAnswer = fallback;
-          }
-        } else {
-          finalAnswer = fallback;
-        }
-      } catch (err) {
-        console.error('Error processing model output marker:', err);
-        finalAnswer = fallback;
-      }
-
-      return res.json({
-        answer: finalAnswer,
-        success: true
-      });
+      const result = await queryDocsAssistant(question, locale);
+      return res.json(result);
     } catch (error: any) {
       console.error("Error in /api/docs-assistant/query:", error);
       return res.status(500).json({
@@ -567,98 +414,19 @@ ${docsContent}`;
     }
   });
 
-  // API: Resolve Lightning Address to real BOLT11 invoice via LNURL-pay
+  // API: Resolve Lightning Address to real BOLT11 invoice via LNURL-pay (SSRF-safe, LUD-06 validated)
   app.get("/api/lightning/resolve-invoice", async (req, res) => {
     try {
       const address = (req.query.address as string || "").trim().toLowerCase();
       const amountSats = parseInt(req.query.amount as string) || 21000;
 
-      if (!address || !address.includes("@")) {
-        return res.status(400).json({ success: false, error: "Invalid Lightning Address (must be user@domain.com)" });
+      const result = await resolveLightningInvoice(address, amountSats);
+      if (!result.success) {
+        const statusCode = result.fallback ? 502 : 400;
+        return res.status(statusCode).json(result);
       }
 
-      const [username, domain] = address.split("@");
-      if (!username || !domain) {
-        return res.status(400).json({ success: false, error: "Malformed Lightning Address" });
-      }
-
-      // 1. Fetch LNURL metadata from domain
-      const lnurlEndpoint = `https://${domain}/.well-known/lnurlp/${username}`;
-      const metaRes = await fetch(lnurlEndpoint, {
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "CypherGuide-App/1.1"
-        },
-        signal: AbortSignal.timeout(6000)
-      });
-
-      if (!metaRes.ok) {
-        return res.status(502).json({
-          success: false,
-          error: `Lightning domain ${domain} returned HTTP ${metaRes.status}`,
-          fallback: true
-        });
-      }
-
-      const metadata: any = await metaRes.json();
-      if (metadata.status === "ERROR") {
-        return res.status(400).json({
-          success: false,
-          error: metadata.reason || "LNURL error returned by wallet provider",
-          fallback: true
-        });
-      }
-
-      const callback = metadata.callback;
-      const minSendable = metadata.minSendable || 1000; // millisats
-      const maxSendable = metadata.maxSendable || 100000000000; // millisats
-      const millisats = amountSats * 1000;
-
-      if (millisats < minSendable || millisats > maxSendable) {
-        return res.status(400).json({
-          success: false,
-          error: `Amount must be between ${Math.ceil(minSendable / 1000)} and ${Math.floor(maxSendable / 1000)} Sats`,
-          fallback: true
-        });
-      }
-
-      // 2. Fetch invoice from callback
-      const callbackUrl = new URL(callback);
-      callbackUrl.searchParams.set("amount", millisats.toString());
-      callbackUrl.searchParams.set("comment", "Donation V4V Cypher Guide");
-
-      const invoiceRes = await fetch(callbackUrl.toString(), {
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "CypherGuide-App/1.1"
-        },
-        signal: AbortSignal.timeout(6000)
-      });
-
-      if (!invoiceRes.ok) {
-        return res.status(502).json({
-          success: false,
-          error: `Callback provider ${domain} failed to create invoice`,
-          fallback: true
-        });
-      }
-
-      const invoiceData: any = await invoiceRes.json();
-      if (invoiceData.status === "ERROR" || !invoiceData.pr) {
-        return res.status(400).json({
-          success: false,
-          error: invoiceData.reason || "No invoice returned from provider",
-          fallback: true
-        });
-      }
-
-      return res.json({
-        success: true,
-        invoice: invoiceData.pr,
-        isReal: true,
-        address,
-        amountSats
-      });
+      return res.json(result);
     } catch (err: any) {
       return res.status(500).json({
         success: false,

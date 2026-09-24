@@ -218,20 +218,11 @@ export const useAppStore = create<AppState>()(
 
       identity: null,
       setIdentity: (identity) => {
-        let activeIdentity = identity;
         if (typeof window !== 'undefined') {
-          if (activeIdentity?.privKeyHex) {
-            sessionStorage.setItem('cg_session_privkey', activeIdentity.privKeyHex);
-          } else if (activeIdentity === null) {
-            sessionStorage.removeItem('cg_session_privkey');
-          } else if (activeIdentity && !activeIdentity.privKeyHex) {
-            const savedPrivKey = sessionStorage.getItem('cg_session_privkey');
-            if (savedPrivKey) {
-              activeIdentity = { ...activeIdentity, privKeyHex: savedPrivKey };
-            }
-          }
+          // Explicitly purge legacy raw keys from sessionStorage if any existed
+          sessionStorage.removeItem('cg_session_privkey');
         }
-        set({ identity: activeIdentity });
+        set({ identity });
       },
 
       listings: INITIAL_LISTINGS.map(migrateListingToRoomTypes),
@@ -463,15 +454,8 @@ export const useAppStore = create<AppState>()(
               state.identity = null;
             }
           }
-          // Restore privKeyHex from sessionStorage if available
-          try {
-            const savedPrivKey = sessionStorage.getItem('cg_session_privkey');
-            if (savedPrivKey && state?.identity && !state.identity.privKeyHex) {
-              state.identity.privKeyHex = savedPrivKey;
-            }
-          } catch (e) {
-            // ignore sessionStorage error
-          }
+          // Ensure sessionStorage has no residual keys
+          sessionStorage.removeItem('cg_session_privkey');
           if (state && state.listings) {
             state.listings = state.listings.map(migrateListingToRoomTypes);
           }
