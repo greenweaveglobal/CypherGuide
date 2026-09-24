@@ -8,19 +8,17 @@ import {
 import { Listing } from '../src/types';
 
 describe('Pricing Module', () => {
-  const sampleListing: Listing = {
+  const sampleListing: any = {
     id: 'listing_1',
-    hostNpub: 'npub1host...',
     title: 'Da Lat Secret Cyber House',
     description: 'Autonomous house with Lightning locks',
-    location: 'Da Lat, Vietnam',
-    latitude: 11.94,
-    longitude: 108.45,
+    imagePrompt: 'cyberpunk house in Da Lat',
+    meshCoordinates: 'mesh:11.94:108.45',
     priceSats: 50000,
     maxGuests: 2,
-    amenities: ['wifi', 'smart_lock'],
+    securitySpecs: ['wifi', 'smart_lock'],
     imageUrl: 'https://example.com/img.jpg',
-    createdAt: 1700000000
+    coOwners: []
   };
 
   it('migrates legacy listing to room types structure seamlessly', () => {

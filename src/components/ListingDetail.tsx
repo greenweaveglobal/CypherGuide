@@ -8,7 +8,7 @@ import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { sha256, signMessage, hexToBytes, bytesToHex, npubToHex } from '../utils/crypto';
-import { generateBolt11, isWebLNAvailable, payViaWebLN } from '../utils/lightning';
+import { generateBolt11, isWebLNAvailable, payViaWebLN, IS_LIVE_MODE, resolveLightningAddressToInvoice } from '../utils/lightning';
 import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../utils/depositEscrow';
 import { DEFAULT_ARBITRATOR_POOL } from '../utils/insuranceFund';
@@ -256,6 +256,24 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
     addPaymentLog('Requesting Lightning Invoice from mesh routing node...');
     onAddLog('relay', t('listingDetail.requestingLNLog', { title: listing.title }));
     
+    if (IS_LIVE_MODE) {
+      const hostLightningAddress = listing.coOwners?.[0]?.lightningAddress;
+      if (hostLightningAddress) {
+        resolveLightningAddressToInvoice(hostLightningAddress, totalPriceSats + totalFeeSats).then((resolved) => {
+          if (resolved.invoice && resolved.isReal) {
+            setInvoice(resolved.invoice);
+            addPaymentLog(`Received real Lightning Invoice from host: ${resolved.invoice.slice(0, 15)}...`);
+            onAddLog('lightning', t('listingDetail.invoiceReceivedLog', { invoice: resolved.invoice.slice(0, 20) }));
+          } else {
+            addPaymentLog(`Lỗi Live: ${resolved.error || 'Không thể tạo invoice từ máy chủ Host'}`);
+          }
+        });
+      } else {
+        addPaymentLog('Lỗi: Listing thiếu Lightning Address thực tế để nhận thanh toán trên Live Mainnet.');
+      }
+      return;
+    }
+
     setTimeout(() => {
       const generatedInvoice = generateBolt11(totalPriceSats + totalFeeSats, `Thanh toan phong tai ${listing.title}`);
       setInvoice(generatedInvoice);

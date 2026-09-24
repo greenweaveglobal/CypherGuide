@@ -5,6 +5,8 @@ export { verifyLightningPreimage };
 
 // Build-time / Environment payment mode flag (defaults to 'live' for real payments)
 export const PAYMENT_MODE = (import.meta.env.VITE_PAYMENT_MODE || 'live').toLowerCase();
+export const IS_DEMO_MODE = PAYMENT_MODE === 'demo' || (typeof window !== 'undefined' && (window.location.hostname.startsWith('demo.') || window.location.hostname.includes('demo.')));
+export const IS_LIVE_MODE = !IS_DEMO_MODE;
 
 // WebLN standard type definitions
 export interface WebLNProvider {
@@ -34,7 +36,12 @@ export function satsToLightningMultiplier(sats: number): string {
 
 // Generate an authentic-looking BOLT11 invoice for sandbox/demo testing
 export function generateBolt11(amountSats: number, memo: string): string {
-  const prefix = 'lnbc' + satsToLightningMultiplier(amountSats);
+  if (IS_LIVE_MODE) {
+    throw new Error('Cảnh báo bảo mật: Không được phép tạo hóa đơn giả lập trong chế độ Live Production. Mọi hóa đơn phải được tạo từ Lightning Node hoặc LNURL thực tế của Host.');
+  }
+
+  // Bitcoin Testnet prefix (lntb) for authentic Testnet / Mutinynet / Polar signet experience
+  const prefix = 'lntb' + satsToLightningMultiplier(amountSats);
   const timestamp = Math.floor(Date.now() / 1000).toString(16);
   const memoHex = Array.from(new TextEncoder().encode(memo))
     .map(b => b.toString(16).padStart(2, '0'))
@@ -53,12 +60,12 @@ export function generateBolt11(amountSats: number, memo: string): string {
 /**
  * Kiểm tra xem invoice có phải là invoice giả lập (simulated) hay không.
  * QUY TẮC BẢO MẬT:
- * - Khi PAYMENT_MODE là 'live' (production), KHÔNG BAO GIỜ coi bất kỳ invoice nào là simulated!
- * - Chỉ coi là simulated khi PAYMENT_MODE === 'demo' VÀ chuỗi kết thúc rõ ràng bằng '_sim'.
+ * - Khi IS_LIVE_MODE là true (production), KHÔNG BAO GIỜ coi bất kỳ invoice nào là simulated!
+ * - Chỉ coi là simulated khi IS_DEMO_MODE === true VÀ chuỗi kết thúc rõ ràng bằng '_sim'.
  * - TUYỆT ĐỐI KHÔNG dùng tiền tố hay định dạng chuỗi hoa/thường để suy đoán invoice giả lập.
  */
 export function isSimulatedInvoice(invoice: string): boolean {
-  if (PAYMENT_MODE !== 'demo') {
+  if (IS_LIVE_MODE) {
     return false;
   }
   return invoice.endsWith('_sim') || invoice.includes('_sim');
@@ -192,7 +199,16 @@ export async function resolveLightningAddressToInvoice(
     // Silent fail over to local fallback
   }
 
-  // Tier 3: Seamless Local Simulated Invoice fallback (prevents any application crash)
+  // If resolution fails on Live mode, do NOT fall back to a fake simulated invoice
+  if (IS_LIVE_MODE) {
+    return {
+      invoice: '',
+      isReal: false,
+      error: 'Không thể phân giải hóa đơn từ máy chủ LNURL của địa chỉ Lightning. Vui lòng kiểm tra lại địa chỉ hoặc thử lại sau.'
+    };
+  }
+
+  // Tier 3: Seamless Local Simulated Invoice fallback for Demo/Testnet mode
   return {
     invoice: generateBolt11(amountSats, `Donation to ${cleanAddress}`),
     isReal: false
@@ -201,8 +217,8 @@ export async function resolveLightningAddressToInvoice(
 
 // Pay via WebLN (safe handling: isolates simulated demo invoices from triggering real wallet errors)
 export async function payViaWebLN(invoice: string): Promise<{ success: boolean; preimage?: string; error?: string }> {
-  // If invoice is a generated simulated invoice, do NOT send to real wallet extension to prevent checksum errors
-  if (isSimulatedInvoice(invoice)) {
+  // If invoice is a generated simulated invoice in demo mode, do NOT send to real wallet extension to prevent checksum errors
+  if (IS_DEMO_MODE && isSimulatedInvoice(invoice)) {
     return new Promise((resolve) => {
       setTimeout(() => {
         const mockPreimage = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');

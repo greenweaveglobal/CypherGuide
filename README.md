@@ -2,8 +2,11 @@
 
 **Sovereign Peer-to-Peer Lodging & Community Protocol**
 
-🌐 **Official Website / Live App**: [https://cypherguide.org](https://cypherguide.org)  
-📄 **Documentation & RFCs**: [https://cypherguide.org/?tab=guide](https://cypherguide.org/?tab=guide)
+- 🌐 **Live Mainnet Web App**: [https://cypherguide.org](https://cypherguide.org)  
+  *Production environment (`VITE_PAYMENT_MODE=live`). Strict non-custodial P2P settlements via real Lightning nodes & LNURL. All mock/simulation code paths are stripped.*
+- 🧪 **Testnet / Signet Demo App**: [https://demo.cypherguide.org](https://demo.cypherguide.org)  
+  *Sandbox environment (`VITE_PAYMENT_MODE=demo`). Runs on Bitcoin Testnet / Mutinynet signet with a persistent, non-dismissible demo warning banner.*
+- 📄 **Documentation & RFCs**: [https://cypherguide.org/?tab=guide](https://cypherguide.org/?tab=guide)
 
 > *A non-custodial, censorship-resistant booking and identity protocol built on Nostr (NIP-01/05/47), Bitcoin Lightning Network, and autonomous cryptographic governance.*
 
@@ -13,9 +16,10 @@
 
 > **Important**: Please review [`MATURITY.md`](./MATURITY.md) before interacting with live nodes or testing.
 
-- **Current Stage**: **Tier 1 (Devnet / Testnet)**
-  - ✅ **Completed**: BIP-340 Schnorr cryptographic event signing (`@noble/curves`), AES-GCM-256 client-side secret encryption, 2-of-3 BFT Arbitrator Council escrow, Dynamic Fee algorithms, cryptographic Proof-of-Stay badges (Nostr Kind 30078), self-healing client data reconcilers.
-  - 🟡 **In Active Development (Tier 2)**: Live multi-relay WebSocket connections (WSS), production Lightning WalletConnect (NWC) mainnet bindings, and bounded layer-2 state storage.
+- **Current Stage**: **Tier 1 (Devnet / Testnet) — Core Audited, Escrow in Transition**
+  - ✅ **Completed & Audited**: NIP-49 Vault (`ncryptsec`/`scrypt`, zero raw keys in storage), SSRF-hardened LUD-06 resolver, BIP-340 Schnorr KYC attestation verification (Kind 30388), Dual-signed Proof-of-Stay badges (Kind 30078, Guest + Host co-signing), NIP-98 admin HTTP Auth, magic-byte image validation blocking SVG XSS, Preimage SHA-256 cryptographic verification for Lightning payments, automated 23-test Vitest CI suite.
+  - ⚠️ **Mandatory Disclosure (Arbitrator Council)**: The 2-of-3 BFT Arbitrator Council in `insuranceFund.ts` currently uses **placeholder public keys for simulation/demo** — no genuine independent third-party arbitrators hold the corresponding private keys. Automated trustless dispute resolution is NOT operational on production until 3 independent parties are onboarded.
+  - 🟡 **In Active Development (Tier 2)**: Live multi-relay WebSocket connections (WSS), production Lightning WalletConnect (NWC) mainnet bindings, and non-custodial smart escrow contracts (DLC / Hold Invoices).
 - **Safety Rule**: **DO NOT deposit or stake significant mainnet funds.** Test with testnet satoshis or minimal experimental amounts only.
 
 ---
@@ -92,11 +96,19 @@ The application will be accessible at `http://localhost:3000`.
 ### Building & Verification
 
 ```bash
+# Run automated tests (Vitest)
+npm test
+
 # Run TypeScript typechecks
 npm run lint
 
-# Build production bundle
-npm run build
+# Build production bundle for Live Mainnet (cypherguide.org)
+# (Strict mode: strips mock invoice generation and simulated preimages)
+VITE_PAYMENT_MODE=live npm run build
+
+# Build sandbox bundle for Testnet Demo (demo.cypherguide.org)
+# (Includes persistent Testnet banner and testnet/signet integration)
+VITE_PAYMENT_MODE=demo npm run build
 ```
 
 ---

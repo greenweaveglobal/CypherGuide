@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, Booking, NostrIdentity } from '../types';
-import { generateBolt11, isWebLNAvailable, payViaWebLN } from '../utils/lightning';
+import { generateBolt11, isWebLNAvailable, payViaWebLN, IS_LIVE_MODE, resolveLightningAddressToInvoice } from '../utils/lightning';
 import { generateCashuToken, redeemCashuToken } from '../utils/cashu';
 import { payInvoiceViaNWC, getNWCConnectionString, saveNWCConnectionString, parseNWCUrl } from '../utils/nwc';
 import { sha256 } from '../utils/crypto';
@@ -134,7 +134,26 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     const hash = await sha256(listing.id + startDate + endDate + identity.npub + Date.now().toString());
     const room = effectiveListing ? getRoomType(effectiveListing, selectedRoomTypeId) : null;
     const roomSuffix = room ? ` - ${room.name}` : '';
-    const bolt11 = generateBolt11(totalWithFee, `Thanh toan phong tai ${listing.title}${roomSuffix}`);
+
+    let bolt11 = '';
+    if (IS_LIVE_MODE) {
+      const hostLightningAddress = listing.coOwners?.[0]?.lightningAddress;
+      if (hostLightningAddress) {
+        const resolved = await resolveLightningAddressToInvoice(hostLightningAddress, totalWithFee);
+        if (resolved.invoice && resolved.isReal) {
+          bolt11 = resolved.invoice;
+        } else {
+          setErrorMsg(resolved.error || 'Chế độ Live Mainnet: Không thể tạo invoice từ máy chủ Lightning của Host.');
+          return;
+        }
+      } else {
+        setErrorMsg('Chế độ Live Mainnet: Listing này chưa có Lightning Address hợp lệ của Host để nhận thanh toán thật.');
+        return;
+      }
+    } else {
+      bolt11 = generateBolt11(totalWithFee, `Thanh toan phong tai ${listing.title}${roomSuffix}`);
+    }
+
     const generatedCashu = generateCashuToken(totalWithFee, 'https://mint.cashu.space', `Thanh toan phong: ${listing.title}${roomSuffix}`);
     
     setInvoice(bolt11);
