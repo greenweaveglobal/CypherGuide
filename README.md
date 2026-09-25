@@ -3,9 +3,7 @@
 **Sovereign Peer-to-Peer Lodging & Community Protocol**
 
 - 🌐 **Live Mainnet Web App**: [https://cypherguide.org](https://cypherguide.org)  
-  *Production environment (`VITE_PAYMENT_MODE=live`). Strict non-custodial P2P settlements via real Lightning nodes & LNURL. All mock/simulation code paths are stripped.*
-- 🧪 **Testnet / Signet Demo App**: [https://demo.cypherguide.org](https://demo.cypherguide.org)  
-  *Sandbox environment (`VITE_PAYMENT_MODE=demo`). Runs on Bitcoin Testnet / Mutinynet signet with a persistent, non-dismissible demo warning banner.*
+  *Production environment. Strict non-custodial P2P settlements via real Lightning nodes & LNURL. All mock/simulation code paths are stripped.*
 - 📄 **Documentation & RFCs**: [https://cypherguide.org/?tab=guide](https://cypherguide.org/?tab=guide)
 
 > *A non-custodial, censorship-resistant booking and identity protocol built on Nostr (NIP-01/05/47), Bitcoin Lightning Network, and autonomous cryptographic governance.*
@@ -102,13 +100,9 @@ npm test
 # Run TypeScript typechecks
 npm run lint
 
-# Build production bundle for Live Mainnet (cypherguide.org)
+# Build production bundle (cypherguide.org)
 # (Strict mode: strips mock invoice generation and simulated preimages)
-VITE_PAYMENT_MODE=live npm run build
-
-# Build sandbox bundle for Testnet Demo (demo.cypherguide.org)
-# (Includes persistent Testnet banner and testnet/signet integration)
-VITE_PAYMENT_MODE=demo npm run build
+npm run build
 ```
 
 ---

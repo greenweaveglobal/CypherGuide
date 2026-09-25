@@ -10,7 +10,7 @@ Cypher Guide adheres to a multi-tiered security maturity matrix tailored for P2P
 | :--- | :--- | :--- |
 | **Tier 0: Prototype** | 🟢 **Completed** | React 19 + Vite + Tailwind UI/UX, Local Storage state persistence, BOLT-11 invoice generator mock. |
 | **Tier 1: Devnet / Testnet** | 🟡 **Partially Complete (Core Audited, Escrow Placeholder)** | • **Completed Security Audits:** NIP-49 Vault (`ncryptsec`/`scrypt`, zero raw keys in `sessionStorage`/`localStorage`); SSRF defense + callback amount bounds checking for LUD-06; BIP-340 Schnorr signature validation for KYC Attestations (Kind 30388) against host verifier whitelists; Dual-signed Proof-of-Stay badges (Kind 30078, Guest claim + Host endorsement); NIP-98 HTTP Auth for admin endpoints; Magic-byte validation blocking SVG XSS on media uploads; Preimage SHA-256 cryptographic verification for Lightning settlements; Automated Vitest suite (7 suites/23 tests) & CI GitHub Actions.<br>• **⚠️ MANDATORY DISCLOSURE:** The 2-of-3 BFT Arbitrator Council currently utilizes placeholder public keys for demo purposes — **no genuine third-party arbitrators currently hold the corresponding private keys**, and automated escrow dispute resolution is NOT available on production until 3 independent parties are onboarded. |
-| **Tier 2: Mainnet Ready** | 🟡 **In Progress** | Strict separation of Live (`cypherguide.org`, zero mock code paths) and Testnet Demo (`demo.cypherguide.org`); Production Nostr WebSocket Relays (WSS), Lightning WalletConnect (Alby / Mutiny / Phoenix), Bounded State Storage on L2/Rootstock, Automated smart escrow contracts (Tier 2/Phase 2). |
+| **Tier 2: Mainnet Ready** | 🟡 **In Progress** | Unified production environment at `cypherguide.org` with 100% authentic Lightning payments (zero mock code paths); Production Nostr WebSocket Relays (WSS), Lightning WalletConnect (Alby / Mutiny / Phoenix), Bounded State Storage on L2/Rootstock, Automated smart escrow contracts (Tier 2/Phase 2). |
 
 ---
 
@@ -24,13 +24,6 @@ Cypher Guide adheres to a multi-tiered security maturity matrix tailored for P2P
 2. **Automated Escrow Custody (Phase 2 Under Active Development)**:
    - Currently, Live mode transactions operate as direct peer-to-peer (P2P) settlements to the Host's and co-owners' Lightning Addresses (LUD-16) per the agreed Profit Sharing ratios.
    - Non-custodial smart escrow mechanisms (DLCs, Hold Invoices, or Cashu multi-party escrows) are under architectural development and have not yet replaced direct settlement.
-
-3. **Demo vs. Live Build Environment Isolation**:
-   - **Live Production (`cypherguide.org`)**: Built with `VITE_PAYMENT_MODE=live`. All simulated invoices, mock preimages, and fallback shortcuts are completely stripped and prohibited. Hosts must provide genuine Lightning Addresses (LUD-16) on Bitcoin Mainnet.
-   - **Testnet Demo (`demo.cypherguide.org`)**: Built with `VITE_PAYMENT_MODE=demo`. Has been **directly connected to authentic Lightning Mutinynet Testnet** (`mutinynet.com`, powered by Voltage), **completely removing internal simulated invoices (`generateBolt11` / `_sim`)**:
-     - All booking invoices generated are **authentic BOLT-11 invoices** (starting with `lntb` or `lnbcrt`), resolved from the Demo Host Lightning Address (`VITE_DEMO_HOST_LIGHTNING_ADDRESS`) via LUD-06 / LNURL-pay and SSRF-hardened proxy.
-     - Payment confirmation enforces 100% cryptographic proof (`SHA-256(preimage) === payment_hash`), rejecting any underpayments, mismatched invoices, or invalid preimages.
-     - Persistent warning banner with direct link to the **Public Faucet** at `https://faucet.mutinynet.com` allowing visitors to obtain free test sats and fund their Mutinynet wallet (Zeus, Phoenix, WebLN) prior to testing room bookings.
 
 ---
 

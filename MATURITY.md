@@ -10,7 +10,7 @@ Dự án Cypher Guide tuân thủ lộ trình phân cấp độ trưởng thành
 | :--- | :--- | :--- |
 | **Tier 0: Prototype** | 🟢 **Hoàn thành** | UI/UX React + Vite + Tailwind, Local Storage persistence, Mô phỏng Lightning Invoice BOLT-11. |
 | **Tier 1: Devnet / Testnet** | 🟡 **Hoàn thành một phần (Đã vá cốt lõi, Escrow còn Placeholder)** | • **Đã hoàn tất kiểm toán an ninh thực tế:** Mã hóa NIP-49 Vault (`ncryptsec`/`scrypt`, loại bỏ hoàn toàn `sessionStorage` raw key); Phòng thủ SSRF LUD-06 + kiểm tra hạn mức callback; Xác thực chữ ký Schnorr KYC Attestation (Kind 30388) theo whitelist Verifier; Proof-of-Stay (Kind 30078) đồng ký 2 bên (Khách + Host); Xác thực NIP-98 HTTP Auth cho admin endpoints; Magic-byte validation chặn SVG XSS cho media upload; Xác minh mật mã Preimage SHA-256 cho thanh toán Lightning; Tự động hóa kiểm thử Vitest (7 suites/23 tests) & CI GitHub Actions.<br>• **⚠️ CẢNH BÁO BẮT BUỘC:** Hội đồng Trọng tài BFT 2-of-3 hiện dùng public key placeholder cho mục đích demo — **chưa có trọng tài thật nào giữ private key tương ứng**, cơ chế giải quyết tranh chấp escrow hiện KHÔNG khả dụng trên production cho tới khi hoàn tất onboard 3 bên độc lập. |
-| **Tier 2: Mainnet Ready** | 🟡 **Đang triển khai** | Tách biệt hoàn toàn build Live (`cypherguide.org`, không code path giả lập) và Testnet Demo (`demo.cypherguide.org`); Kết nối Nostr Relay thực tế (WSS WebSocket Relays), Ví Lightning WalletConnect (Alby / Mutiny / Phoenix), Bounded State Storage trên L2/Rootstock, Hợp đồng ký quỹ Escrow tự động (Đợt 2). |
+| **Tier 2: Mainnet Ready** | 🟡 **Đang triển khai** | Môi trường production duy nhất tại `cypherguide.org` với 100% thanh toán Lightning thực tế (không code path giả lập); Kết nối Nostr Relay thực tế (WSS WebSocket Relays), Ví Lightning WalletConnect (Alby / Mutiny / Phoenix), Bounded State Storage trên L2/Rootstock, Hợp đồng ký quỹ Escrow tự động (Đợt 2). |
 
 ---
 
@@ -24,13 +24,6 @@ Dự án Cypher Guide tuân thủ lộ trình phân cấp độ trưởng thành
 2. **Cơ Chế Ký Quỹ Escrow Tự Động (Đợt 2 Chưa Hoàn Tất)**:
    - Hiện tại, luồng thanh toán trong bản Live là thanh toán P2P trực tiếp (Direct Settlement) đến địa chỉ Lightning Address (LUD-16) của Host và các bên đồng sở hữu theo tỷ lệ Profit Sharing.
    - Cơ chế giữ cọc phi lưu ký thông minh (DLC / Hold Invoices / Cashu Multi-sig Escrow) đang trong giai đoạn nghiên cứu kiến trúc Đợt 2 và chưa thay thế hoàn toàn giao dịch P2P trực tiếp.
-
-3. **Môi Trường Demo vs Live**:
-   - **Bản Live (`cypherguide.org`)**: Được biên dịch với `VITE_PAYMENT_MODE=live`. Không chứa bất kỳ nhánh code giả lập thanh toán hay invoice fake nào. Host bắt buộc phải cung cấp Lightning Address (LUD-16) thực tế trên Mainnet để nhận thanh toán.
-   - **Bản Demo (`demo.cypherguide.org`)**: Được biên dịch với `VITE_PAYMENT_MODE=demo`. Đã **kết nối trực tiếp với Lightning Mutinynet Testnet thật** (`mutinynet.com`, vận hành bởi Voltage), **hoàn toàn loại bỏ mọi hóa đơn mô phỏng nội bộ (`generateBolt11` / `_sim`)**:
-     - Mọi hóa đơn booking tạo ra là hóa đơn **BOLT-11 thực tế** (bắt đầu bằng `lntb` hoặc `lnbcrt`), phân giải từ Lightning Address của Host Demo (`VITE_DEMO_HOST_LIGHTNING_ADDRESS`) thông qua chuẩn LUD-06 / LNURL-pay và SSRF-hardened proxy.
-     - Luồng xác nhận thanh toán tuân thủ 100% mật mã học (`SHA-256(preimage) === payment_hash`), từ chối mọi trường hợp thiếu tiền, sai invoice hoặc preimage không khớp.
-     - Banner cảnh báo cố định kèm link dẫn tới **Faucet công khai** tại `https://faucet.mutinynet.com` để người trải nghiệm tự nhận Sats test miễn phí nạp vào ví Mutinynet (Zeus, Phoenix, ví WebLN) trước khi thử nghiệm đặt phòng.
 
 ---
 

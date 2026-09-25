@@ -2,9 +2,9 @@ name: CI Security & Test Suite
 
 on:
   push:
-    branches: [ main, master, demo ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main, master, demo ]
+    branches: [ main, master ]
 
 jobs:
   validate:

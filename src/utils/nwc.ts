@@ -6,7 +6,7 @@
 
 import { finalizeEvent, nip04, getPublicKey } from 'nostr-tools';
 import { hexToBytes, bytesToHex } from './crypto';
-import { parseBolt11, isSimulatedInvoice, verifyLightningPreimage, PAYMENT_MODE } from './lightning';
+import { parseBolt11, verifyLightningPreimage } from './lightning';
 
 export interface NWCConnection {
   walletPubkey: string;
@@ -176,19 +176,6 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
   const connection = parseNWCUrl(targetUrl);
   if (!connection) {
     return { success: false, error: 'Chuỗi kết nối NWC (NIP-47) không hợp lệ!' };
-  }
-
-  // If in demo mode and invoice is explicitly simulated (_sim), return demo RPC response
-  if (PAYMENT_MODE === 'demo' && isSimulatedInvoice(invoice)) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockPreimage = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        resolve({
-          success: true,
-          preimage: `nwc_sim_preimage_${mockPreimage}`
-        });
-      }, 1200);
-    });
   }
 
   // Real Nostr Relay NIP-47 WebSocket RPC Execution

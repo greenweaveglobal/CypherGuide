@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, Bitcoin, Sparkles, Navigation, Home, Globe, Github, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, Bitcoin, Sparkles, Navigation, Home, Globe, Github } from 'lucide-react';
 import { NostrIdentity } from '../types';
 import { CypherGuideIcon } from './CypherGuideIcon';
 import { useTranslation } from '../hooks/useTranslation';
-import { IS_DEMO_MODE } from '../utils/lightning';
 
 const DonateModal = React.lazy(() => import('./DonateModal'));
 const OnboardingTourModal = React.lazy(() => import('./OnboardingTourModal'));
@@ -51,28 +50,7 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
 
   return (
     <div className="min-h-screen bg-background text-text-primary flex flex-col font-sans selection:bg-primary/30 selection:text-white">
-      {/* Persistent Non-Dismissible Testnet Demo Banner */}
-      {IS_DEMO_MODE && (
-        <div
-          id="testnet-demo-banner"
-          role="alert"
-          className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-mono font-bold text-xs sm:text-sm py-2 px-4 text-center shadow-md sticky top-0 z-50 flex items-center justify-center gap-2 border-b-2 border-amber-600 select-none shrink-0 flex-wrap"
-        >
-          <AlertTriangle className="w-4 h-4 shrink-0 text-black animate-pulse" />
-          <span>⚠️ Bản DEMO kết nối Lightning Mutinynet Testnet thật (Sats thử nghiệm không giá trị).</span>
-          <a
-            href="https://faucet.mutinynet.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline inline-flex items-center gap-1 hover:text-gray-900 bg-black/10 px-2 py-0.5 rounded text-xs ml-1"
-          >
-            <span>Lấy Sats test miễn phí tại faucet.mutinynet.com</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      )}
-
-      <div className={`flex-1 flex min-w-0 ${IS_DEMO_MODE ? 'h-[calc(100vh-2.5rem)]' : 'h-screen'} overflow-hidden`}>
+      <div className="flex-1 flex min-w-0 h-screen overflow-hidden">
         {/* Desktop Sidebar */}
         <aside className="hidden md:flex flex-col w-64 border-r border-border bg-surface h-full shrink-0">
         <div className="p-6">
@@ -207,7 +185,7 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
       </aside>
 
       {/* Mobile Header */}
-      <div className={`md:hidden fixed ${IS_DEMO_MODE ? 'top-10' : 'top-0'} left-0 right-0 h-16 border-b border-border bg-surface/90 backdrop-blur-md z-50 flex items-center justify-between px-3 sm:px-4`}>
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 border-b border-border bg-surface/90 backdrop-blur-md z-50 flex items-center justify-between px-3 sm:px-4">
         <div className="flex items-center gap-2 min-w-0">
           <div className="shrink-0">
             <CypherGuideIcon size={32} />
@@ -257,7 +235,7 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
 
       {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
-        <div className={`md:hidden fixed inset-0 ${IS_DEMO_MODE ? 'top-26' : 'top-16'} bg-background/95 backdrop-blur-lg z-40 p-4 border-b border-border overflow-y-auto`}>
+        <div className="md:hidden fixed inset-0 top-16 bg-background/95 backdrop-blur-lg z-40 p-4 border-b border-border overflow-y-auto">
           <div className="space-y-2">
             <button
               onClick={() => {
@@ -386,7 +364,7 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
         </header>
 
         {/* Content Viewport */}
-        <div className={`flex-1 overflow-y-auto ${IS_DEMO_MODE ? 'pt-26 md:pt-0' : 'pt-16 md:pt-0'} w-full max-w-7xl mx-auto p-2 sm:p-4 md:p-6`}>
+        <div className="flex-1 overflow-y-auto pt-16 md:pt-0 w-full max-w-7xl mx-auto p-2 sm:p-4 md:p-6">
           <div className="w-full main-view-wrapper min-w-0">
             {children}
           </div>

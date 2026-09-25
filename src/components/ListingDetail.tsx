@@ -8,7 +8,7 @@ import { Button } from './ui/Button';
 import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { sha256, signMessage, hexToBytes, bytesToHex, npubToHex } from '../utils/crypto';
-import { generateBolt11, isWebLNAvailable, payViaWebLN, IS_LIVE_MODE, resolveLightningAddressToInvoice, DEMO_HOST_LIGHTNING_ADDRESS } from '../utils/lightning';
+import { generateBolt11, isWebLNAvailable, payViaWebLN, resolveLightningAddressToInvoice } from '../utils/lightning';
 import { calculateDynamicFee } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../utils/depositEscrow';
 import { DEFAULT_ARBITRATOR_POOL } from '../utils/insuranceFund';
@@ -256,23 +256,20 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
     addPaymentLog('Requesting Lightning Invoice from mesh routing node...');
     onAddLog('relay', t('listingDetail.requestingLNLog', { title: listing.title }));
     
-    const demoHostAddress = import.meta.env.VITE_DEMO_HOST_LIGHTNING_ADDRESS || DEMO_HOST_LIGHTNING_ADDRESS;
-    const targetLightningAddress = IS_LIVE_MODE
-      ? listing.coOwners?.[0]?.lightningAddress
-      : (demoHostAddress || listing.coOwners?.[0]?.lightningAddress);
+    const targetLightningAddress = listing.coOwners?.[0]?.lightningAddress;
 
     if (targetLightningAddress) {
       resolveLightningAddressToInvoice(targetLightningAddress, totalPriceSats + totalFeeSats).then((resolved) => {
         if (resolved.invoice && resolved.isReal) {
           setInvoice(resolved.invoice);
-          addPaymentLog(`Received authentic ${IS_LIVE_MODE ? 'Mainnet' : 'Mutinynet'} Lightning Invoice: ${resolved.invoice.slice(0, 15)}...`);
+          addPaymentLog(`Received authentic Lightning Invoice: ${resolved.invoice.slice(0, 15)}...`);
           onAddLog('lightning', t('listingDetail.invoiceReceivedLog', { invoice: resolved.invoice.slice(0, 20) }));
         } else {
           addPaymentLog(`Lỗi: ${resolved.error || 'Không thể tạo invoice từ máy chủ Host'}`);
         }
       });
     } else {
-      addPaymentLog(`Lỗi: Chưa cấu hình Lightning Address cho ${IS_LIVE_MODE ? 'Host' : 'Demo Host (Mutinynet)'}.`);
+      addPaymentLog(`Lỗi: Chưa cấu hình Lightning Address cho Host.`);
     }
   };
 

@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight, ExternalLink } from 'lucide-react';
+import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, Booking, NostrIdentity } from '../types';
 import { 
   generateBolt11, 
   isWebLNAvailable, 
   payViaWebLN, 
-  IS_LIVE_MODE, 
-  IS_DEMO_MODE, 
-  PAYMENT_MODE, 
   resolveLightningAddressToInvoice, 
   parseBolt11,
-  verifyLightningPreimage,
-  DEMO_HOST_LIGHTNING_ADDRESS 
+  verifyLightningPreimage 
 } from '../utils/lightning';
 import { generateCashuToken, redeemCashuToken } from '../utils/cashu';
 import { payInvoiceViaNWC, getNWCConnectionString, saveNWCConnectionString, parseNWCUrl } from '../utils/nwc';
@@ -148,17 +144,10 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     const roomSuffix = room ? ` - ${room.name}` : '';
 
     let bolt11 = '';
-    const demoHostAddress = import.meta.env.VITE_DEMO_HOST_LIGHTNING_ADDRESS || DEMO_HOST_LIGHTNING_ADDRESS;
-    const targetLightningAddress = IS_LIVE_MODE
-      ? listing.coOwners?.[0]?.lightningAddress
-      : (demoHostAddress || listing.coOwners?.[0]?.lightningAddress);
+    const targetLightningAddress = listing.coOwners?.[0]?.lightningAddress;
 
     if (!targetLightningAddress) {
-      if (IS_LIVE_MODE) {
-        setErrorMsg('Chế độ Live Mainnet: Listing này chưa có Lightning Address hợp lệ của Host để nhận thanh toán thật.');
-      } else {
-        setErrorMsg('Chế độ Demo: Chưa cấu hình VITE_DEMO_HOST_LIGHTNING_ADDRESS để nhận thanh toán Testnet Mutinynet.');
-      }
+      setErrorMsg('Listing này chưa có Lightning Address hợp lệ của Host để nhận thanh toán.');
       return;
     }
 
@@ -166,8 +155,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     if (resolved.invoice && resolved.isReal) {
       bolt11 = resolved.invoice;
     } else {
-      const modeLabel = IS_LIVE_MODE ? 'Live Mainnet' : 'Demo Mutinynet';
-      setErrorMsg(resolved.error || `Chế độ ${modeLabel}: Không thể tạo invoice từ máy chủ Lightning của Host (${targetLightningAddress}).`);
+      setErrorMsg(resolved.error || `Không thể tạo invoice từ máy chủ Lightning của Host (${targetLightningAddress}).`);
       return;
     }
 
@@ -880,29 +868,6 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                         </button>
                       </div>
                     </div>
-
-                    {/* Mutinynet Testnet Faucet Link */}
-                    {IS_DEMO_MODE && (
-                      <div className="p-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-left space-y-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-[10px] font-bold font-mono text-amber-300 flex items-center gap-1">
-                            <Zap className="w-3 h-3 text-amber-400" /> Mutinynet Faucet
-                          </span>
-                          <a
-                            href="https://faucet.mutinynet.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-amber-300 underline font-mono inline-flex items-center gap-0.5 hover:text-amber-200"
-                          >
-                            <span>Lấy Sats test miễn phí</span>
-                            <ExternalLink className="w-2.5 h-2.5" />
-                          </a>
-                        </div>
-                        <p className="text-[9px] text-amber-200/70 font-mono leading-tight">
-                          Nạp sats vào ví Mutinynet trước khi thanh toán.
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
