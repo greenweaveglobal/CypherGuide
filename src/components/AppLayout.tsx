@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, Bitcoin, Sparkles, Navigation, Home, Globe, Github, AlertTriangle } from 'lucide-react';
+import { Shield, KeyRound, Terminal, BookOpen, Compass, Landmark, Network, Menu, X, Zap, HelpCircle, Heart, Bitcoin, Sparkles, Navigation, Home, Globe, Github, AlertTriangle, ExternalLink } from 'lucide-react';
 import { NostrIdentity } from '../types';
 import { CypherGuideIcon } from './CypherGuideIcon';
 import { useTranslation } from '../hooks/useTranslation';
@@ -56,10 +56,19 @@ export default function AppLayout({ children, activeTab, setActiveTab, identity,
         <div
           id="testnet-demo-banner"
           role="alert"
-          className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-mono font-bold text-xs sm:text-sm py-2 px-4 text-center shadow-md sticky top-0 z-50 flex items-center justify-center gap-2 border-b-2 border-amber-600 select-none shrink-0"
+          className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-mono font-bold text-xs sm:text-sm py-2 px-4 text-center shadow-md sticky top-0 z-50 flex items-center justify-center gap-2 border-b-2 border-amber-600 select-none shrink-0 flex-wrap"
         >
           <AlertTriangle className="w-4 h-4 shrink-0 text-black animate-pulse" />
-          <span>⚠️ Đây là bản DEMO chạy trên Testnet — không dùng Sats thật.</span>
+          <span>⚠️ Bản DEMO kết nối Lightning Mutinynet Testnet thật (Sats thử nghiệm không giá trị).</span>
+          <a
+            href="https://faucet.mutinynet.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline inline-flex items-center gap-1 hover:text-gray-900 bg-black/10 px-2 py-0.5 rounded text-xs ml-1"
+          >
+            <span>Lấy Sats test miễn phí tại faucet.mutinynet.com</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       )}
 

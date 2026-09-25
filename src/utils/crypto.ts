@@ -415,6 +415,7 @@ export async function verifyLightningPreimage(preimageHex: string, expectedPayme
   try {
     const cleanPreimage = preimageHex.trim().toLowerCase();
     const cleanExpected = expectedPaymentHashHex.trim().toLowerCase();
+    if (!cleanPreimage || !cleanExpected) return false;
 
     // Chuẩn Lightning: Preimage là 32 bytes (64 hex characters)
     if (/^[0-9a-f]{64}$/.test(cleanPreimage)) {
@@ -425,9 +426,13 @@ export async function verifyLightningPreimage(preimageHex: string, expectedPayme
       }
     }
 
-    // Fallback: nếu preimage là chuỗi text UTF-8
-    const textHash = await sha256(cleanPreimage);
-    return textHash.toLowerCase() === cleanExpected;
+    // Fallback: nếu preimage là chuỗi text UTF-8 có độ dài hợp lệ
+    if (cleanPreimage.length >= 8) {
+      const textHash = await sha256(cleanPreimage);
+      return textHash.toLowerCase() === cleanExpected;
+    }
+
+    return false;
   } catch (err) {
     console.error('[Crypto] Preimage verification error:', err);
     return false;

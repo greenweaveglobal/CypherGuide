@@ -26,8 +26,11 @@ Cypher Guide adheres to a multi-tiered security maturity matrix tailored for P2P
    - Non-custodial smart escrow mechanisms (DLCs, Hold Invoices, or Cashu multi-party escrows) are under architectural development and have not yet replaced direct settlement.
 
 3. **Demo vs. Live Build Environment Isolation**:
-   - **Live Production (`cypherguide.org`)**: Built with `VITE_PAYMENT_MODE=live`. All simulated invoices, mock preimages, and fallback shortcuts are completely stripped and prohibited. Hosts must provide genuine Lightning Addresses (LUD-16).
-   - **Testnet Demo (`demo.cypherguide.org`)**: Built with `VITE_PAYMENT_MODE=demo`. Runs on Bitcoin Testnet/Mutinynet signet with a persistent, non-dismissible warning banner at the top of the application.
+   - **Live Production (`cypherguide.org`)**: Built with `VITE_PAYMENT_MODE=live`. All simulated invoices, mock preimages, and fallback shortcuts are completely stripped and prohibited. Hosts must provide genuine Lightning Addresses (LUD-16) on Bitcoin Mainnet.
+   - **Testnet Demo (`demo.cypherguide.org`)**: Built with `VITE_PAYMENT_MODE=demo`. Has been **directly connected to authentic Lightning Mutinynet Testnet** (`mutinynet.com`, powered by Voltage), **completely removing internal simulated invoices (`generateBolt11` / `_sim`)**:
+     - All booking invoices generated are **authentic BOLT-11 invoices** (starting with `lntb` or `lnbcrt`), resolved from the Demo Host Lightning Address (`VITE_DEMO_HOST_LIGHTNING_ADDRESS`) via LUD-06 / LNURL-pay and SSRF-hardened proxy.
+     - Payment confirmation enforces 100% cryptographic proof (`SHA-256(preimage) === payment_hash`), rejecting any underpayments, mismatched invoices, or invalid preimages.
+     - Persistent warning banner with direct link to the **Public Faucet** at `https://faucet.mutinynet.com` allowing visitors to obtain free test sats and fund their Mutinynet wallet (Zeus, Phoenix, WebLN) prior to testing room bookings.
 
 ---
 

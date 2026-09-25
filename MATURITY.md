@@ -26,8 +26,11 @@ Dự án Cypher Guide tuân thủ lộ trình phân cấp độ trưởng thành
    - Cơ chế giữ cọc phi lưu ký thông minh (DLC / Hold Invoices / Cashu Multi-sig Escrow) đang trong giai đoạn nghiên cứu kiến trúc Đợt 2 và chưa thay thế hoàn toàn giao dịch P2P trực tiếp.
 
 3. **Môi Trường Demo vs Live**:
-   - **Bản Live (`cypherguide.org`)**: Được biên dịch với `VITE_PAYMENT_MODE=live`. Không chứa bất kỳ nhánh code giả lập thanh toán hay invoice fake nào. Host bắt buộc phải cung cấp Lightning Address thực tế để nhận thanh toán.
-   - **Bản Demo (`demo.cypherguide.org`)**: Được biên dịch với `VITE_PAYMENT_MODE=demo`. Chạy trên Testnet/Signet Lightning thật (Mutinynet/Polar) hoặc môi trường mô phỏng an toàn, có banner cảnh báo cố định không thể tắt.
+   - **Bản Live (`cypherguide.org`)**: Được biên dịch với `VITE_PAYMENT_MODE=live`. Không chứa bất kỳ nhánh code giả lập thanh toán hay invoice fake nào. Host bắt buộc phải cung cấp Lightning Address (LUD-16) thực tế trên Mainnet để nhận thanh toán.
+   - **Bản Demo (`demo.cypherguide.org`)**: Được biên dịch với `VITE_PAYMENT_MODE=demo`. Đã **kết nối trực tiếp với Lightning Mutinynet Testnet thật** (`mutinynet.com`, vận hành bởi Voltage), **hoàn toàn loại bỏ mọi hóa đơn mô phỏng nội bộ (`generateBolt11` / `_sim`)**:
+     - Mọi hóa đơn booking tạo ra là hóa đơn **BOLT-11 thực tế** (bắt đầu bằng `lntb` hoặc `lnbcrt`), phân giải từ Lightning Address của Host Demo (`VITE_DEMO_HOST_LIGHTNING_ADDRESS`) thông qua chuẩn LUD-06 / LNURL-pay và SSRF-hardened proxy.
+     - Luồng xác nhận thanh toán tuân thủ 100% mật mã học (`SHA-256(preimage) === payment_hash`), từ chối mọi trường hợp thiếu tiền, sai invoice hoặc preimage không khớp.
+     - Banner cảnh báo cố định kèm link dẫn tới **Faucet công khai** tại `https://faucet.mutinynet.com` để người trải nghiệm tự nhận Sats test miễn phí nạp vào ví Mutinynet (Zeus, Phoenix, ví WebLN) trước khi thử nghiệm đặt phòng.
 
 ---
 

@@ -5,8 +5,11 @@ export { verifyLightningPreimage };
 
 // Build-time / Environment payment mode flag (defaults to 'live' for real payments)
 export const PAYMENT_MODE = (import.meta.env.VITE_PAYMENT_MODE || 'live').toLowerCase();
-export const IS_DEMO_MODE = PAYMENT_MODE === 'demo' || (typeof window !== 'undefined' && (window.location.hostname.startsWith('demo.') || window.location.hostname.includes('demo.')));
+export const IS_DEMO_MODE = PAYMENT_MODE === 'demo' || (typeof window !== 'undefined' && Boolean(window.location?.hostname && (window.location.hostname.startsWith('demo.') || window.location.hostname.includes('demo.'))));
 export const IS_LIVE_MODE = !IS_DEMO_MODE;
+
+// Default Lightning Address for Mutinynet Testnet Demo Host
+export const DEMO_HOST_LIGHTNING_ADDRESS = (import.meta.env.VITE_DEMO_HOST_LIGHTNING_ADDRESS || 'demo-host@voltage.cloud').trim();
 
 // WebLN standard type definitions
 export interface WebLNProvider {
@@ -141,16 +144,17 @@ export async function resolveLightningAddressToInvoice(
   
   if (!cleanAddress || !cleanAddress.includes('@')) {
     return {
-      invoice: generateBolt11(amountSats, 'Donation V4V'),
-      isReal: false
+      invoice: '',
+      isReal: false,
+      error: 'Địa chỉ Lightning Address không hợp lệ (yêu cầu định dạng user@domain.com).'
     };
   }
 
-  // Tier 1: Try Server API endpoint with safe JSON check
+  // Tier 1: Try Server API endpoint with safe JSON check and SSRF defense
   try {
     const res = await fetch(`/api/lightning/resolve-invoice?address=${encodeURIComponent(cleanAddress)}&amount=${amountSats}`, {
       headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(6000)
     });
 
     const contentType = res.headers.get('content-type') || '';
@@ -164,13 +168,13 @@ export async function resolveLightningAddressToInvoice(
     // Silent fail over to Tier 2
   }
 
-  // Tier 2: Direct Client-Side LNURL-pay fetch (Wallet of Satoshi, Blink, Strike have open CORS)
+  // Tier 2: Direct Client-Side LNURL-pay fetch (Wallet of Satoshi, Blink, Strike, Voltage, LNbits open CORS)
   try {
     const [username, domain] = cleanAddress.split('@');
     if (username && domain) {
       const metaRes = await fetch(`https://${domain}/.well-known/lnurlp/${username}`, {
         headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(5000)
       });
       
       if (metaRes.ok) {
@@ -179,11 +183,11 @@ export async function resolveLightningAddressToInvoice(
           const millisats = amountSats * 1000;
           const callbackUrl = new URL(metadata.callback);
           callbackUrl.searchParams.set('amount', millisats.toString());
-          callbackUrl.searchParams.set('comment', 'Donation V4V Cypher Guide');
+          callbackUrl.searchParams.set('comment', 'Booking Payment Cypher Guide');
 
           const invoiceRes = await fetch(callbackUrl.toString(), {
             headers: { 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(4000)
+            signal: AbortSignal.timeout(5000)
           });
 
           if (invoiceRes.ok) {
@@ -196,22 +200,14 @@ export async function resolveLightningAddressToInvoice(
       }
     }
   } catch (e) {
-    // Silent fail over to local fallback
+    // Silent fail over
   }
 
-  // If resolution fails on Live mode, do NOT fall back to a fake simulated invoice
-  if (IS_LIVE_MODE) {
-    return {
-      invoice: '',
-      isReal: false,
-      error: 'Không thể phân giải hóa đơn từ máy chủ LNURL của địa chỉ Lightning. Vui lòng kiểm tra lại địa chỉ hoặc thử lại sau.'
-    };
-  }
-
-  // Tier 3: Seamless Local Simulated Invoice fallback for Demo/Testnet mode
+  // Both Live and Mutinynet Demo require authentic resolution; do NOT return simulated invoices
   return {
-    invoice: generateBolt11(amountSats, `Donation to ${cleanAddress}`),
-    isReal: false
+    invoice: '',
+    isReal: false,
+    error: `Không thể phân giải hóa đơn từ máy chủ LNURL của địa chỉ Lightning (${cleanAddress}). Vui lòng kiểm tra lại địa chỉ hoặc kết nối node.`
   };
 }
 

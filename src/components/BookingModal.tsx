@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight } from 'lucide-react';
+import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight, ExternalLink } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, Booking, NostrIdentity } from '../types';
-import { generateBolt11, isWebLNAvailable, payViaWebLN, IS_LIVE_MODE, resolveLightningAddressToInvoice } from '../utils/lightning';
+import { 
+  generateBolt11, 
+  isWebLNAvailable, 
+  payViaWebLN, 
+  IS_LIVE_MODE, 
+  IS_DEMO_MODE, 
+  PAYMENT_MODE, 
+  resolveLightningAddressToInvoice, 
+  parseBolt11,
+  verifyLightningPreimage,
+  DEMO_HOST_LIGHTNING_ADDRESS 
+} from '../utils/lightning';
 import { generateCashuToken, redeemCashuToken } from '../utils/cashu';
 import { payInvoiceViaNWC, getNWCConnectionString, saveNWCConnectionString, parseNWCUrl } from '../utils/nwc';
 import { sha256 } from '../utils/crypto';
@@ -65,6 +76,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
   const [paymentLog, setPaymentLog] = useState<string[]>([]);
   const [webLNAvailable, setWebLNAvailable] = useState(false);
   const [copiedInvoice, setCopiedInvoice] = useState(false);
+  const [externalPreimage, setExternalPreimage] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   // Sync when listing or preselectedRoomTypeId changes
@@ -136,29 +148,45 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     const roomSuffix = room ? ` - ${room.name}` : '';
 
     let bolt11 = '';
-    if (IS_LIVE_MODE) {
-      const hostLightningAddress = listing.coOwners?.[0]?.lightningAddress;
-      if (hostLightningAddress) {
-        const resolved = await resolveLightningAddressToInvoice(hostLightningAddress, totalWithFee);
-        if (resolved.invoice && resolved.isReal) {
-          bolt11 = resolved.invoice;
-        } else {
-          setErrorMsg(resolved.error || 'Chế độ Live Mainnet: Không thể tạo invoice từ máy chủ Lightning của Host.');
-          return;
-        }
-      } else {
+    const demoHostAddress = import.meta.env.VITE_DEMO_HOST_LIGHTNING_ADDRESS || DEMO_HOST_LIGHTNING_ADDRESS;
+    const targetLightningAddress = IS_LIVE_MODE
+      ? listing.coOwners?.[0]?.lightningAddress
+      : (demoHostAddress || listing.coOwners?.[0]?.lightningAddress);
+
+    if (!targetLightningAddress) {
+      if (IS_LIVE_MODE) {
         setErrorMsg('Chế độ Live Mainnet: Listing này chưa có Lightning Address hợp lệ của Host để nhận thanh toán thật.');
+      } else {
+        setErrorMsg('Chế độ Demo: Chưa cấu hình VITE_DEMO_HOST_LIGHTNING_ADDRESS để nhận thanh toán Testnet Mutinynet.');
+      }
+      return;
+    }
+
+    const resolved = await resolveLightningAddressToInvoice(targetLightningAddress, totalWithFee);
+    if (resolved.invoice && resolved.isReal) {
+      bolt11 = resolved.invoice;
+    } else {
+      const modeLabel = IS_LIVE_MODE ? 'Live Mainnet' : 'Demo Mutinynet';
+      setErrorMsg(resolved.error || `Chế độ ${modeLabel}: Không thể tạo invoice từ máy chủ Lightning của Host (${targetLightningAddress}).`);
+      return;
+    }
+
+    // Verify invoice amount matches requested totalWithFee
+    const parsedBolt11 = parseBolt11(bolt11);
+    if (parsedBolt11 && parsedBolt11.amountSats > 0) {
+      if (parsedBolt11.amountSats !== totalWithFee) {
+        setErrorMsg(`Số tiền invoice (${parsedBolt11.amountSats} Sats) không khớp với tổng tiền đặt phòng (${totalWithFee} Sats)!`);
         return;
       }
-    } else {
-      bolt11 = generateBolt11(totalWithFee, `Thanh toan phong tai ${listing.title}${roomSuffix}`);
     }
+
+    const realPaymentHash = (parsedBolt11 && parsedBolt11.paymentHash) ? parsedBolt11.paymentHash : hash;
 
     const generatedCashu = generateCashuToken(totalWithFee, 'https://mint.cashu.space', `Thanh toan phong: ${listing.title}${roomSuffix}`);
     
     setInvoice(bolt11);
     setCashuToken(generatedCashu);
-    setPaymentHash(hash);
+    setPaymentHash(realPaymentHash);
     setStep('payment');
     
     if (paymentMethod === 'cashu') {
@@ -263,6 +291,41 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
       setErrorMsg(result.error || t('booking.errInvalidToken'));
       setIsPaying(false);
     }
+  };
+
+  const handleVerifyExternalPreimage = async () => {
+    const cleanPreimage = externalPreimage.trim();
+    if (!cleanPreimage) {
+      setErrorMsg('Vui lòng dán mã Preimage (32 bytes hex) từ ví Lightning sau khi thanh toán.');
+      return;
+    }
+    setErrorMsg('');
+    setIsPaying(true);
+    setPaymentLog(prev => [
+      ...prev,
+      'Kiểm tra Proof-of-Payment: Đang xác minh Preimage từ ví ngoài...',
+      `Preimage input: ${cleanPreimage.slice(0, 32)}...`
+    ]);
+
+    const isValid = await verifyLightningPreimage(cleanPreimage, paymentHash);
+    if (!isValid) {
+      setIsPaying(false);
+      setPaymentLog(prev => [
+        ...prev,
+        '❌ XÁC MINH THẤT BẠI: Preimage không khớp với payment_hash của invoice!',
+        `  └─ SHA-256(preimage) !== ${paymentHash.slice(0, 32)}...`
+      ]);
+      setErrorMsg('Xác minh mật mã thất bại: Preimage không khớp với payment_hash của invoice! Vui lòng kiểm tra lại đúng giao dịch thanh toán.');
+      return;
+    }
+
+    setPaymentLog(prev => [
+      ...prev,
+      '✓ XÁC MINH MẬT MÃ THÀNH CÔNG: SHA-256(preimage) === payment_hash',
+      `  └─ Proof-of-Payment hợp lệ (Preimage: ${cleanPreimage.slice(0, 32)}...)`
+    ]);
+    onAddLog('lightning', `Xác nhận thanh toán thành công qua Preimage: ${cleanPreimage.slice(0, 16)}...`, paymentHash);
+    handlePaymentComplete();
   };
 
   const handlePaymentComplete = async () => {
@@ -791,6 +854,54 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                       >
                         <span>{t('booking.btnPayWebLN')}</span>
                       </button>
+                    )}
+
+                    {/* External Wallet Preimage Verification */}
+                    <div className="pt-2 border-t border-white/10 space-y-1.5 text-left">
+                      <label className="text-[10px] text-gray-400 font-mono block">
+                        Đã quét thanh toán từ ví ngoài (Zeus / Phoenix)?
+                      </label>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={externalPreimage}
+                          onChange={(e) => setExternalPreimage(e.target.value)}
+                          placeholder="Dán Preimage hex (64 ký tự)..."
+                          className="flex-1 bg-black/80 border border-white/10 rounded px-2 py-1.5 text-[11px] text-white font-mono focus:outline-none focus:border-cyber-green/50 placeholder:text-gray-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyExternalPreimage}
+                          disabled={isPaying || !externalPreimage.trim()}
+                          className="px-2.5 py-1.5 bg-cyber-green text-black font-bold text-[10px] rounded font-mono uppercase hover:bg-cyber-green/80 disabled:opacity-50 transition-all shrink-0"
+                          id="verify-external-preimage-btn"
+                        >
+                          Xác minh
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Mutinynet Testnet Faucet Link */}
+                    {IS_DEMO_MODE && (
+                      <div className="p-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-left space-y-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] font-bold font-mono text-amber-300 flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-amber-400" /> Mutinynet Faucet
+                          </span>
+                          <a
+                            href="https://faucet.mutinynet.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-amber-300 underline font-mono inline-flex items-center gap-0.5 hover:text-amber-200"
+                          >
+                            <span>Lấy Sats test miễn phí</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        </div>
+                        <p className="text-[9px] text-amber-200/70 font-mono leading-tight">
+                          Nạp sats vào ví Mutinynet trước khi thanh toán.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
