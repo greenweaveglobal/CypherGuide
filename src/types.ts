@@ -123,9 +123,12 @@ export interface Booking {
   nights?: number;
   totalPriceSats: number;
   bookingSnapshot?: BookingSnapshot; // Frozen snapshot at booking time
-  status: 'pending' | 'paid' | 'checked_in' | 'checked_out' | 'expired';
+  status: 'pending' | 'partial' | 'paid' | 'checked_in' | 'checked_out' | 'expired';
   invoiceBolt11: string;
   paymentHash: string;
+  treasuryInvoiceBolt11?: string;
+  treasuryPaymentHash?: string;
+  protocolFeeSats?: number;
   secretCode?: string; // local access token
   paidAt?: string;
   proofOfStayHash?: string; // NFT hash minted on checkout

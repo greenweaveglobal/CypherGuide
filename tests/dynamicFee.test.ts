@@ -35,4 +35,22 @@ describe('Dynamic Fee Module', () => {
     const hugeFee = calculateDynamicFee(100000000, DEFAULT_FEE_STRUCTURE);
     expect(hugeFee.protocolFeeSats).toBeLessThanOrEqual(DEFAULT_FEE_STRUCTURE.maxFeeSats);
   });
+
+  it('correctly isolates protocolFeeSats from lnRoutingFeeSats for RFC-0016 Treasury split', () => {
+    const roomPriceSats = 50000;
+    const feeResult = calculateDynamicFee(roomPriceSats, DEFAULT_FEE_STRUCTURE, 1.0, 'strict');
+
+    // Protocol fee is collected separately for Treasury (0.2% = 100 sats)
+    expect(feeResult.protocolFeeSats).toBe(100);
+    // Routing fee is only an estimate of LN network fee, NOT collected by protocol
+    expect(feeResult.routingFeeSats).toBe(50);
+
+    // Sum of 2 invoices: Host invoice (roomPrice) + Treasury invoice (protocolFee)
+    const hostInvoiceSats = roomPriceSats;
+    const treasuryInvoiceSats = feeResult.protocolFeeSats;
+    const totalCollectedSats = hostInvoiceSats + treasuryInvoiceSats;
+
+    expect(totalCollectedSats).toBe(50100);
+    expect(totalCollectedSats).toBe(roomPriceSats + feeResult.protocolFeeSats);
+  });
 });
