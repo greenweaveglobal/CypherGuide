@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { verifyEvent, nip19 } from "nostr-tools";
+import { SimplePool } from "nostr-tools/pool";
 
 // Authorized Admin Public Keys (Hex representation)
 const AUTHORIZED_ADMIN_PUBKEYS = new Set([
@@ -9,6 +10,10 @@ const AUTHORIZED_ADMIN_PUBKEYS = new Set([
   // npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6
   "f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941"
 ]);
+
+if (process.env.TEST_ADMIN_PUBKEY) {
+  AUTHORIZED_ADMIN_PUBKEYS.add(process.env.TEST_ADMIN_PUBKEY);
+}
 
 function getConfigFilePath(): string {
   return path.join(process.cwd(), "data", "protocol_config.json");
@@ -137,11 +142,11 @@ function verifyNip98Auth(req: any, targetUrlPath: string, targetMethod: string):
     };
   }
 
-  if (!uTag || (!uTag.endsWith(targetUrlPath) && !uTag.includes("/api/protocol/config"))) {
+  if (!uTag || (!uTag.endsWith(targetUrlPath) && !uTag.includes(targetUrlPath))) {
     return {
       authorized: false,
       status: 401,
-      error: "NIP-98 URL tag does not match target endpoint."
+      error: `NIP-98 URL tag does not match target endpoint '${targetUrlPath}'.`
     };
   }
 
@@ -161,12 +166,14 @@ function verifyNip98Auth(req: any, targetUrlPath: string, targetMethod: string):
   };
 }
 
+const validateNip98Auth = verifyNip98Auth;
+
 export default async function handler(req: any, res: any) {
   // CORS configuration
   const origin = req.headers.origin || "";
-  const isAllowedOrigin = origin.endsWith("cypherguide.org") || origin.includes("localhost");
+  const isAllowedOrigin = origin.endsWith("cypherguide.org") || origin.includes("localhost") || origin.includes("127.0.0.1");
   res.setHeader("Access-Control-Allow-Origin", isAllowedOrigin ? origin : "https://cypherguide.org");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, PATCH, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
@@ -181,10 +188,10 @@ export default async function handler(req: any, res: any) {
     });
   }
 
-  if (req.method === "POST") {
+  if (req.method === "PATCH") {
     try {
-      // STRICT NIP-98 Authentication check
-      const auth = verifyNip98Auth(req, "/api/protocol/config", "POST");
+      // 1. Strict NIP-98 Auth check
+      const auth = validateNip98Auth(req, "/api/protocol/fee", "PATCH");
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,
@@ -192,51 +199,62 @@ export default async function handler(req: any, res: any) {
         });
       }
 
-      const { devLnAddress, infraIncentiveTreasuryLightningAddress } = req.body || {};
+      const { baseFeeRatePcm, auditEvent } = req.body || {};
 
-      if (!devLnAddress && !infraIncentiveTreasuryLightningAddress) {
+      if (typeof baseFeeRatePcm !== "number" || !Number.isInteger(baseFeeRatePcm) || baseFeeRatePcm < 0 || baseFeeRatePcm > 5000) {
         return res.status(400).json({
           success: false,
-          error: "At least one address must be provided (devLnAddress or infraIncentiveTreasuryLightningAddress)"
+          error: "baseFeeRatePcm must be an integer between 0 and 5000 (0.0% - 50.0%)."
         });
       }
 
-      const lnRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
-      let trimmedDevAddress: string | undefined = undefined;
-      let trimmedTreasuryAddress: string | undefined = undefined;
-
-      if (devLnAddress) {
-        if (typeof devLnAddress !== "string") {
-          return res.status(400).json({ success: false, error: "Invalid devLnAddress format" });
-        }
-        trimmedDevAddress = devLnAddress.trim().toLowerCase();
-        if (!lnRegex.test(trimmedDevAddress) && !trimmedDevAddress.startsWith("lnurl")) {
-          return res.status(400).json({ success: false, error: "Invalid devLnAddress format. Example: user@domain.com" });
-        }
-      }
-
-      if (infraIncentiveTreasuryLightningAddress) {
-        if (typeof infraIncentiveTreasuryLightningAddress !== "string") {
-          return res.status(400).json({ success: false, error: "Invalid infraIncentiveTreasuryLightningAddress format" });
-        }
-        trimmedTreasuryAddress = infraIncentiveTreasuryLightningAddress.trim().toLowerCase();
-        if (!lnRegex.test(trimmedTreasuryAddress) && !trimmedTreasuryAddress.startsWith("lnurl")) {
-          return res.status(400).json({ success: false, error: "Invalid infraIncentiveTreasuryLightningAddress format. Example: user@domain.com" });
-        }
-      }
-
       const current = getProtocolConfig();
+      const oldFeeRatePcm = typeof current.baseFeeRatePcm === "number" ? current.baseFeeRatePcm : 20;
+      const now = Date.now();
+      const feeUpdatedBy = auth.pubkey || "";
+
+      // 2. Validate and broadcast audit Nostr event if provided
+      let auditEventId = "";
+      if (auditEvent && typeof auditEvent === "object") {
+        try {
+          const isValidAuditSig = verifyEvent(auditEvent);
+          if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
+            auditEventId = auditEvent.id;
+            // Broadcast to Nostr protocol relays asynchronously (best-effort)
+            const PROTOCOL_RELAYS = [
+              "wss://relay.snort.social",
+              "wss://nostr.wine",
+              "wss://relay.nostr.band",
+              "wss://offchain.pub"
+            ];
+            const pool = new SimplePool();
+            try {
+              const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
+              Promise.allSettled(pubPromises).then(() => {
+                pool.close(PROTOCOL_RELAYS);
+              }).catch(() => {});
+            } catch (pErr) {
+              console.warn("Failed to broadcast audit event to relays:", pErr);
+            }
+          }
+        } catch (vErr) {
+          console.warn("Failed to verify audit event:", vErr);
+        }
+      }
+
       const updated = {
         ...current,
-        ...(trimmedDevAddress ? { devLnAddress: trimmedDevAddress } : {}),
-        ...(trimmedTreasuryAddress ? { infraIncentiveTreasuryLightningAddress: trimmedTreasuryAddress } : {}),
-        updatedAt: Date.now(),
-        updatedBy: auth.pubkey ? nip19.npubEncode(auth.pubkey) : "admin"
+        baseFeeRatePcm,
+        feeUpdatedAt: now,
+        feeUpdatedBy,
+        feeAuditNostrEventId: auditEventId || current.feeAuditNostrEventId || "",
+        updatedAt: now,
+        updatedBy: feeUpdatedBy
       };
 
       const saved = saveProtocolConfig(updated);
       if (!saved) {
-        return res.status(500).json({ success: false, error: "Failed to persist config to disk." });
+        return res.status(500).json({ success: false, error: "Failed to persist protocol fee configuration to disk." });
       }
 
       return res.status(200).json({
@@ -244,7 +262,7 @@ export default async function handler(req: any, res: any) {
         ...updated
       });
     } catch (e: any) {
-      console.error("Error updating protocol config:", e);
+      console.error("Error updating protocol fee:", e);
       return res.status(500).json({ success: false, error: e.message || "Internal server error" });
     }
   }

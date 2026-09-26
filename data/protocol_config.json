@@ -1,6 +1,10 @@
 {
   "devLnAddress": "cypherguide@zaps.lol",
   "infraIncentiveTreasuryLightningAddress": "peevishtender468@walletofsatoshi.com",
+  "baseFeeRatePcm": 20,
+  "feeUpdatedAt": null,
+  "feeUpdatedBy": null,
+  "feeAuditNostrEventId": "",
   "updatedAt": 1787826600000,
   "updatedBy": "admin"
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, Booking, NostrIdentity } from '../types';
@@ -13,7 +13,7 @@ import {
 import { generateCashuToken, redeemCashuToken } from '../utils/cashu';
 import { payInvoiceViaNWC, getNWCConnectionString, saveNWCConnectionString, parseNWCUrl } from '../utils/nwc';
 import { sha256 } from '../utils/crypto';
-import { calculateDynamicFee } from '../utils/dynamicFee';
+import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress } from '../utils/depositEscrow';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
@@ -34,6 +34,16 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
   const effectiveListing = listing ? migrateListingToRoomTypes(listing) : null;
   const roomTypes = effectiveListing?.roomTypes || [];
   const infraIncentiveTreasuryLightningAddress = useAppStore((state) => state.infraIncentiveTreasuryLightningAddress);
+  const baseFeeRatePcm = useAppStore((state) => state.baseFeeRatePcm);
+  const fetchProtocolConfig = useAppStore((state) => state.fetchProtocolConfig);
+
+  useEffect(() => {
+    fetchProtocolConfig();
+  }, [fetchProtocolConfig]);
+
+  const activeFeeStructure = useMemo(() => {
+    return createFeeStructureFromPcm(typeof baseFeeRatePcm === 'number' ? baseFeeRatePcm : DEFAULT_FEE_STRUCTURE.baseFeeRatePcm);
+  }, [baseFeeRatePcm]);
 
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string | undefined>(() => {
     if (preselectedRoomTypeId && roomTypes.some(rt => rt.id === preselectedRoomTypeId)) {
@@ -127,11 +137,11 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     setNights(calc.nights);
     setTotalPriceSats(calc.totalSats);
     if (calc.totalSats > 0) {
-      const initialFee = calculateDynamicFee(calc.totalSats, undefined, 1.0, 'strict');
+      const initialFee = calculateDynamicFee(calc.totalSats, activeFeeStructure, 1.0, 'strict');
       setProtocolFeeSats(initialFee.protocolFeeSats);
       setLnRoutingFeeSats(initialFee.routingFeeSats);
     }
-  }, [startDate, endDate, effectiveListing, selectedRoomTypeId]);
+  }, [startDate, endDate, effectiveListing, selectedRoomTypeId, activeFeeStructure]);
 
   // Fetch Network Congestion & Dynamic Fees
   useEffect(() => {
@@ -143,14 +153,14 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
         setNetworkCongestion(level);
         
         const congestionScore = level === 'low' ? 0.8 : level === 'medium' ? 1.0 : 1.5;
-        const feeResult = calculateDynamicFee(totalPriceSats, undefined, congestionScore, 'strict');
+        const feeResult = calculateDynamicFee(totalPriceSats, activeFeeStructure, congestionScore, 'strict');
         setProtocolFeeSats(feeResult.protocolFeeSats);
         setLnRoutingFeeSats(feeResult.routingFeeSats);
         setIsFetchingFees(false);
       }, 1200);
       return () => clearTimeout(timer);
     }
-  }, [step, totalPriceSats]);
+  }, [step, totalPriceSats, activeFeeStructure]);
 
   if (!listing) return null;
 

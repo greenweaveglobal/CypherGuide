@@ -6,6 +6,7 @@ import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import crypto from "crypto";
 import { verifyEvent, nip19 } from "nostr-tools";
+import { SimplePool } from "nostr-tools/pool";
 import { queryDocsAssistant } from "./lib/docsAssistant";
 import { resolveLightningInvoice } from "./lib/lnurlResolver";
 
@@ -16,6 +17,10 @@ const AUTHORIZED_ADMIN_PUBKEYS = new Set([
   // npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6
   "f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941"
 ]);
+
+if (process.env.TEST_ADMIN_PUBKEY) {
+  AUTHORIZED_ADMIN_PUBKEYS.add(process.env.TEST_ADMIN_PUBKEY);
+}
 
 /**
  * Validates NIP-98 HTTP Authentication (Kind 27235)
@@ -103,11 +108,11 @@ function verifyNip98Auth(req: express.Request, targetUrlPath: string, targetMeth
     };
   }
 
-  if (!uTag || (!uTag.endsWith(targetUrlPath) && !uTag.includes("/api/protocol/config"))) {
+  if (!uTag || (!uTag.endsWith(targetUrlPath) && !uTag.includes(targetUrlPath))) {
     return {
       authorized: false,
       status: 401,
-      error: "NIP-98 URL tag does not match target endpoint."
+      error: `NIP-98 URL tag does not match target endpoint '${targetUrlPath}'.`
     };
   }
 
@@ -126,6 +131,8 @@ function verifyNip98Auth(req: express.Request, targetUrlPath: string, targetMeth
     status: 200
   };
 }
+
+const validateNip98Auth = verifyNip98Auth;
 
 /**
  * Validates authentic image binary signatures (magic bytes) to prevent Stored XSS and non-image payloads
@@ -234,7 +241,7 @@ async function startServer() {
     } else if (!origin) {
       res.header("Access-Control-Allow-Origin", "https://cypherguide.org");
     }
-    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     if (req.method === "OPTIONS") {
       return res.sendStatus(200);
@@ -323,6 +330,10 @@ async function startServer() {
     return {
       devLnAddress: "cypherguide@zaps.lol",
       infraIncentiveTreasuryLightningAddress: "peevishtender468@walletofsatoshi.com",
+      baseFeeRatePcm: 20,
+      feeUpdatedAt: null,
+      feeUpdatedBy: null,
+      feeAuditNostrEventId: "",
       updatedAt: Date.now(),
       updatedBy: "system"
     };
@@ -342,10 +353,97 @@ async function startServer() {
     }
   };
 
-  // API: Get protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress, etc.)
+  // API: Get protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress, baseFeeRatePcm, etc.)
   app.get("/api/protocol/config", (req, res) => {
     const config = getProtocolConfig();
-    res.json(config);
+    res.json({
+      ...config,
+      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20
+    });
+  });
+
+  // API: Update protocol dynamic fee rate (baseFeeRatePcm) - Strictly guarded by NIP-98 authentication
+  app.patch("/api/protocol/fee", async (req, res) => {
+    try {
+      // 1. Strict NIP-98 Auth check (Kind 27235 signed by authorized admin key)
+      const auth = validateNip98Auth(req, "/api/protocol/fee", "PATCH");
+      if (!auth.authorized) {
+        return res.status(auth.status).json({
+          success: false,
+          error: auth.error
+        });
+      }
+
+      const { baseFeeRatePcm, auditEvent } = req.body || {};
+
+      if (typeof baseFeeRatePcm !== "number" || !Number.isInteger(baseFeeRatePcm) || baseFeeRatePcm < 0 || baseFeeRatePcm > 5000) {
+        return res.status(400).json({
+          success: false,
+          error: "baseFeeRatePcm must be an integer between 0 and 5000 (0.0% - 50.0%)."
+        });
+      }
+
+      const current = getProtocolConfig();
+      const oldFeeRatePcm = typeof current.baseFeeRatePcm === "number" ? current.baseFeeRatePcm : 20;
+      const now = Date.now();
+      const feeUpdatedBy = auth.pubkey || "";
+
+      // 2. Validate and broadcast audit Nostr event if provided
+      let auditEventId = "";
+      if (auditEvent && typeof auditEvent === "object") {
+        try {
+          const isValidAuditSig = verifyEvent(auditEvent);
+          if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
+            auditEventId = auditEvent.id;
+            // Broadcast to Nostr protocol relays asynchronously (best-effort)
+            const PROTOCOL_RELAYS = [
+              "wss://relay.snort.social",
+              "wss://nostr.wine",
+              "wss://relay.nostr.band",
+              "wss://offchain.pub"
+            ];
+            const pool = new SimplePool();
+            try {
+              const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
+              Promise.allSettled(pubPromises).then(() => {
+                pool.close(PROTOCOL_RELAYS);
+              }).catch(() => {});
+            } catch (pErr) {
+              console.warn("Failed to broadcast audit event to relays:", pErr);
+            }
+          } else {
+            console.warn("Audit event signature invalid or pubkey mismatch with NIP-98 event.");
+          }
+        } catch (vErr) {
+          console.warn("Failed to verify audit event:", vErr);
+        }
+      }
+
+      const updated = {
+        ...current,
+        baseFeeRatePcm,
+        feeUpdatedAt: now,
+        feeUpdatedBy,
+        feeAuditNostrEventId: auditEventId || current.feeAuditNostrEventId || "",
+        updatedAt: now,
+        updatedBy: feeUpdatedBy
+      };
+
+      const saved = saveProtocolConfig(updated);
+      if (!saved) {
+        return res.status(500).json({ success: false, error: "Failed to persist protocol fee configuration to server disk." });
+      }
+
+      console.log(`[Protocol Fee] Updated baseFeeRatePcm from ${oldFeeRatePcm} to ${baseFeeRatePcm} by ${feeUpdatedBy}. Audit Event: ${auditEventId || "N/A"}`);
+
+      return res.json({
+        success: true,
+        ...updated
+      });
+    } catch (e: any) {
+      console.error("Error updating protocol fee:", e);
+      return res.status(500).json({ success: false, error: e.message || "Internal server error" });
+    }
   });
 
   // API: Update protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress) - Strictly guarded by NIP-98 authentication

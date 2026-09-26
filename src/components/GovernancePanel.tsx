@@ -41,7 +41,20 @@ interface Props {
 
 export default function GovernancePanel({ proposals, listings, bookings, payouts, documents, identity, onCastVote, onAddProposal, onAddPayout, onSignPayout, onExecutePayout, onAddDocument, onAddLog }: Props) {
   const { t } = useTranslation();
-  const { integrityReport, checkIntegrity, addGovernanceAct, protocolSettings, evolutionLog, setListings } = useAppStore();
+  const { 
+    integrityReport, 
+    checkIntegrity, 
+    addGovernanceAct, 
+    protocolSettings, 
+    evolutionLog, 
+    setListings,
+    baseFeeRatePcm,
+    feeUpdatedAt,
+    feeUpdatedBy,
+    feeAuditNostrEventId,
+    updateProtocolFee,
+    fetchProtocolConfig
+  } = useAppStore();
   const [selectedListingId, setSelectedListingId] = useState<string>(listings[0]?.id || '');
   const [viewMode, setViewMode] = useState<'proposals' | 'analytics' | 'wallet' | 'documents' | 'evolution' | 'insurance'>('proposals');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -49,6 +62,47 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [editingLnOwnerIndex, setEditingLnOwnerIndex] = useState<number | null>(null);
   const [editingLnValue, setEditingLnValue] = useState<string>('');
+
+  // Admin Fee Control State
+  const [showAdminFeeModal, setShowAdminFeeModal] = useState(false);
+  const [adminFeeInput, setAdminFeeInput] = useState<string>('20');
+  const [adminFeeReason, setAdminFeeReason] = useState<string>('');
+  const [isUpdatingFee, setIsUpdatingFee] = useState(false);
+  const [feeUpdateResult, setFeeUpdateResult] = useState<{ success: boolean; msg: string } | null>(null);
+
+  useEffect(() => {
+    fetchProtocolConfig();
+  }, [fetchProtocolConfig]);
+
+  const AUTHORIZED_ADMIN_PUBKEYS = new Set([
+    "96dfc17448bdc132c22623c7febf89c587a8be269d41d9572a90f8b105b73c79",
+    "f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941"
+  ]);
+  const isAdminUser = Boolean(identity?.pubKeyHex && AUTHORIZED_ADMIN_PUBKEYS.has(identity.pubKeyHex));
+  const currentFeePcm = typeof baseFeeRatePcm === 'number' ? baseFeeRatePcm : Math.round((protocolSettings.feeStructure || 0.002) * 10000);
+  const currentFeePercent = (currentFeePcm / 100).toFixed(2);
+  const shortAdmin = feeUpdatedBy ? (feeUpdatedBy.length > 18 ? `${feeUpdatedBy.slice(0, 10)}...${feeUpdatedBy.slice(-4)}` : feeUpdatedBy) : 'Admin';
+
+  const handleSaveAdminFee = async () => {
+    const pcm = parseInt(adminFeeInput, 10);
+    if (isNaN(pcm) || pcm < 0 || pcm > 5000) {
+      setFeeUpdateResult({ success: false, msg: 'Tỷ lệ pcm phải là số nguyên từ 0 đến 5000 (0% - 50%).' });
+      return;
+    }
+    setIsUpdatingFee(true);
+    setFeeUpdateResult(null);
+    const res = await updateProtocolFee(pcm, adminFeeReason);
+    setIsUpdatingFee(false);
+    if (res.success) {
+      setFeeUpdateResult({ success: true, msg: `Cập nhật thành công sang ${(pcm / 100).toFixed(2)}%! Nostr event: ${res.eventId?.slice(0, 16) || 'đã phát tán'}` });
+      setTimeout(() => {
+        setShowAdminFeeModal(false);
+        setFeeUpdateResult(null);
+      }, 2000);
+    } else {
+      setFeeUpdateResult({ success: false, msg: res.error || 'Cập nhật thất bại' });
+    }
+  };
 
   // Quỹ Bảo Hiểm & Trọng Tài BFT State
   const [disputeCases, setDisputeCases] = useState<DisputeCase[]>([
@@ -827,14 +881,32 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-mono uppercase text-gray-500">
-                    <span>Fee Structure</span>
-                    <span className="text-white">{(protocolSettings.feeStructure * 100).toFixed(1)}%</span>
+                <div className="space-y-1.5 p-2.5 rounded-lg bg-black/30 border border-white/5">
+                  <div className="flex justify-between items-center text-[10px] font-mono uppercase text-gray-400">
+                    <span className="text-gray-300 font-semibold">Phí Protocol (Admin Config)</span>
+                    <span className="text-cyber-green font-bold text-xs">{currentFeePercent}%</span>
                   </div>
                   <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
-                    <div className="bg-cyber-pink h-full" style={{ width: `${(protocolSettings.feeStructure / 0.2) * 100}%` }} />
+                    <div className="bg-cyber-pink h-full transition-all duration-500" style={{ width: `${Math.min(100, (Number(currentFeePercent) / 5) * 100)}%` }} />
                   </div>
+                  <p className="text-[10px] text-gray-400 font-mono leading-tight pt-0.5">
+                    Phí hiện tại: <span className="text-white font-bold">{currentFeePercent}%</span> — do CypherGuide Admin đặt ({shortAdmin}), lịch sử thay đổi công khai trên Nostr{feeAuditNostrEventId ? (
+                      <> [<a href={`https://njump.me/${feeAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                    ) : (
+                      <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                    )}.
+                  </p>
+                  {isAdminUser && (
+                    <button
+                      onClick={() => {
+                        setAdminFeeInput(String(currentFeePcm));
+                        setShowAdminFeeModal(true);
+                      }}
+                      className="mt-1 w-full text-[9px] font-mono uppercase py-1 px-2 bg-cyber-pink/15 hover:bg-cyber-pink/25 text-cyber-pink border border-cyber-pink/30 rounded flex items-center justify-center gap-1 transition"
+                    >
+                      <Pencil className="w-3 h-3" /> Điều chỉnh phí (NIP-98)
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -1453,6 +1525,101 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Protocol Fee Modal */}
+      {showAdminFeeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="glass-panel border border-cyber-pink/40 bg-zinc-950/95 rounded-xl max-w-md w-full p-6 shadow-[0_0_30px_rgba(255,0,128,0.2)]">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-cyber-pink" />
+                <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">Cập Nhật Phí Protocol (NIP-98)</h3>
+              </div>
+              <button 
+                onClick={() => { setShowAdminFeeModal(false); setFeeUpdateResult(null); }}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 font-mono text-xs">
+              <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-gray-300 text-[11px] leading-relaxed">
+                <span className="text-cyber-pink font-bold">Minh bạch Cypherpunk:</span> Mọi thay đổi phí được bảo vệ bằng NIP-98 (Kind 27235) với chữ ký Schnorr của Admin, đồng thời tự động phát tán một sự kiện Nostr công khai lên các relay giao thức làm Audit Trail bất biến.
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-[10px] uppercase mb-1">
+                  Tỷ lệ phí cơ sở (baseFeeRatePcm):
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="5000"
+                    step="1"
+                    value={adminFeeInput}
+                    onChange={(e) => setAdminFeeInput(e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-white font-mono text-sm focus:border-cyber-pink focus:outline-none"
+                    placeholder="20 (tương đương 0.20%)"
+                  />
+                  <span className="text-gray-400 text-xs whitespace-nowrap font-bold">
+                    = {(!isNaN(Number(adminFeeInput)) ? (Number(adminFeeInput) / 100).toFixed(2) : '0.00')}%
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1">20 = 0.20%, 50 = 0.50%, 100 = 1.00%, 200 = 2.00%</p>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 text-[10px] uppercase mb-1">
+                  Lý do thay đổi (ghi vào Nostr Audit Trail):
+                </label>
+                <input
+                  type="text"
+                  value={adminFeeReason}
+                  onChange={(e) => setAdminFeeReason(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-white font-mono text-xs focus:border-cyber-pink focus:outline-none"
+                  placeholder="Ví dụ: Tối ưu chi phí mạng lưới theo RFC-0016"
+                />
+              </div>
+
+              {feeUpdateResult && (
+                <div className={`p-2.5 rounded text-[11px] ${feeUpdateResult.success ? 'bg-cyber-green/10 text-cyber-green border border-cyber-green/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                  {feeUpdateResult.msg}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowAdminFeeModal(false); setFeeUpdateResult(null); }}
+                  className="px-4 py-2 text-xs font-mono text-gray-400 hover:text-white transition"
+                  disabled={isUpdatingFee}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAdminFee}
+                  disabled={isUpdatingFee}
+                  className="px-4 py-2 text-xs font-mono font-bold bg-cyber-pink text-white rounded hover:bg-cyber-pink/80 transition flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isUpdatingFee ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Đang ký NIP-98...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" /> Xác nhận & Ký NIP-98
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

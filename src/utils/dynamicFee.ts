@@ -18,6 +18,13 @@ export const DEFAULT_FEE_STRUCTURE: FeeStructure = {
   congestionMultiplier: 1.0,
 };
 
+export function createFeeStructureFromPcm(baseFeeRatePcm: number = 20): FeeStructure {
+  return {
+    ...DEFAULT_FEE_STRUCTURE,
+    baseFeeRatePcm
+  };
+}
+
 /**
  * Tính toán phí giao dịch động cho Booking dựa trên Security Level và Congestion.
  */
