@@ -24,6 +24,7 @@ export interface Nip94Image {
   url: string;
   hash: string;
   signature: string;
+  batchPayloadHash?: string;
   uploadedAt: number;
 }
 

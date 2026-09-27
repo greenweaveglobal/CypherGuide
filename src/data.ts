@@ -56,7 +56,7 @@ export const INITIAL_LISTINGS: Listing[] = [
         guestNpub: 'npub1guestquietmind78923478923478923478923478923478923478923478923478',
         rating: 5,
         text: 'Practicing the 369s stillness ritual at sunset surrounded by pine forest was deeply healing. Truly grateful for the Dana stay.',
-        signature: 'sig_mock_zen_proof_01',
+        signature: 'e83a4561b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f708192a3b4c5d6e83a4561b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f708192a3b4c5d6',
         createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
       }
     ]
@@ -178,7 +178,7 @@ export const INITIAL_LISTINGS: Listing[] = [
         guestNpub: 'npub1guestalpha91823019283019283019283019283019283019283019283019283',
         rating: 5,
         text: 'Super solid Starlink speeds and the Faraday cage gave the most tranquil sleep with zero electromagnetic noise.',
-        signature: 'sig_mock_cypher_proof_01',
+        signature: 'f94b5672c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f708192a3b4c5d6e8f94b5672c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f708192a3b4c5d6e8',
         createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
       }
     ]

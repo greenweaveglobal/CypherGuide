@@ -6,7 +6,7 @@ import {
   Scale, Bot, Server, RefreshCw, AlertTriangle, Clock, Loader2 
 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
-import { Listing, NostrIdentity, CoOwner } from '../types';
+import { Listing, NostrIdentity, CoOwner, Nip94Image } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
 import { safeRandomUUID } from '../utils/uuid';
 import { isValidNpub } from '../utils/kycAttestation';
@@ -95,6 +95,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   const [kycThresholdSatsInput, setKycThresholdSatsInput] = useState('0');
   const [imageUrl, setImageUrl] = useState('');
   const [nip94Urls, setNip94Urls] = useState<string[]>([]);
+  const [uploadedImageHashes, setUploadedImageHashes] = useState<Record<string, string>>({});
   const [coOwners, setCoOwners] = useState<CoOwner[]>([
     {
       npub: identity?.npub || '',
@@ -297,6 +298,9 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         // Upload success: mark done, immediately append to nip94Urls gallery
         setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'done', progress: 100, uploadedUrl: res.url } : q));
         setNip94Urls(prev => [...prev.filter(u => u.trim() !== ''), res.url]);
+        if (res.hash) {
+          setUploadedImageHashes(prev => ({ ...prev, [res.url]: res.hash }));
+        }
 
         // After visual confirmation (1.2s), remove completed item from pending queue so it only lives in uploaded list
         setTimeout(() => {
@@ -396,23 +400,33 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       const payloadHash = await sha256(payload);
       const signature = await signMessage(payloadHash, identity);
 
-      // Sign images using NIP-94 mock
+      // Batch-sign images: exactly 1 real signature for the whole batch
       const validUrls = nip94Urls.filter(url => url.trim() !== '');
-      const signedImages = [];
-      for (const url of validUrls) {
-        // Optimize hash input for huge base64 strings to prevent memory spike (OOM)
-        const hashTarget = url;
-        const hash = await sha256(`nip94_mock_content_hash_${hashTarget}_${Date.now()}`);
-        
-        // Skip opening external signer 10 times for images. Just use a mock signature to prevent UX freezing.
-        const sig = 'sig_mock_' + await sha256(hash + Date.now().toString());
-        
-        signedImages.push({
-          url,
-          hash,
-          signature: sig,
-          uploadedAt: Date.now()
-        });
+      const signedImages: Nip94Image[] = [];
+
+      if (validUrls.length > 0) {
+        const batchTimestamp = Date.now();
+        // Retrieve real hash from media server upload or sha256 of url
+        const imageHashes = await Promise.all(
+          validUrls.map(async (url) => uploadedImageHashes[url] || (await sha256(url)))
+        );
+
+        // Batch payload including listingId, URLs with hashes, and timestamp for independent verification
+        const batchPayload = `nip94_batch_${listingId}_${validUrls.map((u, i) => `${u}:${imageHashes[i]}`).join('|')}_${batchTimestamp}`;
+        const batchHash = await sha256(batchPayload);
+
+        // Call signMessage exactly ONCE for the entire batch
+        const batchSignature = await signMessage(batchHash, identity);
+
+        for (let i = 0; i < validUrls.length; i++) {
+          signedImages.push({
+            url: validUrls[i],
+            hash: imageHashes[i],
+            signature: batchSignature,
+            batchPayloadHash: batchHash,
+            uploadedAt: batchTimestamp
+          });
+        }
       }
 
       const basePrice = priceModel === 'dana' ? 0 : parseInt(priceSats) || 0;
