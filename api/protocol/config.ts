@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { verifyEvent, nip19 } from "nostr-tools";
+import { SimplePool } from "nostr-tools/pool";
 
 // Authorized Admin Public Keys (Hex representation)
 const AUTHORIZED_ADMIN_PUBKEYS = new Set([
@@ -9,6 +10,13 @@ const AUTHORIZED_ADMIN_PUBKEYS = new Set([
   // npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6
   "f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941"
 ]);
+
+const PROTOCOL_RELAYS = [
+  "wss://relay.snort.social",
+  "wss://nostr.wine",
+  "wss://relay.nostr.band",
+  "wss://offchain.pub"
+];
 
 function getConfigFilePath(): string {
   return path.join(process.cwd(), "data", "protocol_config.json");
@@ -31,6 +39,7 @@ function getProtocolConfig() {
     feeUpdatedAt: null,
     feeUpdatedBy: null,
     feeAuditNostrEventId: "",
+    configAuditNostrEventId: "",
     updatedAt: Date.now(),
     updatedBy: "system"
   };
@@ -177,7 +186,8 @@ export default async function handler(req: any, res: any) {
     const config = getProtocolConfig();
     return res.status(200).json({
       ...config,
-      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20
+      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20,
+      configAuditNostrEventId: config.configAuditNostrEventId || ""
     });
   }
 
@@ -192,7 +202,7 @@ export default async function handler(req: any, res: any) {
         });
       }
 
-      const { devLnAddress, infraIncentiveTreasuryLightningAddress } = req.body || {};
+      const { devLnAddress, infraIncentiveTreasuryLightningAddress, auditEvent } = req.body || {};
 
       if (!devLnAddress && !infraIncentiveTreasuryLightningAddress) {
         return res.status(400).json({
@@ -225,11 +235,36 @@ export default async function handler(req: any, res: any) {
         }
       }
 
+      // Validate and broadcast audit Nostr event if provided (best-effort)
+      let auditEventId = "";
+      if (auditEvent && typeof auditEvent === "object") {
+        try {
+          const isValidAuditSig = verifyEvent(auditEvent);
+          if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
+            auditEventId = auditEvent.id;
+            const pool = new SimplePool();
+            try {
+              const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
+              Promise.allSettled(pubPromises).then(() => {
+                pool.close(PROTOCOL_RELAYS);
+              }).catch(() => {});
+            } catch (pErr) {
+              console.warn("Failed to broadcast config audit event to relays:", pErr);
+            }
+          } else {
+            console.warn("Config audit event signature invalid or pubkey mismatch with NIP-98 event.");
+          }
+        } catch (vErr) {
+          console.warn("Failed to verify config audit event:", vErr);
+        }
+      }
+
       const current = getProtocolConfig();
       const updated = {
         ...current,
         ...(trimmedDevAddress ? { devLnAddress: trimmedDevAddress } : {}),
         ...(trimmedTreasuryAddress ? { infraIncentiveTreasuryLightningAddress: trimmedTreasuryAddress } : {}),
+        configAuditNostrEventId: auditEventId || current.configAuditNostrEventId || "",
         updatedAt: Date.now(),
         updatedBy: auth.pubkey ? nip19.npubEncode(auth.pubkey) : "admin"
       };

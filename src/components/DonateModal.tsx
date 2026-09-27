@@ -17,7 +17,7 @@ interface Props {
 
 export default function DonateModal({ onClose, onAddLog }: Props) {
   const { t } = useTranslation();
-  const { devLnAddress, fetchProtocolConfig, updateDevLnAddress, identity } = useAppStore();
+  const { devLnAddress, configAuditNostrEventId, fetchProtocolConfig, updateDevLnAddress, identity } = useAppStore();
   const MARKETING_NPUB = "npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh";
   const AUTHORIZED_DEV_NPUBS = [
     MARKETING_NPUB,
@@ -292,11 +292,20 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                   </p>
                 </div>
               ) : (
-                <div className="flex items-center justify-between bg-black/40 px-3 py-2 rounded-lg border border-border/40">
-                  <span className="text-xs font-mono font-bold text-primary truncate">{devLnAddress}</span>
-                  <span className="text-[9px] font-mono text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded">
-                    Active
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between bg-black/40 px-3 py-2 rounded-lg border border-border/40">
+                    <span className="text-xs font-mono font-bold text-primary truncate">{devLnAddress}</span>
+                    <span className="text-[9px] font-mono text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 font-mono leading-tight pt-0.5">
+                    Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
+                      <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                    ) : (
+                      <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                    )}.
+                  </p>
                 </div>
               )}
 

@@ -119,6 +119,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
   const customRelaysFromStore = useAppStore((state) => state.customRelays);
   const infraIncentiveTreasuryLightningAddress = useAppStore((state) => state.infraIncentiveTreasuryLightningAddress);
   const devLnAddress = useAppStore((state) => state.devLnAddress);
+  const configAuditNostrEventId = useAppStore((state) => state.configAuditNostrEventId);
   const fetchProtocolConfig = useAppStore((state) => state.fetchProtocolConfig);
 
   const [copiedType, setCopiedType] = useState<'treasury' | 'dev' | null>(null);
@@ -982,6 +983,13 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
                     )}
                   </button>
                 </div>
+                <p className="text-[10px] text-gray-400 font-mono leading-tight pt-1">
+                  Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
+                    <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                  ) : (
+                    <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                  )}.
+                </p>
               </div>
             </div>
 
@@ -1029,6 +1037,13 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
                     )}
                   </button>
                 </div>
+                <p className="text-[10px] text-gray-400 font-mono leading-tight pt-1">
+                  Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
+                    <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-warning underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                  ) : (
+                    <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                  )}.
+                </p>
               </div>
             </div>
           </div>

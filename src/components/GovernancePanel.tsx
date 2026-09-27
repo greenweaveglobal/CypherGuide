@@ -52,6 +52,9 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     feeUpdatedAt,
     feeUpdatedBy,
     feeAuditNostrEventId,
+    configAuditNostrEventId,
+    devLnAddress,
+    infraIncentiveTreasuryLightningAddress,
     updateProtocolFee,
     fetchProtocolConfig
   } = useAppStore();
@@ -907,6 +910,48 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                       <Pencil className="w-3 h-3" /> Điều chỉnh phí (NIP-98)
                     </button>
                   )}
+                </div>
+
+                <div className="space-y-1.5 p-2.5 rounded-lg bg-black/30 border border-white/5">
+                  <div className="flex justify-between items-center text-[10px] font-mono uppercase text-gray-400">
+                    <span className="text-gray-300 font-semibold">Ví Protocol & Quỹ Hạ Tầng</span>
+                  </div>
+                  <div className="text-[10px] text-gray-300 font-mono space-y-1.5 pt-0.5">
+                    <div>
+                      <div className="flex justify-between items-center text-[9px] text-gray-400">
+                        <span>Quỹ Hạ Tầng (Treasury):</span>
+                        {configAuditNostrEventId && (
+                          <a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center text-[9px]">
+                            audit event ↗
+                          </a>
+                        )}
+                      </div>
+                      <span className="text-cyber-green font-bold truncate block select-all" title={infraIncentiveTreasuryLightningAddress}>
+                        {infraIncentiveTreasuryLightningAddress}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center text-[9px] text-gray-400">
+                        <span>Ủng Hộ Dev (Donation):</span>
+                        {configAuditNostrEventId && (
+                          <a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-warning underline hover:text-white inline-flex items-center text-[9px]">
+                            audit event ↗
+                          </a>
+                        )}
+                      </div>
+                      <span className="text-warning font-bold truncate block select-all" title={devLnAddress}>
+                        {devLnAddress}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400 font-mono leading-tight pt-0.5">
+                    Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
+                      <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                    ) : (
+                      <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                    )}.
+                  </p>
                 </div>
 
                 <div className="space-y-1">

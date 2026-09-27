@@ -93,9 +93,10 @@ interface AppState {
   feeUpdatedAt: number;
   feeUpdatedBy: string;
   feeAuditNostrEventId: string;
+  configAuditNostrEventId: string;
   fetchProtocolConfig: () => Promise<void>;
-  updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string }>;
-  updateInfraIncentiveTreasuryLightningAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string }>;
+  updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
+  updateInfraIncentiveTreasuryLightningAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
   updateProtocolFee: (newPcm: number, reason?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
 
   customRelays: RelayNode[];
@@ -149,6 +150,7 @@ export const useAppStore = create<AppState>()(
       feeUpdatedAt: 1787826600000,
       feeUpdatedBy: 'npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh',
       feeAuditNostrEventId: '',
+      configAuditNostrEventId: '',
 
       fetchProtocolConfig: async () => {
         try {
@@ -164,6 +166,9 @@ export const useAppStore = create<AppState>()(
             }
             if (data.infraIncentiveTreasuryLightningAddress && typeof data.infraIncentiveTreasuryLightningAddress === 'string') {
               set({ infraIncentiveTreasuryLightningAddress: data.infraIncentiveTreasuryLightningAddress });
+            }
+            if (data.configAuditNostrEventId && typeof data.configAuditNostrEventId === 'string') {
+              set({ configAuditNostrEventId: data.configAuditNostrEventId });
             }
             if (typeof data.baseFeeRatePcm === 'number') {
               const pcm = data.baseFeeRatePcm;
@@ -274,59 +279,161 @@ export const useAppStore = create<AppState>()(
 
       updateDevLnAddress: async (address: string, npub?: string) => {
         try {
+          const state = get();
+          const oldAddress = state.devLnAddress || '';
+          const trimmedAddress = address.trim().toLowerCase();
+          const identity = state.identity;
+          const adminNpub = npub || identity?.npub || 'admin';
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const timeIso = new Date().toISOString();
+
+          // 1. Audit content description
+          const auditContent = `Địa chỉ devLnAddress đổi từ ${oldAddress} sang ${trimmedAddress}, bởi ${adminNpub}, lúc ${timeIso}`;
+
+          let privKeyHex = '';
+          if (identity?.nsec) {
+            privKeyHex = nsecToHex(identity.nsec) || '';
+          }
+
+          const auditTemplate = {
+            kind: 1,
+            created_at: nowSeconds,
+            tags: [
+              ['t', 'protocol-governance'],
+              ['t', 'cypherguide-config'],
+              ['param', 'devLnAddress', trimmedAddress],
+              ['old_value', oldAddress],
+              ['new_value', trimmedAddress]
+            ],
+            content: auditContent
+          };
+
+          let auditEvent: any = null;
+          if (privKeyHex) {
+            auditEvent = finalizeEvent(auditTemplate, hexToBytes(privKeyHex));
+          } else if (typeof window !== 'undefined' && (window as any).nostr) {
+            try {
+              auditEvent = await (window as any).nostr.signEvent(auditTemplate);
+            } catch (err) {
+              console.warn('[Audit] Failed to sign devLnAddress audit event via NIP-07:', err);
+            }
+          }
+
+          // 2. Strict NIP-98 Header (Kind 27235 for POST /api/protocol/config)
+          const authHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', privKeyHex);
+          if (!authHeader) {
+            return {
+              success: false,
+              error: 'Không thể tạo chữ ký NIP-98. Vui lòng đăng nhập bằng khóa Admin ủy quyền.'
+            };
+          }
+
           const res = await fetch('/api/protocol/config', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ devLnAddress: address, npub }),
-            signal: AbortSignal.timeout(5000)
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': authHeader
+            },
+            body: JSON.stringify({
+              devLnAddress: trimmedAddress,
+              auditEvent
+            }),
+            signal: AbortSignal.timeout(8000)
           });
-          const contentType = res.headers.get('content-type') || '';
-          if (res.ok && contentType.includes('application/json')) {
-            const data = await res.json();
-            if (data.success) {
-              set({ devLnAddress: data.devLnAddress });
-              return { success: true };
-            }
-            return { success: false, error: data.error || 'Failed to update configuration on server' };
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            set({
+              devLnAddress: data.devLnAddress || trimmedAddress,
+              configAuditNostrEventId: data.configAuditNostrEventId || (auditEvent ? auditEvent.id : '')
+            });
+            return { success: true, eventId: data.configAuditNostrEventId || auditEvent?.id };
           } else {
-            let errorMsg = 'Failed to reach server to update configuration';
-            try {
-              const errData = await res.json();
-              if (errData.error) errorMsg = errData.error;
-            } catch (_) {}
-            return { success: false, error: errorMsg };
+            return { success: false, error: data.error || `HTTP ${res.status}: Cập nhật địa chỉ dev thất bại.` };
           }
         } catch (e: any) {
-          return { success: false, error: e.message || 'Network error: Cannot reach server to save configuration' };
+          return { success: false, error: e.message || 'Lỗi mạng khi kết nối tới máy chủ cập nhật cấu hình.' };
         }
       },
 
       updateInfraIncentiveTreasuryLightningAddress: async (address: string, npub?: string) => {
         try {
+          const state = get();
+          const oldAddress = state.infraIncentiveTreasuryLightningAddress || '';
+          const trimmedAddress = address.trim().toLowerCase();
+          const identity = state.identity;
+          const adminNpub = npub || identity?.npub || 'admin';
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const timeIso = new Date().toISOString();
+
+          // 1. Audit content description
+          const auditContent = `Địa chỉ infraIncentiveTreasuryLightningAddress đổi từ ${oldAddress} sang ${trimmedAddress}, bởi ${adminNpub}, lúc ${timeIso}`;
+
+          let privKeyHex = '';
+          if (identity?.nsec) {
+            privKeyHex = nsecToHex(identity.nsec) || '';
+          }
+
+          const auditTemplate = {
+            kind: 1,
+            created_at: nowSeconds,
+            tags: [
+              ['t', 'protocol-governance'],
+              ['t', 'cypherguide-config'],
+              ['param', 'infraIncentiveTreasuryLightningAddress', trimmedAddress],
+              ['old_value', oldAddress],
+              ['new_value', trimmedAddress]
+            ],
+            content: auditContent
+          };
+
+          let auditEvent: any = null;
+          if (privKeyHex) {
+            auditEvent = finalizeEvent(auditTemplate, hexToBytes(privKeyHex));
+          } else if (typeof window !== 'undefined' && (window as any).nostr) {
+            try {
+              auditEvent = await (window as any).nostr.signEvent(auditTemplate);
+            } catch (err) {
+              console.warn('[Audit] Failed to sign treasury audit event via NIP-07:', err);
+            }
+          }
+
+          // 2. Strict NIP-98 Header (Kind 27235 for POST /api/protocol/config)
+          const authHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', privKeyHex);
+          if (!authHeader) {
+            return {
+              success: false,
+              error: 'Không thể tạo chữ ký NIP-98. Vui lòng đăng nhập bằng khóa Admin ủy quyền.'
+            };
+          }
+
           const res = await fetch('/api/protocol/config', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ infraIncentiveTreasuryLightningAddress: address, npub }),
-            signal: AbortSignal.timeout(5000)
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': authHeader
+            },
+            body: JSON.stringify({
+              infraIncentiveTreasuryLightningAddress: trimmedAddress,
+              auditEvent
+            }),
+            signal: AbortSignal.timeout(8000)
           });
-          const contentType = res.headers.get('content-type') || '';
-          if (res.ok && contentType.includes('application/json')) {
-            const data = await res.json();
-            if (data.success) {
-              set({ infraIncentiveTreasuryLightningAddress: data.infraIncentiveTreasuryLightningAddress });
-              return { success: true };
-            }
-            return { success: false, error: data.error || 'Failed to update treasury configuration on server' };
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            set({
+              infraIncentiveTreasuryLightningAddress: data.infraIncentiveTreasuryLightningAddress || trimmedAddress,
+              configAuditNostrEventId: data.configAuditNostrEventId || (auditEvent ? auditEvent.id : '')
+            });
+            return { success: true, eventId: data.configAuditNostrEventId || auditEvent?.id };
           } else {
-            let errorMsg = 'Failed to reach server to update treasury configuration';
-            try {
-              const errData = await res.json();
-              if (errData.error) errorMsg = errData.error;
-            } catch (_) {}
-            return { success: false, error: errorMsg };
+            return { success: false, error: data.error || `HTTP ${res.status}: Cập nhật địa chỉ treasury thất bại.` };
           }
         } catch (e: any) {
-          return { success: false, error: e.message || 'Network error: Cannot reach server to save treasury configuration' };
+          return { success: false, error: e.message || 'Lỗi mạng khi kết nối tới máy chủ cập nhật treasury.' };
         }
       },
 

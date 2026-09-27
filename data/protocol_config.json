@@ -5,6 +5,7 @@
   "feeUpdatedAt": null,
   "feeUpdatedBy": null,
   "feeAuditNostrEventId": "",
+  "configAuditNostrEventId": "",
   "updatedAt": 1787826600000,
   "updatedBy": "admin"
 }

@@ -22,6 +22,13 @@ if (process.env.TEST_ADMIN_PUBKEY) {
   AUTHORIZED_ADMIN_PUBKEYS.add(process.env.TEST_ADMIN_PUBKEY);
 }
 
+const PROTOCOL_RELAYS = [
+  "wss://relay.snort.social",
+  "wss://nostr.wine",
+  "wss://relay.nostr.band",
+  "wss://offchain.pub"
+];
+
 /**
  * Validates NIP-98 HTTP Authentication (Kind 27235)
  */
@@ -334,6 +341,7 @@ async function startServer() {
       feeUpdatedAt: null,
       feeUpdatedBy: null,
       feeAuditNostrEventId: "",
+      configAuditNostrEventId: "",
       updatedAt: Date.now(),
       updatedBy: "system"
     };
@@ -358,7 +366,8 @@ async function startServer() {
     const config = getProtocolConfig();
     res.json({
       ...config,
-      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20
+      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20,
+      configAuditNostrEventId: config.configAuditNostrEventId || ""
     });
   });
 
@@ -396,12 +405,6 @@ async function startServer() {
           if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
             auditEventId = auditEvent.id;
             // Broadcast to Nostr protocol relays asynchronously (best-effort)
-            const PROTOCOL_RELAYS = [
-              "wss://relay.snort.social",
-              "wss://nostr.wine",
-              "wss://relay.nostr.band",
-              "wss://offchain.pub"
-            ];
             const pool = new SimplePool();
             try {
               const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
@@ -446,11 +449,11 @@ async function startServer() {
     }
   });
 
-  // API: Update protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress) - Strictly guarded by NIP-98 authentication
-  app.post("/api/protocol/config", (req, res) => {
+  // API: Update protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress) - Strictly guarded by NIP-98 authentication & Audited on Nostr
+  app.post("/api/protocol/config", async (req, res) => {
     try {
       // 1. Enforce strict NIP-98 HTTP Auth check (Kind 27235 signed by authorized admin key)
-      const auth = verifyNip98Auth(req, "/api/protocol/config", "POST");
+      const auth = validateNip98Auth(req, "/api/protocol/config", "POST");
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,
@@ -458,7 +461,7 @@ async function startServer() {
         });
       }
 
-      const { devLnAddress, infraIncentiveTreasuryLightningAddress } = req.body || {};
+      const { devLnAddress, infraIncentiveTreasuryLightningAddress, auditEvent } = req.body || {};
 
       if (!devLnAddress && !infraIncentiveTreasuryLightningAddress) {
         return res.status(400).json({ success: false, error: "No configuration fields provided to update" });
@@ -488,11 +491,37 @@ async function startServer() {
         }
       }
 
+      // 2. Validate and broadcast audit Nostr event if provided (best-effort)
+      let auditEventId = "";
+      if (auditEvent && typeof auditEvent === "object") {
+        try {
+          const isValidAuditSig = verifyEvent(auditEvent);
+          if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
+            auditEventId = auditEvent.id;
+            // Broadcast to Nostr protocol relays asynchronously (best-effort)
+            const pool = new SimplePool();
+            try {
+              const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
+              Promise.allSettled(pubPromises).then(() => {
+                pool.close(PROTOCOL_RELAYS);
+              }).catch(() => {});
+            } catch (pErr) {
+              console.warn("Failed to broadcast config audit event to relays:", pErr);
+            }
+          } else {
+            console.warn("Config audit event signature invalid or pubkey mismatch with NIP-98 event.");
+          }
+        } catch (vErr) {
+          console.warn("Failed to verify config audit event:", vErr);
+        }
+      }
+
       const current = getProtocolConfig();
       const updated = {
         ...current,
         ...(trimmedDevAddress ? { devLnAddress: trimmedDevAddress } : {}),
         ...(trimmedTreasuryAddress ? { infraIncentiveTreasuryLightningAddress: trimmedTreasuryAddress } : {}),
+        configAuditNostrEventId: auditEventId || current.configAuditNostrEventId || "",
         updatedAt: Date.now(),
         updatedBy: auth.pubkey ? nip19.npubEncode(auth.pubkey) : "admin"
       };
@@ -501,6 +530,8 @@ async function startServer() {
       if (!saved) {
         return res.status(500).json({ success: false, error: "Failed to persist config to server disk." });
       }
+
+      console.log(`[Protocol Config] Updated addresses by ${auth.pubkey}. Audit Event: ${auditEventId || "N/A"}`);
 
       return res.json({
         success: true,
