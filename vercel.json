@@ -1,4 +1,19 @@
 {
+  "headers": [
+    {
+      "source": "/.well-known/nostr.json",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/vi",
@@ -9,7 +24,7 @@
       "destination": "/vi/index.html"
     },
     {
-      "source": "/((?!api/|sitemap\\.xml|robots\\.txt).*)",
+      "source": "/((?!api/|\\.well-known/|sitemap\\.xml|robots\\.txt).*)",
       "destination": "/index.html"
     }
   ]

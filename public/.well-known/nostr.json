@@ -1,0 +1,11 @@
+{
+  "names": {
+    "CypherGuide": "96dfc17448bdc132c22623c7febf89c587a8be269d41d9572a90f8b105b73c79"
+  },
+  "relays": {
+    "96dfc17448bdc132c22623c7febf89c587a8be269d41d9572a90f8b105b73c79": [
+      "wss://relay.ngit.dev",
+      "wss://relay.cypherguide.org"
+    ]
+  }
+}

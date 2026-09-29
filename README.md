@@ -8,6 +8,10 @@
 
 > *A non-custodial, censorship-resistant booking and identity protocol built on Nostr (NIP-01/05/47), Bitcoin Lightning Network, and autonomous cryptographic governance.*
 
+> **Sovereignty note:** This repository is mirrored on GitHub for convenience. The canonical, censorship-resistant copy lives on Nostr via [GRASP](https://github.com/DanConwayDev/GRASP) — not tied to any single platform.
+> - View: https://gitworkshop.dev/npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh/relay.ngit.dev/CypherGuide
+> - Clone: `git clone nostr://cypherguide.org/CypherGuide` (once NIP-05 is live) or `git clone nostr://npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh/relay.ngit.dev/CypherGuide`
+
 ---
 
 ## ⚠️ Security Notice & Protocol Maturity Status

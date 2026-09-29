@@ -756,6 +756,21 @@ async function startServer() {
     });
   });
 
+  // NIP-05 Identity Endpoint (.well-known/nostr.json)
+  app.get("/.well-known/nostr.json", (_req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+    const pubPath = path.join(process.cwd(), "public", ".well-known", "nostr.json");
+    if (fs.existsSync(pubPath)) {
+      return res.sendFile(pubPath);
+    }
+    const distPath = path.join(process.cwd(), "dist", ".well-known", "nostr.json");
+    if (fs.existsSync(distPath)) {
+      return res.sendFile(distPath);
+    }
+    res.status(404).json({ error: "nostr.json not found" });
+  });
+
   // Vite middleware setup
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

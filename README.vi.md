@@ -7,6 +7,10 @@
 
 > *Hệ thống đặt phòng và định danh phi lưu ký, chống kiểm duyệt xây dựng trên nền tảng Nostr (NIP-01/05/47), mạng lưới Bitcoin Lightning và cơ chế quản trị mật mã tự trị.*
 
+> **Sovereignty note (Ghi chú về chủ quyền):** This repository is mirrored on GitHub for convenience. The canonical, censorship-resistant copy lives on Nostr via [GRASP](https://github.com/DanConwayDev/GRASP) — not tied to any single platform.
+> - View: https://gitworkshop.dev/npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh/relay.ngit.dev/CypherGuide
+> - Clone: `git clone nostr://cypherguide.org/CypherGuide` (once NIP-05 is live) or `git clone nostr://npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh/relay.ngit.dev/CypherGuide`
+
 ---
 
 ## ⚠️ Cảnh Báo An Ninh & Trạng Thái Trưởng Thành Giao Thức
