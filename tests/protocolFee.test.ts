@@ -1,10 +1,33 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE } from '../src/utils/dynamicFee';
 import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, nip19 } from 'nostr-tools';
 import { bytesToHex } from '../src/utils/crypto';
 import { createNip98AuthHeader } from '../src/utils/nip98Auth';
 
 describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', () => {
+  let tempDir: string;
+  let tempConfigFile: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "cg-"));
+    tempConfigFile = path.join(tempDir, "protocol_config.json");
+    const realConfigPath = path.join(process.cwd(), "data", "protocol_config.json");
+    if (fs.existsSync(realConfigPath)) {
+      fs.copyFileSync(realConfigPath, tempConfigFile);
+    }
+    process.env.PROTOCOL_CONFIG_PATH = tempConfigFile;
+  });
+
+  afterEach(() => {
+    delete process.env.PROTOCOL_CONFIG_PATH;
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   const AUTHORIZED_ADMIN_PUBKEYS = new Set([
     '96dfc17448bdc132c22623c7febf89c587a8be269d41d9572a90f8b105b73c79',
     'f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941'
@@ -128,6 +151,134 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
         delete process.env.TEST_ADMIN_PUBKEY;
       }
       (globalThis as any).window.location = prevLocation;
+    }
+  });
+
+  it('disregards spoofed Host headers in production mode and strictly verifies PUBLIC_BASE_URL (Task 3)', async () => {
+    const { verifyNip98Auth } = await import('../lib/adminAuth');
+
+    const testAdminSk = generateSecretKey();
+    const testAdminSkHex = bytesToHex(testAdminSk);
+    const testAdminPk = getPublicKey(testAdminSk);
+
+    const prevEnv = process.env.NODE_ENV;
+    const prevBaseUrl = process.env.PUBLIC_BASE_URL;
+    const prevTestAdmin = process.env.TEST_ADMIN_PUBKEY;
+    const prevLocation = (globalThis as any).window.location;
+
+    const publicBaseUrl = 'https://ais-pre-vxmqhbp3b3jpleggin55si-792548921200.asia-southeast1.run.app';
+    process.env.NODE_ENV = 'production';
+    process.env.PUBLIC_BASE_URL = publicBaseUrl;
+    process.env.TEST_ADMIN_PUBKEY = testAdminPk;
+
+    try {
+      // 1. Attacker sends request with spoofed Host: evil.example and event signed for https://evil.example/api/protocol/fee
+      (globalThis as any).window.location = { origin: 'https://evil.example' };
+      const evilAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex);
+      expect(evilAuthHeader).toBeTruthy();
+
+      const evilReq = {
+        headers: {
+          authorization: evilAuthHeader,
+          host: 'evil.example'
+        }
+      };
+
+      const evilResult = await verifyNip98Auth(evilReq, '/api/protocol/fee', 'PATCH');
+      expect(evilResult.authorized).toBe(false);
+      expect(evilResult.status).toBe(401);
+      expect(evilResult.error).toContain('URL tag mismatch');
+
+      // 2. Legitimate admin sends request with event signed for configured PUBLIC_BASE_URL
+      (globalThis as any).window.location = { origin: publicBaseUrl };
+      const legitAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex);
+      expect(legitAuthHeader).toBeTruthy();
+
+      const legitReq = {
+        headers: {
+          authorization: legitAuthHeader,
+          host: 'ais-pre-vxmqhbp3b3jpleggin55si-792548921200.asia-southeast1.run.app'
+        }
+      };
+
+      const legitResult = await verifyNip98Auth(legitReq, '/api/protocol/fee', 'PATCH');
+      expect(legitResult.authorized).toBe(true);
+      expect(legitResult.status).toBe(200);
+      expect(legitResult.pubkey).toBe(testAdminPk);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+      if (prevBaseUrl !== undefined) {
+        process.env.PUBLIC_BASE_URL = prevBaseUrl;
+      } else {
+        delete process.env.PUBLIC_BASE_URL;
+      }
+      if (prevTestAdmin !== undefined) {
+        process.env.TEST_ADMIN_PUBKEY = prevTestAdmin;
+      } else {
+        delete process.env.TEST_ADMIN_PUBKEY;
+      }
+      (globalThis as any).window.location = prevLocation;
+    }
+  });
+
+  it('signs and verifies NIP-98 payload tag (SHA-256 hash) to prevent request body tampering (Task 4)', async () => {
+    const { verifyNip98Auth } = await import('../lib/adminAuth');
+
+    const testAdminSk = generateSecretKey();
+    const testAdminSkHex = bytesToHex(testAdminSk);
+    const testAdminPk = getPublicKey(testAdminSk);
+
+    const prevTestAdmin = process.env.TEST_ADMIN_PUBKEY;
+    process.env.TEST_ADMIN_PUBKEY = testAdminPk;
+
+    try {
+      const requestPayload = JSON.stringify({ baseFeeRatePcm: 25 });
+      const authHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex, requestPayload);
+      expect(authHeader).toBeTruthy();
+
+      const base64 = authHeader!.replace('Nostr ', '');
+      const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
+      const payloadTag = decoded.tags.find((t: string[]) => t[0] === 'payload')?.[1];
+      expect(payloadTag).toBeTruthy();
+      expect(payloadTag).toHaveLength(64); // SHA-256 hex string
+
+      // 1. Valid request where body matches signed payload tag
+      const validReq = {
+        headers: {
+          authorization: authHeader
+        },
+        body: JSON.parse(requestPayload)
+      };
+      const validResult = await verifyNip98Auth(validReq, '/api/protocol/fee', 'PATCH', requestPayload);
+      expect(validResult.authorized).toBe(true);
+      expect(validResult.status).toBe(200);
+
+      // 2. Tampered request where body has been altered in transit
+      // Use a new key / event so event ID is not rejected as replay
+      const secondAdminSk = generateSecretKey();
+      const secondAdminSkHex = bytesToHex(secondAdminSk);
+      const secondAdminPk = getPublicKey(secondAdminSk);
+      process.env.TEST_ADMIN_PUBKEY = secondAdminPk;
+
+      const tamperedPayload = JSON.stringify({ baseFeeRatePcm: 99 });
+      // Event signed for requestPayload, but body sent is tamperedPayload
+      const secondAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', secondAdminSkHex, requestPayload);
+      const tamperedReq = {
+        headers: {
+          authorization: secondAuthHeader
+        },
+        body: JSON.parse(tamperedPayload)
+      };
+      const tamperedResult = await verifyNip98Auth(tamperedReq, '/api/protocol/fee', 'PATCH', tamperedPayload);
+      expect(tamperedResult.authorized).toBe(false);
+      expect(tamperedResult.status).toBe(401);
+      expect(tamperedResult.error).toContain('payload tag hash mismatch');
+    } finally {
+      if (prevTestAdmin !== undefined) {
+        process.env.TEST_ADMIN_PUBKEY = prevTestAdmin;
+      } else {
+        delete process.env.TEST_ADMIN_PUBKEY;
+      }
     }
   });
 

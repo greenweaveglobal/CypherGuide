@@ -17,7 +17,8 @@ export interface Nip98Event {
 export async function createNip98AuthHeader(
   url: string,
   method: string,
-  privKeyHex?: string
+  privKeyHex?: string,
+  body?: string | any
 ): Promise<string | null> {
   let targetUrl = url;
   if (targetUrl.startsWith('/') && typeof window !== 'undefined' && window.location?.origin) {
@@ -26,13 +27,28 @@ export async function createNip98AuthHeader(
 
   const normalizedMethod = method.toUpperCase();
   const now = Math.floor(Date.now() / 1000);
+  const tags: string[][] = [
+    ['u', targetUrl],
+    ['method', normalizedMethod]
+  ];
+
+  if (body !== undefined && body !== null) {
+    const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+    const subtle = (typeof window !== 'undefined' && window.crypto?.subtle) || (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle);
+    if (subtle) {
+      const buffer = new TextEncoder().encode(bodyStr);
+      const hashBuf = await subtle.digest('SHA-256', buffer);
+      const hashHex = Array.from(new Uint8Array(hashBuf))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      tags.push(['payload', hashHex]);
+    }
+  }
+
   const template = {
     kind: 27235 as const,
     created_at: now,
-    tags: [
-      ['u', targetUrl],
-      ['method', normalizedMethod]
-    ],
+    tags,
     content: ''
   };
 

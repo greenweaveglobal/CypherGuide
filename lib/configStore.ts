@@ -29,6 +29,9 @@ export const DEFAULT_PROTOCOL_CONFIG: ProtocolConfig = {
 const REDIS_CONFIG_KEY = "cg:protocol_config";
 
 function getConfigFilePath(): string {
+  if (process.env.PROTOCOL_CONFIG_PATH) {
+    return process.env.PROTOCOL_CONFIG_PATH;
+  }
   return path.join(process.cwd(), "data", "protocol_config.json");
 }
 

@@ -95,6 +95,16 @@ npm run dev
 
 The application will be accessible at `http://localhost:3000`.
 
+### Environment Configuration (`.env`)
+
+Copy the template: `cp .env.example .env`
+
+- `PUBLIC_BASE_URL`: **Mandatory** when deploying to production on Cloud Run, Google AI Studio previews, or custom domains (e.g. `PUBLIC_BASE_URL=https://ais-dev-vxmqhbp3b3jpleggin55si-792548921200.asia-southeast1.run.app`). In production mode, the server strictly validates NIP-98 `u` tags against `PUBLIC_BASE_URL` and canonical domains (`https://cypherguide.org`, `https://www.cypherguide.org`), completely disregarding spoofable client `Host` or `x-forwarded-host` headers.
+- `CORS_EXTRA_ORIGINS`: Comma-separated list of additional allowed CORS origins (e.g. for Google AI Studio previews or Cloud Run URLs).
+- `PROTOCOL_CONFIG_PATH`: Optional custom path for the protocol configuration file (defaults to `data/protocol_config.json`). Useful when mounting custom persistent volumes or running isolated test environments.
+- `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis credentials for distributed sliding-window rate limiting, NIP-98 anti-replay event caching, and distributed protocol config storage.
+- `GEMINI_API_KEY`: API key for the server-side documentation assistant (`lib/docsAssistant.ts`).
+
 ### Building & Verification
 
 ```bash

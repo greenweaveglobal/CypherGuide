@@ -233,7 +233,11 @@ export const useAppStore = create<AppState>()(
           }
 
           // 2. Strict NIP-98 Header (Kind 27235 for PATCH /api/protocol/fee)
-          const authHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', privKeyHex);
+          const bodyString = JSON.stringify({
+            baseFeeRatePcm: newPcm,
+            auditEvent
+          });
+          const authHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', privKeyHex, bodyString);
           if (!authHeader) {
             return {
               success: false,
@@ -248,10 +252,7 @@ export const useAppStore = create<AppState>()(
               'Accept': 'application/json',
               'Authorization': authHeader
             },
-            body: JSON.stringify({
-              baseFeeRatePcm: newPcm,
-              auditEvent
-            }),
+            body: bodyString,
             signal: AbortSignal.timeout(8000)
           });
 
@@ -320,7 +321,11 @@ export const useAppStore = create<AppState>()(
           }
 
           // 2. Strict NIP-98 Header (Kind 27235 for POST /api/protocol/config)
-          const authHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', privKeyHex);
+          const bodyString = JSON.stringify({
+            devLnAddress: trimmedAddress,
+            auditEvent
+          });
+          const authHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', privKeyHex, bodyString);
           if (!authHeader) {
             return {
               success: false,
@@ -335,10 +340,7 @@ export const useAppStore = create<AppState>()(
               'Accept': 'application/json',
               'Authorization': authHeader
             },
-            body: JSON.stringify({
-              devLnAddress: trimmedAddress,
-              auditEvent
-            }),
+            body: bodyString,
             signal: AbortSignal.timeout(8000)
           });
 
@@ -400,7 +402,11 @@ export const useAppStore = create<AppState>()(
           }
 
           // 2. Strict NIP-98 Header (Kind 27235 for POST /api/protocol/config)
-          const authHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', privKeyHex);
+          const bodyString = JSON.stringify({
+            infraIncentiveTreasuryLightningAddress: trimmedAddress,
+            auditEvent
+          });
+          const authHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', privKeyHex, bodyString);
           if (!authHeader) {
             return {
               success: false,
@@ -415,10 +421,7 @@ export const useAppStore = create<AppState>()(
               'Accept': 'application/json',
               'Authorization': authHeader
             },
-            body: JSON.stringify({
-              infraIncentiveTreasuryLightningAddress: trimmedAddress,
-              auditEvent
-            }),
+            body: bodyString,
             signal: AbortSignal.timeout(8000)
           });
 

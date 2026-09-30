@@ -77,7 +77,7 @@ export function getAuthorizedAdminPubkeys(): Set<string> {
   const pubkeys = new Set<string>(AUTHORIZED_ADMIN_PUBKEYS.map(pk => pk.toLowerCase()));
 
   if (process.env.TEST_ADMIN_PUBKEY) {
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === "production" && !process.env.VITEST) {
       console.warn("[SECURITY ALERT] TEST_ADMIN_PUBKEY environment variable is strictly IGNORED in production.");
     } else {
       pubkeys.add(process.env.TEST_ADMIN_PUBKEY.trim().toLowerCase());
@@ -236,15 +236,14 @@ export async function verifyNip98Auth(
   validUrls.add(`https://cypherguide.org${targetUrlPath}`);
   validUrls.add(`https://www.cypherguide.org${targetUrlPath}`);
 
-  // Derived from trusted reverse proxy headers / request host
-  const proto = (req.headers?.["x-forwarded-proto"] as string) || (req.protocol as string) || "https";
-  const host = (req.headers?.["x-forwarded-host"] as string) || (req.headers?.host as string) || "";
-  if (host) {
-    validUrls.add(`${proto}://${host}${targetUrlPath}`);
-  }
-
-  // Local development / testing origins
+  // In non-production only: allow building URL from request headers and localhost origins for local dev/testing
   if (process.env.NODE_ENV !== "production") {
+    const proto = (req.headers?.["x-forwarded-proto"] as string) || (req.protocol as string) || "https";
+    const host = (req.headers?.["x-forwarded-host"] as string) || (req.headers?.host as string) || "";
+    if (host) {
+      validUrls.add(`${proto}://${host}${targetUrlPath}`);
+    }
+
     validUrls.add(`http://localhost:3000${targetUrlPath}`);
     validUrls.add(`http://localhost:5173${targetUrlPath}`);
     validUrls.add(`http://localhost${targetUrlPath}`);

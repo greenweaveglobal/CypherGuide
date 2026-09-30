@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import helmet from "helmet";
-import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import crypto from "crypto";
 import { verifyEvent, nip19 } from "nostr-tools";
@@ -104,7 +103,7 @@ function validateImageMagicBytes(filePath: string): ImageValidationResult {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Trust proxy for reverse proxy IP extraction (Rate limiters & audit logs)
   app.set('trust proxy', 1);
@@ -115,7 +114,12 @@ async function startServer() {
     crossOriginEmbedderPolicy: false
   }));
 
-  app.use(express.json({ limit: "2mb" }));
+  app.use(express.json({
+    limit: "2mb",
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf.toString("utf8");
+    }
+  }));
 
   // Strict CORS configuration for API endpoints via lib/cors
   app.use("/api", corsMiddleware());
@@ -162,7 +166,7 @@ async function startServer() {
   app.patch("/api/protocol/fee", async (req, res) => {
     try {
       // 1. Strict NIP-98 Auth check (Kind 27235 signed by authorized admin key)
-      const auth = await verifyNip98Auth(req, "/api/protocol/fee", "PATCH");
+      const auth = await verifyNip98Auth(req, "/api/protocol/fee", "PATCH", (req as any).rawBody);
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,
@@ -241,7 +245,7 @@ async function startServer() {
   app.post("/api/protocol/config", async (req, res) => {
     try {
       // 1. Enforce strict NIP-98 HTTP Auth check (Kind 27235 signed by authorized admin key)
-      const auth = await verifyNip98Auth(req, "/api/protocol/config", "POST");
+      const auth = await verifyNip98Auth(req, "/api/protocol/config", "POST", (req as any).rawBody);
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,
@@ -521,6 +525,7 @@ async function startServer() {
 
   // Vite middleware setup
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

@@ -30,8 +30,9 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === "PATCH") {
     try {
-      // 1. Strict NIP-98 Auth check
-      const auth = await verifyNip98Auth(req, "/api/protocol/fee", "PATCH");
+      // 1. Strict NIP-98 Auth check with raw payload verification
+      const rawBody = (req as any).rawBody || (typeof req.body === "string" ? req.body : req.body ? JSON.stringify(req.body) : "");
+      const auth = await verifyNip98Auth(req, "/api/protocol/fee", "PATCH", rawBody);
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,

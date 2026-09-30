@@ -29,8 +29,9 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === "POST") {
     try {
-      // STRICT NIP-98 Authentication check
-      const auth = await verifyNip98Auth(req, "/api/protocol/config", "POST");
+      // STRICT NIP-98 Authentication check with raw payload verification
+      const rawBody = (req as any).rawBody || (typeof req.body === "string" ? req.body : req.body ? JSON.stringify(req.body) : "");
+      const auth = await verifyNip98Auth(req, "/api/protocol/config", "POST", rawBody);
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,

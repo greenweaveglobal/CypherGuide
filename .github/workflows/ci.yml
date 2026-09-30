@@ -29,6 +29,9 @@ jobs:
       - name: Run Test Suite (Vitest)
         run: npm test
 
+      - name: Verify data/protocol_config.json was not modified by tests
+        run: git diff --exit-code data/protocol_config.json
+
       - name: Audit Dependencies
         run: npm audit --audit-level=high
 
@@ -41,3 +44,22 @@ jobs:
             echo "ERROR: Found mockVerifier in production build bundle!"
             exit 1
           fi
+
+      - name: Production Server Smoke Test (without devDependencies)
+        run: |
+          mkdir -p /tmp/smoke-test
+          cp -r package.json package-lock.json dist data public /tmp/smoke-test/
+          cd /tmp/smoke-test
+          npm ci --omit=dev
+          NODE_ENV=production PORT=3847 node dist/server.cjs &
+          SERVER_PID=$!
+          sleep 3
+          HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3847/api/health)
+          CONFIG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3847/api/protocol/config)
+          kill $SERVER_PID 2>/dev/null || true
+          rm -rf /tmp/smoke-test
+          if [ "$HEALTH_STATUS" != "200" ] || [ "$CONFIG_STATUS" != "200" ]; then
+            echo "ERROR: Production server smoke test failed! Health: $HEALTH_STATUS, Config: $CONFIG_STATUS"
+            exit 1
+          fi
+          echo "Production server smoke test passed successfully."

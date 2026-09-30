@@ -1,7 +1,29 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { getProtocolConfig, saveProtocolConfig, validateBaseFeeRatePcm, DEFAULT_PROTOCOL_CONFIG } from "../lib/configStore";
 
 describe("Protocol Config Store & Validation (Nhiệm vụ 5)", () => {
+  let tempDir: string;
+  let tempConfigFile: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "cg-"));
+    tempConfigFile = path.join(tempDir, "protocol_config.json");
+    const realConfigPath = path.join(process.cwd(), "data", "protocol_config.json");
+    if (fs.existsSync(realConfigPath)) {
+      fs.copyFileSync(realConfigPath, tempConfigFile);
+    }
+    process.env.PROTOCOL_CONFIG_PATH = tempConfigFile;
+  });
+
+  afterEach(() => {
+    delete process.env.PROTOCOL_CONFIG_PATH;
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
   it("validates baseFeeRatePcm within protocol bounds (0 to 5000)", () => {
     // Valid cases (0.00% to 50.00%)
     expect(validateBaseFeeRatePcm(0).valid).toBe(true);

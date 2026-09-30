@@ -93,6 +93,16 @@ npm run dev
 
 Truy cập ứng dụng tại `http://localhost:3000`.
 
+### Cấu hình biến môi trường (`.env`)
+
+Sao chép file mẫu: `cp .env.example .env`
+
+- `PUBLIC_BASE_URL`: **Bắt buộc** khi triển khai production trên Cloud Run, Google AI Studio hoặc domain phụ (ví dụ: `PUBLIC_BASE_URL=https://ais-dev-vxmqhbp3b3jpleggin55si-792548921200.asia-southeast1.run.app`). Ở chế độ production, server bảo vệ NIP-98 bằng cách chỉ chấp nhận tag `u` khớp chính xác với `PUBLIC_BASE_URL` hoặc domain chuẩn (`https://cypherguide.org`, `https://www.cypherguide.org`), tuyệt đối không tin cậy các header `Host` hay `x-forwarded-host` do client gửi lên.
+- `CORS_EXTRA_ORIGINS`: Danh sách origin bổ sung được phép gọi API (phân cách bằng dấu phẩy), ví dụ cho các preview container trên Cloud Run: `https://ais-dev-vxmqhbp3b3jpleggin55si-792548921200.asia-southeast1.run.app`.
+- `PROTOCOL_CONFIG_PATH`: Tùy chọn đường dẫn file cấu hình protocol (mặc định: `data/protocol_config.json`). Hữu ích khi mount volume lưu trữ riêng hoặc chạy unit test độc lập.
+- `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN`: Kết nối Redis Upstash phục vụ sliding-window rate limit, cache chống replay NIP-98 và lưu trữ cấu hình giao thức.
+- `GEMINI_API_KEY`: Khóa API phục vụ trợ lý tra cứu tài liệu (`lib/docsAssistant.ts`).
+
 ### Kiểm Tra & Build
 
 ```bash
