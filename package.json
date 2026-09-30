@@ -9,7 +9,7 @@
   "homepage": "https://cypherguide.org",
   "repository": {
     "type": "git",
-    "url": "https://github.com/greenweave/cypherguide.git"
+    "url": "https://github.com/greenweaveglobal/cypherguide.git"
   },
   "scripts": {
     "dev": "tsx server.ts",
@@ -42,7 +42,6 @@
     "react-dom": "^19.0.1",
     "react-error-boundary": "^6.1.2",
     "recharts": "^3.9.2",
-    "vite": "^6.2.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

@@ -211,6 +211,86 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     expect(validRes.data.baseFeeRatePcm).toBe(25);
     expect(validRes.data.feeAuditNostrEventId).toBe(auditEvent.id);
 
+    // 5. Replay attack: reusing the exact same authHeader must be rejected with 401
+    const replayReq = {
+      method: 'PATCH',
+      headers: { authorization: authHeader },
+      body: { baseFeeRatePcm: 25 }
+    };
+    const replayRes = createMockRes();
+    await feeHandler(replayReq, replayRes);
+    expect(replayRes.statusCode).toBe(401);
+    expect(replayRes.data.error).toContain('replay');
+
+    // 6. Wrong URL: event signed with a different endpoint URL is rejected with 401
+    const wrongUrlHeader = await createNip98AuthHeader('https://evilcypherguide.org/api/protocol/fee', 'PATCH', testAdminSkHex);
+    const wrongUrlReq = {
+      method: 'PATCH',
+      headers: { authorization: wrongUrlHeader },
+      body: { baseFeeRatePcm: 30 }
+    };
+    const wrongUrlRes = createMockRes();
+    await feeHandler(wrongUrlReq, wrongUrlRes);
+    expect(wrongUrlRes.statusCode).toBe(401);
+    expect(wrongUrlRes.data.error).toContain('URL tag mismatch');
+
+    // 7. Wrong Method: event signed with 'GET' sent to 'PATCH' is rejected with 401
+    const wrongMethodHeader = await createNip98AuthHeader('/api/protocol/fee', 'GET', testAdminSkHex);
+    const wrongMethodReq = {
+      method: 'PATCH',
+      headers: { authorization: wrongMethodHeader },
+      body: { baseFeeRatePcm: 30 }
+    };
+    const wrongMethodRes = createMockRes();
+    await feeHandler(wrongMethodReq, wrongMethodRes);
+    expect(wrongMethodRes.statusCode).toBe(401);
+    expect(wrongMethodRes.data.error).toContain('method tag mismatch');
+
+    // 8. Payload hash mismatch: event containing payload tag that doesn't match body is rejected
+    const templateWithWrongPayload = {
+      kind: 27235 as const,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [
+        ['u', '/api/protocol/fee'],
+        ['method', 'PATCH'],
+        ['payload', '0000000000000000000000000000000000000000000000000000000000000000']
+      ],
+      content: ''
+    };
+    const signedWrongPayload = finalizeEvent(templateWithWrongPayload, testAdminSk);
+    const wrongPayloadHeader = `Nostr ${Buffer.from(JSON.stringify(signedWrongPayload)).toString('base64')}`;
+    const wrongPayloadReq = {
+      method: 'PATCH',
+      headers: { authorization: wrongPayloadHeader },
+      body: { baseFeeRatePcm: 30 }
+    };
+    const wrongPayloadRes = createMockRes();
+    await feeHandler(wrongPayloadReq, wrongPayloadRes);
+    expect(wrongPayloadRes.statusCode).toBe(401);
+    expect(wrongPayloadRes.data.error).toContain('payload tag hash mismatch');
+
+    // 9. Expired event: event outside +/- 60s window is rejected
+    const templateExpired = {
+      kind: 27235 as const,
+      created_at: Math.floor(Date.now() / 1000) - 100,
+      tags: [
+        ['u', '/api/protocol/fee'],
+        ['method', 'PATCH']
+      ],
+      content: ''
+    };
+    const signedExpiredEvent = finalizeEvent(templateExpired, testAdminSk);
+    const expiredHeader = `Nostr ${Buffer.from(JSON.stringify(signedExpiredEvent)).toString('base64')}`;
+    const expiredReq = {
+      method: 'PATCH',
+      headers: { authorization: expiredHeader },
+      body: { baseFeeRatePcm: 30 }
+    };
+    const expiredRes = createMockRes();
+    await feeHandler(expiredReq, expiredRes);
+    expect(expiredRes.statusCode).toBe(401);
+    expect(expiredRes.data.error).toContain('outside +/- 60s tolerance');
+
     // Clean up
     delete process.env.TEST_ADMIN_PUBKEY;
   });

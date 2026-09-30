@@ -9,18 +9,10 @@ import { verifyEvent, nip19 } from "nostr-tools";
 import { SimplePool } from "nostr-tools/pool";
 import { queryDocsAssistant } from "./lib/docsAssistant";
 import { resolveLightningInvoice } from "./lib/lnurlResolver";
-
-// Authorized Admin Public Keys (Hex representation)
-const AUTHORIZED_ADMIN_PUBKEYS = new Set([
-  // npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh
-  "96dfc17448bdc132c22623c7febf89c587a8be269d41d9572a90f8b105b73c79",
-  // npub17nldrj8qkk2hj6cn5xu3st256wknp2sad7g2mv70a3nv2kv9l9qs5l4cc6
-  "f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941"
-]);
-
-if (process.env.TEST_ADMIN_PUBKEY) {
-  AUTHORIZED_ADMIN_PUBKEYS.add(process.env.TEST_ADMIN_PUBKEY);
-}
+import { corsMiddleware } from "./lib/cors";
+import { docsRateLimiter, uploadRateLimiter, lnurlRateLimiter } from "./lib/rateLimit";
+import { verifyNip98Auth, validateNip98Auth } from "./lib/adminAuth";
+import { getProtocolConfig, saveProtocolConfig, validateBaseFeeRatePcm } from "./lib/configStore";
 
 const PROTOCOL_RELAYS = [
   "wss://relay.snort.social",
@@ -29,117 +21,8 @@ const PROTOCOL_RELAYS = [
   "wss://offchain.pub"
 ];
 
-/**
- * Validates NIP-98 HTTP Authentication (Kind 27235)
- */
-function verifyNip98Auth(req: express.Request, targetUrlPath: string, targetMethod: string): { authorized: boolean; pubkey?: string; error?: string; status: number } {
-  const authHeader = req.headers["authorization"] || req.headers["Authorization"];
-  if (!authHeader || typeof authHeader !== "string") {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Missing Authorization header. NIP-98 authentication (Kind 27235) is strictly required."
-    };
-  }
-
-  const trimmed = authHeader.trim();
-  if (!trimmed.toLowerCase().startsWith("nostr ")) {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Invalid Authorization scheme. Expected 'Nostr <base64_kind_27235_event>'."
-    };
-  }
-
-  const base64Payload = trimmed.slice(6).trim();
-  let event: any;
-  try {
-    const decodedStr = Buffer.from(base64Payload, "base64").toString("utf-8");
-    event = JSON.parse(decodedStr);
-  } catch (err) {
-    return {
-      authorized: false,
-      status: 400,
-      error: "Malformed base64 or JSON in NIP-98 Authorization header."
-    };
-  }
-
-  // 1. Kind must be 27235
-  if (event.kind !== 27235) {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Invalid event kind. NIP-98 requires kind 27235."
-    };
-  }
-
-  // 2. Cryptographic signature verification (Schnorr over Secp256k1)
-  try {
-    const isValidSig = verifyEvent(event);
-    if (!isValidSig) {
-      return {
-        authorized: false,
-        status: 401,
-        error: "Invalid Nostr Schnorr signature on NIP-98 authentication event."
-      };
-    }
-  } catch (sigErr) {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Signature verification failed."
-    };
-  }
-
-  // 3. Timestamp anti-replay check (within +/- 60 seconds)
-  const now = Math.floor(Date.now() / 1000);
-  const timeDelta = Math.abs(now - (event.created_at || 0));
-  if (timeDelta > 60) {
-    return {
-      authorized: false,
-      status: 401,
-      error: `NIP-98 timestamp expired or outside +/- 60s tolerance (delta: ${timeDelta}s).`
-    };
-  }
-
-  // 4. Tags validation: u and method
-  const tags: string[][] = Array.isArray(event.tags) ? event.tags : [];
-  const uTag = tags.find(t => t[0] === "u")?.[1];
-  const methodTag = tags.find(t => t[0] === "method")?.[1];
-
-  if (!methodTag || methodTag.toUpperCase() !== targetMethod.toUpperCase()) {
-    return {
-      authorized: false,
-      status: 401,
-      error: `NIP-98 method tag mismatch. Expected '${targetMethod.toUpperCase()}'.`
-    };
-  }
-
-  if (!uTag || (!uTag.endsWith(targetUrlPath) && !uTag.includes(targetUrlPath))) {
-    return {
-      authorized: false,
-      status: 401,
-      error: `NIP-98 URL tag does not match target endpoint '${targetUrlPath}'.`
-    };
-  }
-
-  // 5. Admin Authorization Check
-  if (!AUTHORIZED_ADMIN_PUBKEYS.has(event.pubkey)) {
-    return {
-      authorized: false,
-      status: 403,
-      error: `Forbidden: Nostr pubkey '${event.pubkey}' is not an authorized protocol admin.`
-    };
-  }
-
-  return {
-    authorized: true,
-    pubkey: event.pubkey,
-    status: 200
-  };
-}
-
-const validateNip98Auth = verifyNip98Auth;
+// Re-export validateNip98Auth for backward compatibility if imported elsewhere
+export { validateNip98Auth };
 
 /**
  * Validates authentic image binary signatures (magic bytes) to prevent Stored XSS and non-image payloads
@@ -153,36 +36,36 @@ interface ImageValidationResult {
 
 function validateImageMagicBytes(filePath: string): ImageValidationResult {
   try {
+    const buffer = Buffer.alloc(16);
     const fd = fs.openSync(filePath, "r");
-    const buffer = Buffer.alloc(32);
-    const bytesRead = fs.readSync(fd, buffer, 0, 32, 0);
+    const bytesRead = fs.readSync(fd, buffer, 0, 16, 0);
     fs.closeSync(fd);
 
     if (bytesRead < 4) {
-      return { valid: false, error: "File too small to be a valid image." };
+      return { valid: false, error: "File too small to inspect binary header." };
     }
 
-    // Check JPEG: FF D8 FF
-    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    // JPEG / JPG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
       return { valid: true, mime: "image/jpeg", ext: ".jpg" };
     }
 
-    // Check PNG: 89 50 4E 47 0D 0A 1A 0A
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
     if (
       bytesRead >= 8 &&
       buffer[0] === 0x89 &&
       buffer[1] === 0x50 &&
-      buffer[2] === 0x4e &&
+      buffer[2] === 0x4E &&
       buffer[3] === 0x47 &&
-      buffer[4] === 0x0d &&
-      buffer[5] === 0x0a &&
-      buffer[6] === 0x1a &&
-      buffer[7] === 0x0a
+      buffer[4] === 0x0D &&
+      buffer[5] === 0x0A &&
+      buffer[6] === 0x1A &&
+      buffer[7] === 0x0A
     ) {
       return { valid: true, mime: "image/png", ext: ".png" };
     }
 
-    // Check GIF: GIF87a or GIF89a
+    // GIF: "GIF87a" (47 49 46 38 37 61) or "GIF89a" (47 49 46 38 39 61)
     if (
       bytesRead >= 6 &&
       buffer[0] === 0x47 &&
@@ -195,7 +78,7 @@ function validateImageMagicBytes(filePath: string): ImageValidationResult {
       return { valid: true, mime: "image/gif", ext: ".gif" };
     }
 
-    // Check WebP: RIFF at 0..3 and WEBP at 8..11
+    // WEBP: RIFF .... WEBP
     if (
       bytesRead >= 12 &&
       buffer[0] === 0x52 &&
@@ -234,65 +117,8 @@ async function startServer() {
 
   app.use(express.json({ limit: "2mb" }));
 
-  // CORS configuration for API endpoints
-  app.use("/api", (req, res, next) => {
-    const origin = req.headers.origin;
-    const isAllowedOrigin = !origin || 
-      origin.endsWith("cypherguide.org") || 
-      origin.includes("localhost") || 
-      origin.includes("127.0.0.1") ||
-      origin.includes("run.app");
-      
-    if (isAllowedOrigin && origin) {
-      res.header("Access-Control-Allow-Origin", origin);
-    } else if (!origin) {
-      res.header("Access-Control-Allow-Origin", "https://cypherguide.org");
-    }
-    res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
-    next();
-  });
-
-  // In-memory rate limiter for docs assistant: max 20 queries per 15 minutes per IP
-  const docsRateLimitWindowMs = 15 * 60 * 1000;
-  const maxDocsPerWindow = 20;
-  const docsCounts = new Map<string, { count: number; resetTime: number }>();
-
-  setInterval(() => {
-    const now = Date.now();
-    for (const [ip, record] of docsCounts.entries()) {
-      if (now > record.resetTime) {
-        docsCounts.delete(ip);
-      }
-    }
-  }, 5 * 60 * 1000).unref();
-
-  const docsRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const forwarded = req.headers["x-forwarded-for"];
-    const ip = (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.socket.remoteAddress) || "unknown";
-    const now = Date.now();
-    const record = docsCounts.get(ip);
-
-    if (!record || now > record.resetTime) {
-      docsCounts.set(ip, { count: 1, resetTime: now + docsRateLimitWindowMs });
-      return next();
-    }
-
-    if (record.count >= maxDocsPerWindow) {
-      const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
-      res.setHeader("Retry-After", retryAfterSeconds);
-      return res.status(429).json({
-        error: "Too many documentation queries. Please wait a few minutes.",
-        retryAfter: retryAfterSeconds
-      });
-    }
-
-    record.count++;
-    next();
-  };
+  // Strict CORS configuration for API endpoints via lib/cors
+  app.use("/api", corsMiddleware());
 
   // API endpoint for Documentation Lookup Assistant (RFC-0005) - Unified via lib/docsAssistant
   const docsQueryHandler = async (req: express.Request, res: express.Response) => {
@@ -319,51 +145,12 @@ async function startServer() {
     }
   };
 
-  app.all("/api/docs-assistant/query", docsRateLimiter, docsQueryHandler);
-  app.all("/api/docs-assistant/query/", docsRateLimiter, docsQueryHandler);
-
-  // Protocol Config file path
-  const configFilePath = path.join(process.cwd(), "data", "protocol_config.json");
-
-  const getProtocolConfig = () => {
-    try {
-      if (fs.existsSync(configFilePath)) {
-        const raw = fs.readFileSync(configFilePath, "utf-8");
-        return JSON.parse(raw);
-      }
-    } catch (e) {
-      console.error("Error reading protocol config:", e);
-    }
-    return {
-      devLnAddress: "cypherguide@zaps.lol",
-      infraIncentiveTreasuryLightningAddress: "peevishtender468@walletofsatoshi.com",
-      baseFeeRatePcm: 20,
-      feeUpdatedAt: null,
-      feeUpdatedBy: null,
-      feeAuditNostrEventId: "",
-      configAuditNostrEventId: "",
-      updatedAt: Date.now(),
-      updatedBy: "system"
-    };
-  };
-
-  const saveProtocolConfig = (config: any) => {
-    try {
-      const dir = path.dirname(configFilePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), "utf-8");
-      return true;
-    } catch (e) {
-      console.error("Error saving protocol config:", e);
-      return false;
-    }
-  };
+  app.all("/api/docs-assistant/query", docsRateLimiter.middleware(), docsQueryHandler);
+  app.all("/api/docs-assistant/query/", docsRateLimiter.middleware(), docsQueryHandler);
 
   // API: Get protocol config (devLnAddress, infraIncentiveTreasuryLightningAddress, baseFeeRatePcm, etc.)
-  app.get("/api/protocol/config", (req, res) => {
-    const config = getProtocolConfig();
+  app.get("/api/protocol/config", async (_req, res) => {
+    const config = await getProtocolConfig();
     res.json({
       ...config,
       baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20,
@@ -375,7 +162,7 @@ async function startServer() {
   app.patch("/api/protocol/fee", async (req, res) => {
     try {
       // 1. Strict NIP-98 Auth check (Kind 27235 signed by authorized admin key)
-      const auth = validateNip98Auth(req, "/api/protocol/fee", "PATCH");
+      const auth = await verifyNip98Auth(req, "/api/protocol/fee", "PATCH");
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,
@@ -385,14 +172,15 @@ async function startServer() {
 
       const { baseFeeRatePcm, auditEvent } = req.body || {};
 
-      if (typeof baseFeeRatePcm !== "number" || !Number.isInteger(baseFeeRatePcm) || baseFeeRatePcm < 0 || baseFeeRatePcm > 5000) {
+      const validation = validateBaseFeeRatePcm(baseFeeRatePcm);
+      if (!validation.valid) {
         return res.status(400).json({
           success: false,
-          error: "baseFeeRatePcm must be an integer between 0 and 5000 (0.0% - 50.0%)."
+          error: validation.error || "baseFeeRatePcm must be an integer between 0 and 5000 (0.0% - 50.0%)."
         });
       }
 
-      const current = getProtocolConfig();
+      const current = await getProtocolConfig();
       const oldFeeRatePcm = typeof current.baseFeeRatePcm === "number" ? current.baseFeeRatePcm : 20;
       const now = Date.now();
       const feeUpdatedBy = auth.pubkey || "";
@@ -424,7 +212,7 @@ async function startServer() {
 
       const updated = {
         ...current,
-        baseFeeRatePcm,
+        baseFeeRatePcm: validation.pcm!,
         feeUpdatedAt: now,
         feeUpdatedBy,
         feeAuditNostrEventId: auditEventId || current.feeAuditNostrEventId || "",
@@ -432,12 +220,12 @@ async function startServer() {
         updatedBy: feeUpdatedBy
       };
 
-      const saved = saveProtocolConfig(updated);
+      const saved = await saveProtocolConfig(updated);
       if (!saved) {
-        return res.status(500).json({ success: false, error: "Failed to persist protocol fee configuration to server disk." });
+        return res.status(500).json({ success: false, error: "Failed to persist protocol fee configuration to storage." });
       }
 
-      console.log(`[Protocol Fee] Updated baseFeeRatePcm from ${oldFeeRatePcm} to ${baseFeeRatePcm} by ${feeUpdatedBy}. Audit Event: ${auditEventId || "N/A"}`);
+      console.log(`[Protocol Fee] Updated baseFeeRatePcm from ${oldFeeRatePcm} to ${validation.pcm} by ${feeUpdatedBy}. Audit Event: ${auditEventId || "N/A"}`);
 
       return res.json({
         success: true,
@@ -453,7 +241,7 @@ async function startServer() {
   app.post("/api/protocol/config", async (req, res) => {
     try {
       // 1. Enforce strict NIP-98 HTTP Auth check (Kind 27235 signed by authorized admin key)
-      const auth = validateNip98Auth(req, "/api/protocol/config", "POST");
+      const auth = await verifyNip98Auth(req, "/api/protocol/config", "POST");
       if (!auth.authorized) {
         return res.status(auth.status).json({
           success: false,
@@ -516,7 +304,7 @@ async function startServer() {
         }
       }
 
-      const current = getProtocolConfig();
+      const current = await getProtocolConfig();
       const updated = {
         ...current,
         ...(trimmedDevAddress ? { devLnAddress: trimmedDevAddress } : {}),
@@ -526,9 +314,9 @@ async function startServer() {
         updatedBy: auth.pubkey ? nip19.npubEncode(auth.pubkey) : "admin"
       };
 
-      const saved = saveProtocolConfig(updated);
+      const saved = await saveProtocolConfig(updated);
       if (!saved) {
-        return res.status(500).json({ success: false, error: "Failed to persist config to server disk." });
+        return res.status(500).json({ success: false, error: "Failed to persist config to storage." });
       }
 
       console.log(`[Protocol Config] Updated addresses by ${auth.pubkey}. Audit Event: ${auditEventId || "N/A"}`);
@@ -544,7 +332,8 @@ async function startServer() {
   });
 
   // API: Resolve Lightning Address to real BOLT11 invoice via LNURL-pay (SSRF-safe, LUD-06 validated)
-  app.get("/api/lightning/resolve-invoice", async (req, res) => {
+  // Protected with rate limiter (30 req / min / IP)
+  app.get("/api/lightning/resolve-invoice", lnurlRateLimiter.middleware(), async (req, res) => {
     try {
       const address = (req.query.address as string || "").trim().toLowerCase();
       const amountSats = parseInt(req.query.amount as string) || 21000;
@@ -611,44 +400,6 @@ async function startServer() {
     express.static(uploadDir, { maxAge: "30d" })
   );
 
-  // In-memory rate limiter for media uploads: max 30 uploads per 15 minutes per IP
-  const uploadRateLimitWindowMs = 15 * 60 * 1000;
-  const maxUploadsPerWindow = 30;
-  const uploadCounts = new Map<string, { count: number; resetTime: number }>();
-
-  setInterval(() => {
-    const now = Date.now();
-    for (const [ip, record] of uploadCounts.entries()) {
-      if (now > record.resetTime) {
-        uploadCounts.delete(ip);
-      }
-    }
-  }, 5 * 60 * 1000).unref();
-
-  const uploadRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const forwarded = req.headers["x-forwarded-for"];
-    const ip = (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.socket.remoteAddress) || "unknown";
-    const now = Date.now();
-    const record = uploadCounts.get(ip);
-
-    if (!record || now > record.resetTime) {
-      uploadCounts.set(ip, { count: 1, resetTime: now + uploadRateLimitWindowMs });
-      return next();
-    }
-
-    if (record.count >= maxUploadsPerWindow) {
-      const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
-      res.setHeader("Retry-After", retryAfterSeconds);
-      return res.status(429).json({
-        error: "Too many upload requests. Please try again later to prevent disk abuse.",
-        retryAfter: retryAfterSeconds
-      });
-    }
-
-    record.count++;
-    next();
-  };
-
   app.get(["/api/media", "/api/media/health", "/api/media-fallback", "/api/media-fallback/health"], (req, res) => {
     const isFallback = req.path.includes("fallback");
     res.json({
@@ -660,7 +411,7 @@ async function startServer() {
 
   app.post(
     ["/api/media/upload", "/api/media-fallback/upload"],
-    uploadRateLimiter,
+    uploadRateLimiter.middleware(),
     (req, res, next) => {
       upload.single("file")(req, res, (err: any) => {
         if (err) {
@@ -683,19 +434,16 @@ async function startServer() {
         const validation = validateImageMagicBytes(tempFilePath);
         if (!validation.valid) {
           if (fs.existsSync(tempFilePath)) {
-            try { fs.unlinkSync(tempFilePath); } catch {}
+            try {
+              fs.unlinkSync(tempFilePath);
+            } catch {}
           }
-          return res.status(400).json({ error: validation.error || "File is not a valid image." });
+          return res.status(400).json({ error: validation.error || "File binary signature does not match allowed image types." });
         }
 
-        // Compute SHA256 of file from disk stream without loading entire file into memory buffer
-        const hash = await new Promise<string>((resolve, reject) => {
-          const hashGenerator = crypto.createHash("sha256");
-          const stream = fs.createReadStream(tempFilePath);
-          stream.on("data", (chunk) => hashGenerator.update(chunk));
-          stream.on("end", () => resolve(hashGenerator.digest("hex")));
-          stream.on("error", (err) => reject(err));
-        });
+        // SHA-256 content addressing
+        const fileBuffer = fs.readFileSync(tempFilePath);
+        const hash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
 
         // Enforce extension and MIME derived STRICTLY from verified magic bytes
         const ext = validation.ext || ".jpg";
@@ -781,7 +529,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('/vi*', (req, res) => {
+    app.get('/vi*', (_req, res) => {
       const viIndexPath = path.join(distPath, 'vi', 'index.html');
       if (fs.existsSync(viIndexPath)) {
         res.sendFile(viIndexPath);
@@ -789,7 +537,7 @@ async function startServer() {
         res.sendFile(path.join(distPath, 'index.html'));
       }
     });
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

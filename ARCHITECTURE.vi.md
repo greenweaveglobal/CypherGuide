@@ -25,7 +25,7 @@ Cypher Guide là nền tảng Đặt phòng & Lưu trú P2P phi tập trung, ho�
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          CYPHER GUIDE UI                               │
-│  (React 18 + Vite + Tailwind CSS + Lucide Icons + Motion Animation)   │
+│  (React 19 + Vite + Tailwind CSS + Lucide Icons + Motion Animation)   │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
            ┌────────────────────────┼────────────────────────┐

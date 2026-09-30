@@ -1,13 +1,26 @@
 import { resolveLightningInvoice } from "../../lib/lnurlResolver";
+import { applyCorsHeaders } from "../../lib/cors";
+import { getClientIp } from "../../lib/clientIp";
+import { lnurlRateLimiter } from "../../lib/rateLimit";
 
 export default async function handler(req: any, res: any) {
-  // CORS configuration
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // Strict CORS configuration
+  const isOptionsHandled = applyCorsHeaders(req, res, "GET, OPTIONS");
+  if (isOptionsHandled) {
+    return;
+  }
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  // Rate limiting (30 requests / minute / IP)
+  const ip = getClientIp(req);
+  const rateLimitResult = await lnurlRateLimiter.check(ip);
+  if (!rateLimitResult.success) {
+    if (rateLimitResult.retryAfter) {
+      res.setHeader("Retry-After", rateLimitResult.retryAfter);
+    }
+    return res.status(429).json({
+      error: lnurlRateLimiter.errorMessage,
+      retryAfter: rateLimitResult.retryAfter
+    });
   }
 
   try {

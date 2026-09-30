@@ -78,7 +78,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/greenweave/cypherguide.git
+git clone https://github.com/greenweaveglobal/cypherguide.git
 cd cypherguide
 
 # Tạo file biến môi trường từ mẫu

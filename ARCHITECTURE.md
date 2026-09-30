@@ -37,7 +37,7 @@ Cypher Guide is a decentralized peer-to-peer hospitality platform operating on a
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          CYPHER GUIDE UI                               │
-│  (React 18 + Vite + Tailwind CSS + Lucide Icons + Motion Animation)   │
+│  (React 19 + Vite + Tailwind CSS + Lucide Icons + Motion Animation)   │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
            ┌────────────────────────┼────────────────────────┐

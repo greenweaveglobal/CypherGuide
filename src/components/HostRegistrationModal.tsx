@@ -589,19 +589,21 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   </div>
 
                   {/* Dev / Acceptance test toggle: simulate primary offline */}
-                  <button
-                    type="button"
-                    onClick={handleToggleSimulateOffline}
-                    className={`text-[9px] px-2 py-0.5 rounded border transition-all flex items-center gap-1 font-mono ${
-                      simulateOffline
-                        ? 'bg-danger/20 border-danger/40 text-danger hover:bg-danger/30'
-                        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
-                    }`}
-                    title="Mô phỏng máy chủ chính bị tắt để kiểm tra tính năng tự động chuyển sang máy chủ dự phòng"
-                  >
-                    <RefreshCw className={`w-2.5 h-2.5 ${isTestingServer ? 'animate-spin' : ''}`} />
-                    <span>{simulateOffline ? '🧪 Server chính: ĐANG TẮT (Giả lập)' : '🧪 Giả lập tắt server chính'}</span>
-                  </button>
+                  {import.meta.env.DEV && (
+                    <button
+                      type="button"
+                      onClick={handleToggleSimulateOffline}
+                      className={`text-[9px] px-2 py-0.5 rounded border transition-all flex items-center gap-1 font-mono ${
+                        simulateOffline
+                          ? 'bg-danger/20 border-danger/40 text-danger hover:bg-danger/30'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Mô phỏng máy chủ chính bị tắt để kiểm tra tính năng tự động chuyển sang máy chủ dự phòng"
+                    >
+                      <RefreshCw className={`w-2.5 h-2.5 ${isTestingServer ? 'animate-spin' : ''}`} />
+                      <span>{simulateOffline ? '🧪 Server chính: ĐANG TẮT (Giả lập)' : '🧪 Giả lập tắt server chính'}</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Clear prominent banner when using fallback */}

@@ -22,6 +22,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, Legend
 } from 'recharts';
+import { AUTHORIZED_ADMIN_PUBKEYS } from '../constants/adminPubkeys';
 
 interface Props {
   proposals: Proposal[];
@@ -77,11 +78,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     fetchProtocolConfig();
   }, [fetchProtocolConfig]);
 
-  const AUTHORIZED_ADMIN_PUBKEYS = new Set([
-    "96dfc17448bdc132c22623c7febf89c587a8be269d41d9572a90f8b105b73c79",
-    "f4fed1c8e0b595796b13a1b9182d54d3ad30aa1d6f90adb3cfec66c55985f941"
-  ]);
-  const isAdminUser = Boolean(identity?.pubKeyHex && AUTHORIZED_ADMIN_PUBKEYS.has(identity.pubKeyHex));
+  const isAdminUser = Boolean(identity?.pubKeyHex && (AUTHORIZED_ADMIN_PUBKEYS as readonly string[]).includes(identity.pubKeyHex));
   const currentFeePcm = typeof baseFeeRatePcm === 'number' ? baseFeeRatePcm : Math.round((protocolSettings.feeStructure || 0.002) * 10000);
   const currentFeePercent = (currentFeePcm / 100).toFixed(2);
   const shortAdmin = feeUpdatedBy ? (feeUpdatedBy.length > 18 ? `${feeUpdatedBy.slice(0, 10)}...${feeUpdatedBy.slice(-4)}` : feeUpdatedBy) : 'Admin';

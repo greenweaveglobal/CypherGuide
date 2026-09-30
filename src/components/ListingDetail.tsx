@@ -195,7 +195,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   };
 
   const handleMintDemoAttestation = async (targetVerifierNpub?: string) => {
-    if (!identity) return;
+    if (!import.meta.env.DEV || !identity) return;
     setIsMintingAttestation(true);
     try {
       const ephemeralSk = generateSecretKey();
@@ -204,7 +204,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       const ephemeralNpub = nip19.npubEncode(ephemeralPkHex);
 
       const verifierNpub = targetVerifierNpub || listing.acceptedKycVerifiers?.[0] || ephemeralNpub;
-      const mockVerifierIdentity: NostrIdentity = {
+      const demoVerifierIdentity: NostrIdentity = {
         npub: verifierNpub,
         nsec: nip19.nsecEncode(ephemeralSk),
         pubKeyHex: verifierNpub === ephemeralNpub ? ephemeralPkHex : (npubToHex(verifierNpub) || ephemeralPkHex),
@@ -213,7 +213,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       };
       const att = await createKycAttestation(
         identity.npub,
-        mockVerifierIdentity,
+        demoVerifierIdentity,
         'FATF-TravelRule-2019',
         365,
         `https://verifier.org/revoke/${Math.random().toString(36).slice(2, 8)}`

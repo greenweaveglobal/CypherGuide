@@ -31,3 +31,13 @@ jobs:
 
       - name: Audit Dependencies
         run: npm audit --audit-level=high
+
+      - name: Build production applet
+        run: npm run build
+
+      - name: Verify no mock verifier strings leaked to production bundle
+        run: |
+          if grep -rn "mockVerifier" dist/; then
+            echo "ERROR: Found mockVerifier in production build bundle!"
+            exit 1
+          fi
