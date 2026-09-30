@@ -19,13 +19,18 @@ export async function createNip98AuthHeader(
   method: string,
   privKeyHex?: string
 ): Promise<string | null> {
+  let targetUrl = url;
+  if (targetUrl.startsWith('/') && typeof window !== 'undefined' && window.location?.origin) {
+    targetUrl = new URL(targetUrl, window.location.origin).toString();
+  }
+
   const normalizedMethod = method.toUpperCase();
   const now = Math.floor(Date.now() / 1000);
   const template = {
     kind: 27235 as const,
     created_at: now,
     tags: [
-      ['u', url],
+      ['u', targetUrl],
       ['method', normalizedMethod]
     ],
     content: ''

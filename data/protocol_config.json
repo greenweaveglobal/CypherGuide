@@ -2,10 +2,10 @@
   "devLnAddress": "cypherguide@zaps.lol",
   "infraIncentiveTreasuryLightningAddress": "peevishtender468@walletofsatoshi.com",
   "baseFeeRatePcm": 25,
-  "feeUpdatedAt": 1790737492577,
-  "feeUpdatedBy": "ec34631a66ccf9675e73065a934ca78eaf30c99220915e711c78f63da7e6126c",
-  "feeAuditNostrEventId": "7a3be422ee8809fba839349219200ab78d515a26515817610bf84d5581917a9c",
+  "feeUpdatedAt": 1790741674786,
+  "feeUpdatedBy": "ced2c7878d2d22cce1688ec2c9bed572c3824b8a47a5fc0b0f80dd025b17e092",
+  "feeAuditNostrEventId": "0c09d4dcc2ada8ddf11af5a5e6709f657037382967cf3eb1f76958f74a38e6c4",
   "configAuditNostrEventId": "",
-  "updatedAt": 1790737492577,
-  "updatedBy": "ec34631a66ccf9675e73065a934ca78eaf30c99220915e711c78f63da7e6126c"
+  "updatedAt": 1790741674786,
+  "updatedBy": "ced2c7878d2d22cce1688ec2c9bed572c3824b8a47a5fc0b0f80dd025b17e092"
 }

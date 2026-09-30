@@ -54,6 +54,83 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     expect(methodTag).toBe('PATCH');
   });
 
+  it('resolves relative URLs to absolute URLs using window.location.origin when signing NIP-98 in client (Blocker A)', async () => {
+    const testAdminSk = generateSecretKey();
+    const testAdminSkHex = bytesToHex(testAdminSk);
+    const testAdminPk = getPublicKey(testAdminSk);
+
+    const prevLocation = (globalThis as any).window.location;
+    (globalThis as any).window.location = { origin: 'https://cypherguide.org' };
+
+    try {
+      const authHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex);
+      expect(authHeader).toBeTruthy();
+      expect(authHeader!.startsWith('Nostr ')).toBe(true);
+
+      const base64 = authHeader!.replace('Nostr ', '');
+      const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
+
+      expect(decoded.kind).toBe(27235);
+      expect(decoded.pubkey).toBe(testAdminPk);
+      expect(verifyEvent(decoded)).toBe(true);
+
+      const uTag = decoded.tags.find((t: string[]) => t[0] === 'u')?.[1];
+      const methodTag = decoded.tags.find((t: string[]) => t[0] === 'method')?.[1];
+
+      expect(uTag).toBe('https://cypherguide.org/api/protocol/fee');
+      expect(methodTag).toBe('PATCH');
+    } finally {
+      (globalThis as any).window.location = prevLocation;
+    }
+  });
+
+  it('integrates client NIP-98 header creation with verifyNip98Auth when PUBLIC_BASE_URL is configured', async () => {
+    const { verifyNip98Auth } = await import('../lib/adminAuth');
+
+    const testAdminSk = generateSecretKey();
+    const testAdminSkHex = bytesToHex(testAdminSk);
+    const testAdminPk = getPublicKey(testAdminSk);
+
+    const publicBaseUrl = 'https://custom-domain.cypherguide.org';
+    const prevBaseUrl = process.env.PUBLIC_BASE_URL;
+    const prevTestAdmin = process.env.TEST_ADMIN_PUBKEY;
+    const prevLocation = (globalThis as any).window.location;
+
+    process.env.PUBLIC_BASE_URL = publicBaseUrl;
+    process.env.TEST_ADMIN_PUBKEY = testAdminPk;
+    (globalThis as any).window.location = { origin: publicBaseUrl };
+
+    try {
+      // Client generates header with relative path, which gets resolved to window.location.origin
+      const clientAuthHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', testAdminSkHex);
+      expect(clientAuthHeader).toBeTruthy();
+
+      const req = {
+        headers: {
+          authorization: clientAuthHeader,
+          host: 'custom-domain.cypherguide.org'
+        }
+      };
+
+      const result = await verifyNip98Auth(req, '/api/protocol/config', 'POST');
+      expect(result.authorized).toBe(true);
+      expect(result.status).toBe(200);
+      expect(result.pubkey).toBe(testAdminPk);
+    } finally {
+      if (prevBaseUrl !== undefined) {
+        process.env.PUBLIC_BASE_URL = prevBaseUrl;
+      } else {
+        delete process.env.PUBLIC_BASE_URL;
+      }
+      if (prevTestAdmin !== undefined) {
+        process.env.TEST_ADMIN_PUBKEY = prevTestAdmin;
+      } else {
+        delete process.env.TEST_ADMIN_PUBKEY;
+      }
+      (globalThis as any).window.location = prevLocation;
+    }
+  });
+
   it('creates a compliant Nostr audit event (Kind 1) matching the transparent disclosure specification', () => {
     const adminSk = generateSecretKey();
     const adminPk = getPublicKey(adminSk);
