@@ -11,6 +11,60 @@ const PROTOCOL_RELAYS = [
   "wss://offchain.pub"
 ];
 
+// Disable Vercel automatic body parsing to allow authentic raw byte stream capture for NIP-98 payload hash
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+async function getRawBodyAndParsedJson(req: any): Promise<{ rawBody: string; body: any }> {
+  if (typeof (req as any).rawBody === "string") {
+    const raw = (req as any).rawBody;
+    const body = req.body || (raw ? JSON.parse(raw) : {});
+    return { rawBody: raw, body };
+  }
+  if (Buffer.isBuffer((req as any).rawBody)) {
+    const raw = (req as any).rawBody.toString("utf8");
+    const body = req.body || (raw ? JSON.parse(raw) : {});
+    return { rawBody: raw, body };
+  }
+
+  // If req is an unconsumed stream (e.g. Vercel Node runtime with bodyParser: false)
+  if (typeof req[Symbol.asyncIterator] === "function" && !req.readableEnded) {
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+      }
+      if (chunks.length > 0) {
+        const raw = Buffer.concat(chunks).toString("utf8");
+        let body = {};
+        if (raw) {
+          try { body = JSON.parse(raw); } catch {}
+        }
+        return { rawBody: raw, body };
+      }
+    } catch {
+      // Fall through if stream read fails
+    }
+  }
+
+  if (typeof req.body === "string") {
+    let body = {};
+    try { body = JSON.parse(req.body); } catch {}
+    return { rawBody: req.body, body };
+  }
+
+  // Fallback if runtime pre-parsed req.body (documented assumption: client uses compact JSON.stringify)
+  if (req.body && typeof req.body === "object") {
+    const raw = JSON.stringify(req.body);
+    return { rawBody: raw, body: req.body };
+  }
+
+  return { rawBody: "", body: {} };
+}
+
 export default async function handler(req: any, res: any) {
   // Strict CORS enforcement
   const isOptionsHandled = applyCorsHeaders(req, res, "GET, POST, OPTIONS");
@@ -19,18 +73,22 @@ export default async function handler(req: any, res: any) {
   }
 
   if (req.method === "GET") {
-    const config = await getProtocolConfig();
+    const configData = await getProtocolConfig();
     return res.status(200).json({
-      ...config,
-      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20,
-      configAuditNostrEventId: config.configAuditNostrEventId || ""
+      ...configData,
+      baseFeeRatePcm: typeof configData.baseFeeRatePcm === "number" ? configData.baseFeeRatePcm : 20,
+      configAuditNostrEventId: configData.configAuditNostrEventId || ""
     });
   }
 
   if (req.method === "POST") {
     try {
-      // STRICT NIP-98 Authentication check with raw payload verification
-      const rawBody = (req as any).rawBody || (typeof req.body === "string" ? req.body : req.body ? JSON.stringify(req.body) : "");
+      // 1. Extract raw body stream and parse JSON
+      const { rawBody, body } = await getRawBodyAndParsedJson(req);
+      req.body = body;
+      (req as any).rawBody = rawBody;
+
+      // 2. STRICT NIP-98 Authentication check with raw payload verification
       const auth = await verifyNip98Auth(req, "/api/protocol/config", "POST", rawBody);
       if (!auth.authorized) {
         return res.status(auth.status).json({

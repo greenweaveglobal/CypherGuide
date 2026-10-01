@@ -125,17 +125,20 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
 
     try {
       // Client generates header with relative path, which gets resolved to window.location.origin
-      const clientAuthHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', testAdminSkHex);
+      const configBody = JSON.stringify({ devLnAddress: 'cypherguide@zaps.lol' });
+      const clientAuthHeader = await createNip98AuthHeader('/api/protocol/config', 'POST', testAdminSkHex, configBody);
       expect(clientAuthHeader).toBeTruthy();
 
       const req = {
         headers: {
           authorization: clientAuthHeader,
           host: 'custom-domain.cypherguide.org'
-        }
+        },
+        rawBody: configBody,
+        body: JSON.parse(configBody)
       };
 
-      const result = await verifyNip98Auth(req, '/api/protocol/config', 'POST');
+      const result = await verifyNip98Auth(req, '/api/protocol/config', 'POST', configBody);
       expect(result.authorized).toBe(true);
       expect(result.status).toBe(200);
       expect(result.pubkey).toBe(testAdminPk);
@@ -172,39 +175,51 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     process.env.TEST_ADMIN_PUBKEY = testAdminPk;
 
     try {
+      const feePayload = JSON.stringify({ baseFeeRatePcm: 20 });
       // 1. Attacker sends request with spoofed Host: evil.example and event signed for https://evil.example/api/protocol/fee
       (globalThis as any).window.location = { origin: 'https://evil.example' };
-      const evilAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex);
+      const evilAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex, feePayload);
       expect(evilAuthHeader).toBeTruthy();
 
       const evilReq = {
         headers: {
           authorization: evilAuthHeader,
           host: 'evil.example'
-        }
+        },
+        rawBody: feePayload,
+        body: JSON.parse(feePayload)
       };
 
-      const evilResult = await verifyNip98Auth(evilReq, '/api/protocol/fee', 'PATCH');
+      const evilResult = await verifyNip98Auth(evilReq, '/api/protocol/fee', 'PATCH', feePayload);
       expect(evilResult.authorized).toBe(false);
       expect(evilResult.status).toBe(401);
       expect(evilResult.error).toContain('URL tag mismatch');
 
-      // 2. Legitimate admin sends request with event signed for configured PUBLIC_BASE_URL
+      // 2. In production mode, TEST_ADMIN_PUBKEY is strictly ignored -> 403 Forbidden
       (globalThis as any).window.location = { origin: publicBaseUrl };
-      const legitAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex);
+      const legitAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex, feePayload);
       expect(legitAuthHeader).toBeTruthy();
 
       const legitReq = {
         headers: {
           authorization: legitAuthHeader,
           host: 'ais-pre-vxmqhbp3b3jpleggin55si-792548921200.asia-southeast1.run.app'
-        }
+        },
+        rawBody: feePayload,
+        body: JSON.parse(feePayload)
       };
 
-      const legitResult = await verifyNip98Auth(legitReq, '/api/protocol/fee', 'PATCH');
-      expect(legitResult.authorized).toBe(true);
-      expect(legitResult.status).toBe(200);
-      expect(legitResult.pubkey).toBe(testAdminPk);
+      const prodResult = await verifyNip98Auth(legitReq, '/api/protocol/fee', 'PATCH', feePayload);
+      expect(prodResult.authorized).toBe(false);
+      expect(prodResult.status).toBe(403);
+      expect(prodResult.error).toContain('is not an authorized protocol admin');
+
+      // 3. In test mode (NODE_ENV = 'test'), the same request with matching URL and TEST_ADMIN_PUBKEY is authorized with 200
+      process.env.NODE_ENV = 'test';
+      const testResult = await verifyNip98Auth(legitReq, '/api/protocol/fee', 'PATCH', feePayload);
+      expect(testResult.authorized).toBe(true);
+      expect(testResult.status).toBe(200);
+      expect(testResult.pubkey).toBe(testAdminPk);
     } finally {
       process.env.NODE_ENV = prevEnv;
       if (prevBaseUrl !== undefined) {
@@ -221,58 +236,269 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     }
   });
 
-  it('signs and verifies NIP-98 payload tag (SHA-256 hash) to prevent request body tampering (Task 4)', async () => {
-    const { verifyNip98Auth } = await import('../lib/adminAuth');
+  it('only accepts TEST_ADMIN_PUBKEY when NODE_ENV === "test" and strictly ignores it in production (Round 3 Task 3)', async () => {
+    const { getAuthorizedAdminPubkeys, verifyNip98Auth } = await import('../lib/adminAuth');
 
     const testAdminSk = generateSecretKey();
     const testAdminSkHex = bytesToHex(testAdminSk);
     const testAdminPk = getPublicKey(testAdminSk);
 
+    const prevEnv = process.env.NODE_ENV;
     const prevTestAdmin = process.env.TEST_ADMIN_PUBKEY;
-    process.env.TEST_ADMIN_PUBKEY = testAdminPk;
 
     try {
-      const requestPayload = JSON.stringify({ baseFeeRatePcm: 25 });
-      const authHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex, requestPayload);
-      expect(authHeader).toBeTruthy();
+      process.env.TEST_ADMIN_PUBKEY = testAdminPk;
 
-      const base64 = authHeader!.replace('Nostr ', '');
-      const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
-      const payloadTag = decoded.tags.find((t: string[]) => t[0] === 'payload')?.[1];
-      expect(payloadTag).toBeTruthy();
-      expect(payloadTag).toHaveLength(64); // SHA-256 hex string
+      // 1. In production mode: TEST_ADMIN_PUBKEY is ignored and logs security warning
+      process.env.NODE_ENV = 'production';
+      const prodKeys = getAuthorizedAdminPubkeys();
+      expect(prodKeys.has(testAdminPk.toLowerCase())).toBe(false);
 
-      // 1. Valid request where body matches signed payload tag
-      const validReq = {
-        headers: {
-          authorization: authHeader
-        },
-        body: JSON.parse(requestPayload)
+      // 2. In development mode: TEST_ADMIN_PUBKEY is ignored
+      process.env.NODE_ENV = 'development';
+      const devKeys = getAuthorizedAdminPubkeys();
+      expect(devKeys.has(testAdminPk.toLowerCase())).toBe(false);
+
+      // 3. In test mode: TEST_ADMIN_PUBKEY is accepted
+      process.env.NODE_ENV = 'test';
+      const testKeys = getAuthorizedAdminPubkeys();
+      expect(testKeys.has(testAdminPk.toLowerCase())).toBe(true);
+
+      // 4. End-to-end verification via verifyNip98Auth:
+      const body = JSON.stringify({ baseFeeRatePcm: 25 });
+      const authHeader = await createNip98AuthHeader('https://cypherguide.org/api/protocol/fee', 'PATCH', testAdminSkHex, body);
+      const req = {
+        headers: { authorization: authHeader },
+        rawBody: body,
+        body: JSON.parse(body)
       };
-      const validResult = await verifyNip98Auth(validReq, '/api/protocol/fee', 'PATCH', requestPayload);
-      expect(validResult.authorized).toBe(true);
-      expect(validResult.status).toBe(200);
 
-      // 2. Tampered request where body has been altered in transit
-      // Use a new key / event so event ID is not rejected as replay
-      const secondAdminSk = generateSecretKey();
-      const secondAdminSkHex = bytesToHex(secondAdminSk);
-      const secondAdminPk = getPublicKey(secondAdminSk);
-      process.env.TEST_ADMIN_PUBKEY = secondAdminPk;
+      // In production -> 403 Forbidden (ignored)
+      process.env.NODE_ENV = 'production';
+      const prodRes = await verifyNip98Auth(req, '/api/protocol/fee', 'PATCH', body);
+      expect(prodRes.authorized).toBe(false);
+      expect(prodRes.status).toBe(403);
+      expect(prodRes.error).toContain('is not an authorized protocol admin');
 
-      const tamperedPayload = JSON.stringify({ baseFeeRatePcm: 99 });
-      // Event signed for requestPayload, but body sent is tamperedPayload
-      const secondAuthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', secondAdminSkHex, requestPayload);
+      // In test -> 200 Authorized
+      process.env.NODE_ENV = 'test';
+      const testRes = await verifyNip98Auth(req, '/api/protocol/fee', 'PATCH', body);
+      expect(testRes.authorized).toBe(true);
+      expect(testRes.status).toBe(200);
+      expect(testRes.pubkey).toBe(testAdminPk);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+      if (prevTestAdmin !== undefined) {
+        process.env.TEST_ADMIN_PUBKEY = prevTestAdmin;
+      } else {
+        delete process.env.TEST_ADMIN_PUBKEY;
+      }
+    }
+  });
+
+  it('strictly enforces NIP-98 payload tag for POST and PATCH while allowing GET without payload tag (Round 3 Task 1)', async () => {
+    const { verifyNip98Auth } = await import('../lib/adminAuth');
+
+    const adminSk = generateSecretKey();
+    const adminSkHex = bytesToHex(adminSk);
+    const adminPk = getPublicKey(adminSk);
+
+    const prevTestAdmin = process.env.TEST_ADMIN_PUBKEY;
+    process.env.TEST_ADMIN_PUBKEY = adminPk;
+
+    try {
+      const validBody = JSON.stringify({ baseFeeRatePcm: 25 });
+
+      // 1. Missing payload tag on PATCH request -> REJECTED (401)
+      const now = Math.floor(Date.now() / 1000);
+      const noPayloadTemplate = {
+        kind: 27235 as const,
+        created_at: now,
+        tags: [
+          ['u', 'https://cypherguide.org/api/protocol/fee'],
+          ['method', 'PATCH']
+        ],
+        content: ''
+      };
+      const signedNoPayload = finalizeEvent(noPayloadTemplate, adminSk);
+      const noPayloadHeader = `Nostr ${Buffer.from(JSON.stringify(signedNoPayload)).toString('base64')}`;
+
+      const noPayloadReq = {
+        headers: { authorization: noPayloadHeader },
+        rawBody: validBody,
+        body: JSON.parse(validBody)
+      };
+      const noPayloadResult = await verifyNip98Auth(noPayloadReq, '/api/protocol/fee', 'PATCH', validBody);
+      expect(noPayloadResult.authorized).toBe(false);
+      expect(noPayloadResult.status).toBe(401);
+      expect(noPayloadResult.error).toContain("missing required 'payload' tag");
+
+      // 2. Missing payload tag on POST request -> REJECTED (401)
+      const noPayloadPostTemplate = {
+        kind: 27235 as const,
+        created_at: now,
+        tags: [
+          ['u', 'https://cypherguide.org/api/protocol/config'],
+          ['method', 'POST']
+        ],
+        content: ''
+      };
+      const signedNoPayloadPost = finalizeEvent(noPayloadPostTemplate, adminSk);
+      const noPayloadPostHeader = `Nostr ${Buffer.from(JSON.stringify(signedNoPayloadPost)).toString('base64')}`;
+
+      const noPayloadPostReq = {
+        headers: { authorization: noPayloadPostHeader },
+        rawBody: validBody,
+        body: JSON.parse(validBody)
+      };
+      const noPayloadPostResult = await verifyNip98Auth(noPayloadPostReq, '/api/protocol/config', 'POST', validBody);
+      expect(noPayloadPostResult.authorized).toBe(false);
+      expect(noPayloadPostResult.status).toBe(401);
+      expect(noPayloadPostResult.error).toContain("missing required 'payload' tag");
+
+      // 3. Altering one byte in body after signing -> REJECTED (401)
+      const validAuthHeader = await createNip98AuthHeader('https://cypherguide.org/api/protocol/fee', 'PATCH', adminSkHex, validBody);
+      expect(validAuthHeader).toBeTruthy();
+
+      const tamperedBody = JSON.stringify({ baseFeeRatePcm: 26 }); // one byte altered
       const tamperedReq = {
-        headers: {
-          authorization: secondAuthHeader
-        },
-        body: JSON.parse(tamperedPayload)
+        headers: { authorization: validAuthHeader },
+        rawBody: tamperedBody,
+        body: JSON.parse(tamperedBody)
       };
-      const tamperedResult = await verifyNip98Auth(tamperedReq, '/api/protocol/fee', 'PATCH', tamperedPayload);
+      const tamperedResult = await verifyNip98Auth(tamperedReq, '/api/protocol/fee', 'PATCH', tamperedBody);
       expect(tamperedResult.authorized).toBe(false);
       expect(tamperedResult.status).toBe(401);
       expect(tamperedResult.error).toContain('payload tag hash mismatch');
+
+      // 4. Request with body but missing rawBody -> REJECTED (401)
+      const noRawAdminSk = generateSecretKey();
+      const noRawAdminSkHex = bytesToHex(noRawAdminSk);
+      const noRawAdminPk = getPublicKey(noRawAdminSk);
+      process.env.TEST_ADMIN_PUBKEY = noRawAdminPk;
+
+      const noRawAuthHeader = await createNip98AuthHeader('https://cypherguide.org/api/protocol/fee', 'PATCH', noRawAdminSkHex, validBody);
+      const noRawBodyReq = {
+        headers: { authorization: noRawAuthHeader },
+        body: JSON.parse(validBody)
+        // rawBody omitted
+      };
+      const noRawBodyResult = await verifyNip98Auth(noRawBodyReq, '/api/protocol/fee', 'PATCH');
+      expect(noRawBodyResult.authorized).toBe(false);
+      expect(noRawBodyResult.status).toBe(401);
+      expect(noRawBodyResult.error).toContain('raw request body is required');
+
+      // 5. Valid body with payload tag matching rawBody -> ACCEPTED (200)
+      // Use fresh key so event ID has not been seen
+      const freshAdminSk = generateSecretKey();
+      const freshAdminSkHex = bytesToHex(freshAdminSk);
+      const freshAdminPk = getPublicKey(freshAdminSk);
+      process.env.TEST_ADMIN_PUBKEY = freshAdminPk;
+
+      const freshValidHeader = await createNip98AuthHeader('https://cypherguide.org/api/protocol/fee', 'PATCH', freshAdminSkHex, validBody);
+      const validReq = {
+        headers: { authorization: freshValidHeader },
+        rawBody: validBody,
+        body: JSON.parse(validBody)
+      };
+      const validResult = await verifyNip98Auth(validReq, '/api/protocol/fee', 'PATCH', validBody);
+      expect(validResult.authorized).toBe(true);
+      expect(validResult.status).toBe(200);
+      expect(validResult.pubkey).toBe(freshAdminPk);
+
+      // 6. GET request WITHOUT payload tag -> ACCEPTED (200)
+      const getAdminSk = generateSecretKey();
+      const getAdminSkHex = bytesToHex(getAdminSk);
+      const getAdminPk = getPublicKey(getAdminSk);
+      process.env.TEST_ADMIN_PUBKEY = getAdminPk;
+
+      const getHeader = await createNip98AuthHeader('https://cypherguide.org/api/protocol/fee', 'GET', getAdminSkHex);
+      expect(getHeader).toBeTruthy();
+
+      const getReq = {
+        headers: { authorization: getHeader }
+      };
+      const getResult = await verifyNip98Auth(getReq, '/api/protocol/fee', 'GET');
+      expect(getResult.authorized).toBe(true);
+      expect(getResult.status).toBe(200);
+      expect(getResult.pubkey).toBe(getAdminPk);
+    } finally {
+      if (prevTestAdmin !== undefined) {
+        process.env.TEST_ADMIN_PUBKEY = prevTestAdmin;
+      } else {
+        delete process.env.TEST_ADMIN_PUBKEY;
+      }
+    }
+  });
+
+  it('records event ID in anti-replay cache only after all checks pass and ensures concurrency safety (Round 3 Task 2)', async () => {
+    const { verifyNip98Auth } = await import('../lib/adminAuth');
+
+    const adminSk = generateSecretKey();
+    const adminSkHex = bytesToHex(adminSk);
+    const adminPk = getPublicKey(adminSk);
+
+    const prevTestAdmin = process.env.TEST_ADMIN_PUBKEY;
+    process.env.TEST_ADMIN_PUBKEY = adminPk;
+
+    try {
+      const validBody = JSON.stringify({ baseFeeRatePcm: 25 });
+      const authHeader = await createNip98AuthHeader('https://cypherguide.org/api/protocol/fee', 'PATCH', adminSkHex, validBody);
+      expect(authHeader).toBeTruthy();
+
+      // Test 1: Faulty request (tampered body / wrong payload) does NOT burn the event ID
+      const tamperedBody = JSON.stringify({ baseFeeRatePcm: 99 });
+      const faultyReq = {
+        headers: { authorization: authHeader },
+        rawBody: tamperedBody,
+        body: JSON.parse(tamperedBody)
+      };
+      const faultyResult = await verifyNip98Auth(faultyReq, '/api/protocol/fee', 'PATCH', tamperedBody);
+      expect(faultyResult.authorized).toBe(false);
+      expect(faultyResult.status).toBe(401);
+      expect(faultyResult.error).toContain('payload tag hash mismatch');
+
+      // Now send valid request with the SAME event ID -> MUST SUCCEED (event ID was not burned!)
+      const validReq = {
+        headers: { authorization: authHeader },
+        rawBody: validBody,
+        body: JSON.parse(validBody)
+      };
+      const validResult = await verifyNip98Auth(validReq, '/api/protocol/fee', 'PATCH', validBody);
+      expect(validResult.authorized).toBe(true);
+      expect(validResult.status).toBe(200);
+      expect(validResult.pubkey).toBe(adminPk);
+
+      // Test 2: Reusing event ID a second time after it already succeeded -> MUST BE REJECTED
+      const reuseResult = await verifyNip98Auth(validReq, '/api/protocol/fee', 'PATCH', validBody);
+      expect(reuseResult.authorized).toBe(false);
+      expect(reuseResult.status).toBe(401);
+      expect(reuseResult.error).toContain('NIP-98 event replay detected');
+
+      // Test 3: Two valid concurrent requests with the same event ID -> EXACTLY ONE SUCCEEDS
+      const concurrentAdminSk = generateSecretKey();
+      const concurrentAdminSkHex = bytesToHex(concurrentAdminSk);
+      const concurrentAdminPk = getPublicKey(concurrentAdminSk);
+      process.env.TEST_ADMIN_PUBKEY = concurrentAdminPk;
+
+      const concurrentHeader = await createNip98AuthHeader('https://cypherguide.org/api/protocol/fee', 'PATCH', concurrentAdminSkHex, validBody);
+      const concurrentReq = {
+        headers: { authorization: concurrentHeader },
+        rawBody: validBody,
+        body: JSON.parse(validBody)
+      };
+
+      const [resA, resB] = await Promise.all([
+        verifyNip98Auth(concurrentReq, '/api/protocol/fee', 'PATCH', validBody),
+        verifyNip98Auth(concurrentReq, '/api/protocol/fee', 'PATCH', validBody)
+      ]);
+
+      const successCount = (resA.authorized ? 1 : 0) + (resB.authorized ? 1 : 0);
+      const replayCount = ((!resA.authorized && resA.error?.includes('replay')) ? 1 : 0) +
+                          ((!resB.authorized && resB.error?.includes('replay')) ? 1 : 0);
+
+      expect(successCount).toBe(1);
+      expect(replayCount).toBe(1);
     } finally {
       if (prevTestAdmin !== undefined) {
         process.env.TEST_ADMIN_PUBKEY = prevTestAdmin;
@@ -394,12 +620,15 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     // 3. PATCH with unauthorized key returns 403
     const unauthorizedSk = generateSecretKey();
     const unauthorizedSkHex = bytesToHex(unauthorizedSk);
-    const unauthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', unauthorizedSkHex);
+    const unauthBody = { baseFeeRatePcm: 30 };
+    const unauthBodyStr = JSON.stringify(unauthBody);
+    const unauthHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', unauthorizedSkHex, unauthBodyStr);
 
     const unauthReq = {
       method: 'PATCH',
       headers: { authorization: unauthHeader },
-      body: { baseFeeRatePcm: 30 }
+      rawBody: unauthBodyStr,
+      body: unauthBody
     };
     const unauthRes = createMockRes();
     await feeHandler(unauthReq, unauthRes);
@@ -412,7 +641,6 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     process.env.TEST_ADMIN_PUBKEY = testAdminPk;
 
     const testAdminSkHex = bytesToHex(testAdminSk);
-    const authHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex);
 
     // Sign audit event
     const now = Math.floor(Date.now() / 1000);
@@ -427,10 +655,15 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
       content: `Phí protocol đổi từ 0.20% sang 0.25%, bởi ${nip19.npubEncode(testAdminPk)}, lúc ${new Date().toISOString()}`
     }, testAdminSk);
 
+    const validBody = { baseFeeRatePcm: 25, auditEvent };
+    const validBodyStr = JSON.stringify(validBody);
+    const authHeader = await createNip98AuthHeader('/api/protocol/fee', 'PATCH', testAdminSkHex, validBodyStr);
+
     const validReq = {
       method: 'PATCH',
       headers: { authorization: authHeader },
-      body: { baseFeeRatePcm: 25, auditEvent }
+      rawBody: validBodyStr,
+      body: validBody
     };
     const validRes = createMockRes();
     await feeHandler(validReq, validRes);
@@ -443,7 +676,8 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     const replayReq = {
       method: 'PATCH',
       headers: { authorization: authHeader },
-      body: { baseFeeRatePcm: 25 }
+      rawBody: validBodyStr,
+      body: validBody
     };
     const replayRes = createMockRes();
     await feeHandler(replayReq, replayRes);
@@ -451,10 +685,12 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     expect(replayRes.data.error).toContain('replay');
 
     // 6. Wrong URL: event signed with a different endpoint URL is rejected with 401
-    const wrongUrlHeader = await createNip98AuthHeader('https://evilcypherguide.org/api/protocol/fee', 'PATCH', testAdminSkHex);
+    const wrongUrlBody = JSON.stringify({ baseFeeRatePcm: 30 });
+    const wrongUrlHeader = await createNip98AuthHeader('https://evilcypherguide.org/api/protocol/fee', 'PATCH', testAdminSkHex, wrongUrlBody);
     const wrongUrlReq = {
       method: 'PATCH',
       headers: { authorization: wrongUrlHeader },
+      rawBody: wrongUrlBody,
       body: { baseFeeRatePcm: 30 }
     };
     const wrongUrlRes = createMockRes();

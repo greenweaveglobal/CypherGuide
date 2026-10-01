@@ -77,10 +77,12 @@ export function getAuthorizedAdminPubkeys(): Set<string> {
   const pubkeys = new Set<string>(AUTHORIZED_ADMIN_PUBKEYS.map(pk => pk.toLowerCase()));
 
   if (process.env.TEST_ADMIN_PUBKEY) {
-    if (process.env.NODE_ENV === "production" && !process.env.VITEST) {
-      console.warn("[SECURITY ALERT] TEST_ADMIN_PUBKEY environment variable is strictly IGNORED in production.");
-    } else {
+    if (process.env.NODE_ENV === "test") {
       pubkeys.add(process.env.TEST_ADMIN_PUBKEY.trim().toLowerCase());
+    } else {
+      if (process.env.NODE_ENV === "production") {
+        console.warn("[SECURITY ALERT] TEST_ADMIN_PUBKEY environment variable is strictly IGNORED in production.");
+      }
     }
   }
 
@@ -183,20 +185,12 @@ export async function verifyNip98Auth(
     };
   }
 
-  // 4. Unique event ID anti-replay check (120-second cache window)
+  // 4. Validate event ID presence
   if (!event.id || typeof event.id !== "string") {
     return {
       authorized: false,
       status: 401,
       error: "NIP-98 event is missing required 'id' field."
-    };
-  }
-  const isNewEvent = await checkAndRecordEventId(event.id);
-  if (!isNewEvent) {
-    return {
-      authorized: false,
-      status: 401,
-      error: "NIP-98 event replay detected. Event ID has already been consumed."
     };
   }
 
@@ -212,6 +206,18 @@ export async function verifyNip98Auth(
       authorized: false,
       status: 401,
       error: `NIP-98 method tag mismatch. Expected '${targetMethod.toUpperCase()}'.`
+    };
+  }
+
+  const upperMethod = targetMethod.toUpperCase();
+  const isBodyMethod = upperMethod === "POST" || upperMethod === "PATCH";
+
+  // Requirement (Task 1): With method POST or PATCH, payload tag is MANDATORY. Missing payload tag returns 401. GET does not require it.
+  if (isBodyMethod && !payloadTag) {
+    return {
+      authorized: false,
+      status: 401,
+      error: `NIP-98 missing required 'payload' tag for ${upperMethod} request. SHA-256 hash of raw request body is required.`
     };
   }
 
@@ -263,15 +269,26 @@ export async function verifyNip98Auth(
     };
   }
 
-  // 6. Optional payload tag verification (SHA-256 hash of body)
+  // 6. Payload tag verification (SHA-256 hash of raw body)
   if (payloadTag) {
-    const bodyToHash = rawBody !== undefined ? rawBody : req.body;
-    let bodyString = "";
-    if (typeof bodyToHash === "string") {
-      bodyString = bodyToHash;
-    } else if (bodyToHash && typeof bodyToHash === "object") {
-      bodyString = JSON.stringify(bodyToHash);
+    const effectiveRawBody = rawBody !== undefined ? rawBody : (req as any)?.rawBody;
+    let bodyString: string;
+
+    if (typeof effectiveRawBody === "string") {
+      bodyString = effectiveRawBody;
+    } else if (Buffer.isBuffer(effectiveRawBody)) {
+      bodyString = effectiveRawBody.toString("utf8");
+    } else if (req?.body !== undefined && req?.body !== null) {
+      // Request has body but rawBody was not provided
+      return {
+        authorized: false,
+        status: 401,
+        error: "NIP-98 payload verification failed: raw request body is required but not provided."
+      };
+    } else {
+      bodyString = "";
     }
+
     const computedHash = crypto.createHash("sha256").update(bodyString, "utf8").digest("hex");
     if (payloadTag.toLowerCase() !== computedHash.toLowerCase()) {
       return {
@@ -289,6 +306,18 @@ export async function verifyNip98Auth(
       authorized: false,
       status: 403,
       error: `Forbidden: Nostr pubkey '${event.pubkey}' is not an authorized protocol admin.`
+    };
+  }
+ 
+  // 8. Unique event ID anti-replay check (120-second cache window)
+  // Performed at the end after all signature, timestamp, tags, URL, payload, and admin checks pass.
+  // This guarantees that malformed or unauthorized requests do not burn legitimate event IDs.
+  const isNewEvent = await checkAndRecordEventId(event.id);
+  if (!isNewEvent) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "NIP-98 event replay detected. Event ID has already been consumed."
     };
   }
 

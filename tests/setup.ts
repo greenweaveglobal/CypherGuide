@@ -37,3 +37,6 @@ if (typeof globalThis.sessionStorage === 'undefined') {
 if (typeof (globalThis as any).window === 'undefined') {
   (globalThis as any).window = globalThis;
 }
+
+// Ensure test environment reflects NODE_ENV = 'test'
+process.env.NODE_ENV = 'test';
