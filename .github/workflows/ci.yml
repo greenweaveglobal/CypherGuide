@@ -29,6 +29,41 @@ jobs:
       - name: Run Test Suite (Vitest)
         run: npm test
 
+      - name: Verify Vercel Serverless ESM routes load cleanly in native Node ESM
+        run: npm run check:esm
+
+      - name: Ensure zero relative imports lack .js in api/ and lib/
+        run: |
+          BAD_IMPORTS=$(grep -rnE 'from\s+["'"'"']\.[^"'"'"']+' api/ lib/ | grep -v '\.js["'"'"']' || true)
+          if [ -n "$BAD_IMPORTS" ]; then
+            echo "ERROR: Found relative imports lacking .js extension in api/ or lib/:"
+            echo "$BAD_IMPORTS"
+            exit 1
+          fi
+          echo "Verified: All relative imports in api/ and lib/ end with .js."
+
+      - name: Vercel Serverless ESM Smoke Test (GET /api/protocol/config)
+        run: |
+          npx esbuild api/**/*.ts lib/**/*.ts src/constants/adminPubkeys.ts --format=esm --platform=node --packages=external --outdir=.esm-smoke
+          node --input-type=module -e "
+            const configMod = await import('./.esm-smoke/api/protocol/config.js');
+            let statusCode = 0;
+            let responseData = null;
+            const req = { method: 'GET', headers: {} };
+            const res = {
+              status(code) { statusCode = code; return this; },
+              json(data) { responseData = data; return this; },
+              setHeader() {}
+            };
+            await configMod.default(req, res);
+            if (statusCode !== 200 || typeof responseData?.baseFeeRatePcm !== 'number') {
+              console.error('ERROR: ESM Smoke test failed for GET /api/protocol/config! Status:', statusCode, responseData);
+              process.exit(1);
+            }
+            console.log('SUCCESS: GET /api/protocol/config returned 200 on compiled Vercel ESM, baseFeeRatePcm:', responseData.baseFeeRatePcm);
+          "
+          rm -rf .esm-smoke
+
       - name: Verify data/protocol_config.json was not modified by tests
         run: git diff --exit-code data/protocol_config.json
 

@@ -1,6 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { getClientIp } from "./clientIp";
+import { getClientIp } from "./clientIp.js";
 
 export interface RateLimitResult {
   success: boolean;

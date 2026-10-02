@@ -1,8 +1,8 @@
 import { verifyEvent, nip19 } from "nostr-tools";
 import { SimplePool } from "nostr-tools/pool";
-import { applyCorsHeaders } from "../../lib/cors";
-import { verifyNip98Auth } from "../../lib/adminAuth";
-import { getProtocolConfig, saveProtocolConfig } from "../../lib/configStore";
+import { applyCorsHeaders } from "../../lib/cors.js";
+import { verifyNip98Auth } from "../../lib/adminAuth.js";
+import { getProtocolConfig, saveProtocolConfig } from "../../lib/configStore.js";
 
 const PROTOCOL_RELAYS = [
   "wss://relay.snort.social",

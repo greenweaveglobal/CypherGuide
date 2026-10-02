@@ -1,7 +1,7 @@
-import { queryDocsAssistant } from "../../lib/docsAssistant";
-import { applyCorsHeaders } from "../../lib/cors";
-import { getClientIp } from "../../lib/clientIp";
-import { docsRateLimiter } from "../../lib/rateLimit";
+import { queryDocsAssistant } from "../../lib/docsAssistant.js";
+import { applyCorsHeaders } from "../../lib/cors.js";
+import { getClientIp } from "../../lib/clientIp.js";
+import { docsRateLimiter } from "../../lib/rateLimit.js";
 
 export default async function handler(req: any, res: any) {
   // Strict CORS configuration

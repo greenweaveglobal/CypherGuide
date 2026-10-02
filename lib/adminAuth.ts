@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { verifyEvent } from "nostr-tools";
 import { Redis } from "@upstash/redis";
-import { AUTHORIZED_ADMIN_PUBKEYS } from "../src/constants/adminPubkeys";
+import { AUTHORIZED_ADMIN_PUBKEYS } from "../src/constants/adminPubkeys.js";
 
 // In-memory seen events fallback: eventId -> expiry timestamp (ms)
 const inMemorySeenEvents = new Map<string, number>();

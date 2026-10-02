@@ -1,7 +1,7 @@
-import { resolveLightningInvoice } from "../../lib/lnurlResolver";
-import { applyCorsHeaders } from "../../lib/cors";
-import { getClientIp } from "../../lib/clientIp";
-import { lnurlRateLimiter } from "../../lib/rateLimit";
+import { resolveLightningInvoice } from "../../lib/lnurlResolver.js";
+import { applyCorsHeaders } from "../../lib/cors.js";
+import { getClientIp } from "../../lib/clientIp.js";
+import { lnurlRateLimiter } from "../../lib/rateLimit.js";
 
 export default async function handler(req: any, res: any) {
   // Strict CORS configuration

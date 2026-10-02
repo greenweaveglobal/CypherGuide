@@ -18,7 +18,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:esm": "esbuild api/**/*.ts lib/**/*.ts src/constants/adminPubkeys.ts --format=esm --platform=node --packages=external --outdir=.esm-check && node --input-type=module -e \"await import('./.esm-check/api/protocol/config.js'); await import('./.esm-check/api/protocol/fee.js'); await import('./.esm-check/api/docs-assistant/query.js'); await import('./.esm-check/api/lightning/resolve-invoice.js'); console.log('All Vercel API routes load cleanly in Node ESM.');\" && rm -rf .esm-check"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
