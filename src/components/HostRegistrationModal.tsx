@@ -12,7 +12,7 @@ import { safeRandomUUID } from '../utils/uuid';
 import { isValidNpub } from '../utils/kycAttestation';
 import {
   selectBestMediaServer,
-  uploadFileXHR,
+  uploadFileWithFallback,
   SelectedServerResult,
   setSimulatePrimaryOffline,
   getSimulatePrimaryOffline,
@@ -189,12 +189,22 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       const compressedBlob = await compressImage(file, compressionLevel);
       setCoverUploadState({ status: 'uploading', progress: 0 });
 
-      const res = await uploadFileXHR(
-        currentServer.server.url,
+      const res = await uploadFileWithFallback(
         compressedBlob,
         file.name || 'cover.jpg',
-        (info) => {
-          setCoverUploadState(prev => ({ ...prev, progress: info.percent }));
+        {
+          preferredServerUrl: currentServer?.server.url,
+          onProgress: (info) => {
+            setCoverUploadState(prev => ({ ...prev, progress: info.percent }));
+          },
+          onServerSuccess: (server) => {
+            setActiveServerInfo({
+              server,
+              isFallback: !server.isPrimary,
+              latency: server.latency ?? 0,
+              warning: server.isPrimary ? undefined : `Đã tải ảnh thành công qua máy chủ: ${server.name}`
+            });
+          }
         }
       );
 
@@ -283,15 +293,25 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         continue;
       }
 
-      // Step 2: Uploading via XMLHttpRequest with real-time percentage
+      // Step 2: Uploading via XMLHttpRequest with real-time percentage and automatic fallback
       setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'uploading', progress: 0 } : q));
       try {
-        const res = await uploadFileXHR(
-          currentServer.server.url,
+        const res = await uploadFileWithFallback(
           compressedBlob,
           item.file.name || `image_${Date.now()}.jpg`,
-          (info) => {
-            setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, progress: info.percent } : q));
+          {
+            preferredServerUrl: currentServer?.server.url,
+            onProgress: (info) => {
+              setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, progress: info.percent } : q));
+            },
+            onServerSuccess: (server) => {
+              setActiveServerInfo({
+                server,
+                isFallback: !server.isPrimary,
+                latency: server.latency ?? 0,
+                warning: server.isPrimary ? undefined : `Đã tải ảnh thành công qua máy chủ: ${server.name}`
+              });
+            }
           }
         );
 

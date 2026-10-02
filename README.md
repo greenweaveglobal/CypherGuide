@@ -104,6 +104,8 @@ Copy the template: `cp .env.example .env`
 - `PROTOCOL_CONFIG_PATH`: Optional custom path for the protocol configuration file (defaults to `data/protocol_config.json`). Useful when mounting custom persistent volumes or running isolated test environments.
 - `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis credentials for distributed sliding-window rate limiting, NIP-98 anti-replay event caching, and distributed protocol config storage.
 - `GEMINI_API_KEY`: API key for the server-side documentation assistant (`lib/docsAssistant.ts`).
+- `VITE_MEDIA_SERVER_URL`: Optional **absolute** URL for a dedicated NIP-96 Media Server (e.g. `https://media.cypherguide.org/api/media`). **Note:** This is a **build-time variable** (prefixed with `VITE_`, requires rebuild after changing). Deployments on Vercel do **not** have the local `/api/media` disk-backed backend (as serverless filesystems are read-only and ephemeral). When unset, the client automatically probes and connects to public NIP-96 fallbacks (`nostr.build`, `nostpic.com`).
+- `VITE_FALLBACK_MEDIA_SERVERS`: Comma-separated list of fallback NIP-96 servers (defaults to `https://nostr.build/api/v2/nip96,https://nostpic.com/api/v2/nip96`).
 
 ### Building & Verification
 

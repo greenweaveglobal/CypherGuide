@@ -102,6 +102,8 @@ Sao chép file mẫu: `cp .env.example .env`
 - `PROTOCOL_CONFIG_PATH`: Tùy chọn đường dẫn file cấu hình protocol (mặc định: `data/protocol_config.json`). Hữu ích khi mount volume lưu trữ riêng hoặc chạy unit test độc lập.
 - `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN`: Kết nối Redis Upstash phục vụ sliding-window rate limit, cache chống replay NIP-98 và lưu trữ cấu hình giao thức.
 - `GEMINI_API_KEY`: Khóa API phục vụ trợ lý tra cứu tài liệu (`lib/docsAssistant.ts`).
+- `VITE_MEDIA_SERVER_URL`: Tùy chọn địa chỉ **tuyệt đối** cho máy chủ Media NIP-96 riêng (ví dụ: `https://media.cypherguide.org/api/media`). **Lưu ý:** Đây là biến **thời gian build** (tiền tố `VITE_`, phải build lại ứng dụng sau khi thay đổi). Các bản triển khai trên Vercel **không có** backend lưu file `/api/media` (do hệ thống file serverless là read-only và tạm thời). Khi không cấu hình, client sẽ tự động kiểm tra và chuyển tiếp sang các máy chủ NIP-96 công khai (`nostr.build`, `nostpic.com`).
+- `VITE_FALLBACK_MEDIA_SERVERS`: Danh sách máy chủ NIP-96 dự phòng phân cách bằng dấu phẩy (mặc định: `https://nostr.build/api/v2/nip96,https://nostpic.com/api/v2/nip96`).
 
 ### Kiểm Tra & Build
 
