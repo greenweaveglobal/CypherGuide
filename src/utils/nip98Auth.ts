@@ -18,7 +18,8 @@ export async function createNip98AuthHeader(
   url: string,
   method: string,
   privKeyHex?: string,
-  body?: string | any
+  body?: string | any | Blob | ArrayBuffer | Uint8Array,
+  payloadHashHex?: string
 ): Promise<string | null> {
   let targetUrl = url;
   if (targetUrl.startsWith('/') && typeof window !== 'undefined' && window.location?.origin) {
@@ -32,17 +33,28 @@ export async function createNip98AuthHeader(
     ['method', normalizedMethod]
   ];
 
-  if (body !== undefined && body !== null) {
-    const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
-    const subtle = (typeof window !== 'undefined' && window.crypto?.subtle) || (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle);
-    if (subtle) {
-      const buffer = new TextEncoder().encode(bodyStr);
-      const hashBuf = await subtle.digest('SHA-256', buffer);
-      const hashHex = Array.from(new Uint8Array(hashBuf))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-      tags.push(['payload', hashHex]);
+  const subtle = (typeof window !== 'undefined' && window.crypto?.subtle) || 
+                 (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.subtle);
+
+  if (payloadHashHex) {
+    tags.push(['payload', payloadHashHex.toLowerCase()]);
+  } else if (body !== undefined && body !== null && subtle) {
+    let buffer: ArrayBuffer | Uint8Array;
+    if (typeof Blob !== 'undefined' && body instanceof Blob) {
+      buffer = await body.arrayBuffer();
+    } else if (body instanceof ArrayBuffer) {
+      buffer = body;
+    } else if (body instanceof Uint8Array) {
+      buffer = body;
+    } else {
+      const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+      buffer = new TextEncoder().encode(bodyStr);
     }
+    const hashBuf = await subtle.digest('SHA-256', buffer);
+    const hashHex = Array.from(new Uint8Array(hashBuf))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    tags.push(['payload', hashHex]);
   }
 
   const template = {

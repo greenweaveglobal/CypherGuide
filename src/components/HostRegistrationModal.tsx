@@ -194,6 +194,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         file.name || 'cover.jpg',
         {
           preferredServerUrl: currentServer?.server.url,
+          privKeyHex: identity?.privKeyHex,
           onProgress: (info) => {
             setCoverUploadState(prev => ({ ...prev, progress: info.percent }));
           },
@@ -301,6 +302,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
           item.file.name || `image_${Date.now()}.jpg`,
           {
             preferredServerUrl: currentServer?.server.url,
+            privKeyHex: identity?.privKeyHex,
             onProgress: (info) => {
               setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, progress: info.percent } : q));
             },
