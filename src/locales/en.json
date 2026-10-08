@@ -204,7 +204,9 @@
     "fiatEstimationPrivacyNote": "Loaded on-demand, disabled by default for IP privacy",
     "fiatEstimationDisclaimer": "Reference estimate only. Payments settled 100% via Bitcoin Lightning.",
     "verifiedNode": "Verified Node",
-    "viewDetails": "View details"
+    "viewDetails": "View details",
+    "unknownLocation": "Region not specified",
+    "cancelPolicyUnenforcedNote": "Host commitment; automated refund not yet enforced by system"
   },
   "relayLogs": {
     "title": "P2P Control Panel & Relay Logs",

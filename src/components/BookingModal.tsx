@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight, AlertTriangle } from 'lucide-react';
+import { X, Calendar, Coins, Zap, Shield, KeyRound, ArrowRight, CheckCircle2, Terminal, Activity, Banknote, ShieldCheck, Copy, Sparkles, Radio, Cpu, Lock, Users, ChevronRight, AlertTriangle, MapPin } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, Booking, NostrIdentity } from '../types';
 import { 
@@ -873,10 +873,13 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           )}
                         </div>
                         <p className="text-xs text-text-secondary truncate mt-0.5">{listing.title}</p>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-mono text-cyber-green mt-1">
-                          <span>{listing.meshCoordinates}</span>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-mono text-cyber-green mt-1">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span>{listing.locationLabel || t('lodging.unknownLocation')}</span>
+                          </span>
                           {currentRoom && (
-                            <span className="text-text-secondary font-mono">
+                            <span className="text-text-secondary font-mono text-xs">
                               • Tối đa {currentRoom.maxGuests} khách • <strong className="text-warning font-semibold">{currentRoom.priceSats.toLocaleString()} Sats/đêm</strong>
                             </span>
                           )}

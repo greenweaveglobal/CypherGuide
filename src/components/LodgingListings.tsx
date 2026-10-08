@@ -85,7 +85,7 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
     return listings.filter(listing => {
       const matchSearch = 
         listing.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        listing.meshCoordinates.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (listing.locationLabel && listing.locationLabel.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchPrice = listing.priceSats <= maxPrice;
       return matchSearch && matchPrice;
@@ -202,8 +202,8 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
             const areaM2 = listing.areaM2 || cheapestRoom?.areaM2;
             const cancelLabel = getCancellationLabel(listing.cancellationPolicy);
             
-            // Coarse Location (Strictly coarse per RFC-0018)
-            const coarseLocation = listing.locationLabel || listing.meshCoordinates;
+            // Coarse Location (Strictly coarse per RFC-0018, never fallback to GPS / mesh coordinates)
+            const coarseLocation = listing.locationLabel ? listing.locationLabel : t('lodging.unknownLocation');
 
             // Estimated fiat formatted string
             const estimatedFiat = showFiatEstimation && fiatRates
@@ -327,9 +327,14 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
 
                       {/* Cancellation Policy Banner (RFC-0018) */}
                       {cancelLabel && (
-                        <div className="flex items-center gap-1.5 text-xs text-cyber-green bg-cyber-green/10 border border-cyber-green/20 px-2.5 py-1.5 rounded-lg">
-                          <Clock className="w-3.5 h-3.5 text-cyber-green shrink-0" />
-                          <span className="font-medium truncate">{cancelLabel}</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs text-cyber-green bg-cyber-green/10 border border-cyber-green/20 px-2.5 py-1.5 rounded-lg">
+                            <Clock className="w-3.5 h-3.5 text-cyber-green shrink-0" />
+                            <span className="font-medium truncate">{cancelLabel}</span>
+                          </div>
+                          <div className="text-xs text-gray-400 font-mono italic px-1">
+                            ({t('lodging.cancelPolicyUnenforcedNote')})
+                          </div>
                         </div>
                       )}
 

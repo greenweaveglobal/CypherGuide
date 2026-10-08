@@ -40,8 +40,9 @@ Còn mở:
 - `MATURITY.md`: Đã đồng bộ 15 suites/84 tests, React 19, thêm mục 19 (RFC-0018).
 - `ARCHITECTURE.md`: React 19 + Tailwind CSS + Vite.
 - `package.json`: `greenweaveglobal/cypherguide`, `vite` ở devDependencies, script `check:esm` kiểm tra phân giải ESM của Vercel API routes.
-- Tất cả các nút mock/dev (giả lập verifier, giả lập tắt server chính) đều bị khóa cứng sau cờ `import.meta.env.DEV` và loại bỏ khỏi production build.
-- Còn code demo/mock trong UI: `ListingDetail.tsx` (`mockVerifierIdentity`, nút "KYC mock mint" – theo MATURITY chỉ nên bật ở dev), `HostRegistrationModal.tsx` (nút giả lập tắt server chính – nhãn "dev/acceptance test"). Cần xác nhận chúng bị ẩn ở production (`import.meta.env.DEV`).
+- Tất cả các nút mock/dev (giả lập verifier, giả lập tắt server chính) đều bị khóa cứng sau cờ `import.meta.env.DEV` và loại bỏ khỏi production build (Đã xác nhận kiểm tra trong code & production bundle).
+- Đã khắc phục các lỗi import component (MapPin trong BookingModal, AlertCircle trong ListingDetail), tsc/lint đạt 0 cảnh báo.
+- Bản build production (`npm run build`) và kiểm thử phân giải ESM (`npm run check:esm`) hoàn tất thành công 100%.
 
 ## 5. Môi trường & cấu hình
 - Biến môi trường (`.env.example`): `GEMINI_API_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, tùy chọn `VITE_MEDIA_SERVER_URL`, `VITE_FALLBACK_MEDIA_SERVERS`.

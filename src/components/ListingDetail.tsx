@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp, Bed, Scale, Clock, Maximize2 } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp, Bed, Scale, Clock, Maximize2, AlertCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
@@ -448,15 +448,15 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
           
           <div className="absolute top-4 right-4 flex items-center gap-2">
-            {listing.locationLabel && (
-              <Badge variant="primary" className="bg-black/85 backdrop-blur border border-cyber-blue/30 text-cyber-blue font-mono">
-                <MapPin className="w-3 h-3 mr-1" />
-                {listing.locationLabel}
+            <Badge variant="primary" className="bg-black/85 backdrop-blur border border-cyber-blue/30 text-cyber-blue font-mono text-xs">
+              <MapPin className="w-3.5 h-3.5 mr-1" />
+              {listing.locationLabel || t('lodging.unknownLocation')}
+            </Badge>
+            {isOwner && (
+              <Badge variant="default" className="bg-black/85 backdrop-blur font-mono text-xs text-cyber-green border border-cyber-green/30">
+                [Host: {listing.meshCoordinates}]
               </Badge>
             )}
-            <Badge variant="default" className="bg-black/80 backdrop-blur font-mono text-[11px] text-gray-300">
-              {listing.meshCoordinates}
-            </Badge>
           </div>
         </div>
 
@@ -471,15 +471,13 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                 <span className="text-sm font-mono text-text-secondary">{t('listingDetail.reviewsCount', { count: listing.reviews.length })}</span>
               </div>
               <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">{listing.title}</h1>
-              {listing.locationLabel && (
-                <div className="flex items-center gap-2 text-xs font-mono text-cyber-blue">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
-                  <span>{listing.locationLabel}</span>
-                  <span className="text-[10px] text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                    {t('listingDetail.privacyCoarseLocation')}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-xs font-mono text-cyber-blue">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span>{listing.locationLabel || t('lodging.unknownLocation')}</span>
+                <span className="text-xs text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                  {t('listingDetail.privacyCoarseLocation')}
+                </span>
+              </div>
             </div>
             <div className="flex flex-col md:items-end">
               <span className="text-sm font-mono text-text-secondary uppercase mb-1">{t('listingDetail.pricePerNight')}</span>
@@ -545,26 +543,26 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
-                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.bedType')}</span>
-                      <span className="text-white font-medium text-[11px] block truncate" title={listing.bedType || '1 Giường đôi tiêu chuẩn'}>
+                      <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.bedType')}</span>
+                      <span className="text-white font-medium text-xs block truncate" title={listing.bedType || '1 Giường đôi tiêu chuẩn'}>
                         {listing.bedType || '1 Giường đôi tiêu chuẩn'}
                       </span>
                     </div>
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
-                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.roomArea')}</span>
-                      <span className="text-white font-medium text-[11px] block">
+                      <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.roomArea')}</span>
+                      <span className="text-white font-medium text-xs block">
                         {listing.areaM2 ? `${listing.areaM2} m²` : 'Tiêu chuẩn'}
                       </span>
                     </div>
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
-                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.checkIn')}</span>
-                      <span className="text-white font-medium text-[11px] block">
+                      <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.checkIn')}</span>
+                      <span className="text-white font-medium text-xs block">
                         {listing.checkInTime || '14:00'}
                       </span>
                     </div>
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
-                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.checkOut')}</span>
-                      <span className="text-white font-medium text-[11px] block">
+                      <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.checkOut')}</span>
+                      <span className="text-white font-medium text-xs block">
                         {listing.checkOutTime || '11:00'}
                       </span>
                     </div>
@@ -580,7 +578,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                     </span>
                     <Badge 
                       variant={listing.cancellationPolicy === 'nonrefundable' ? 'danger' : 'success'}
-                      className="uppercase font-bold text-[10px] tracking-wider"
+                      className="uppercase font-bold text-xs tracking-wider"
                     >
                       {listing.cancellationPolicy === 'flexible' && 'Linh hoạt (Flexible)'}
                       {listing.cancellationPolicy === 'moderate' && 'Vừa phải (Moderate)'}
@@ -598,14 +596,20 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                     </p>
 
                     {listing.cancellationNote && (
-                      <div className="pt-2 border-t border-white/5 text-[11px] text-gray-300">
+                      <div className="pt-2 border-t border-white/5 text-xs text-gray-300">
                         <span className="text-cyber-green font-bold">{t('listingDetail.cancellationNote')} </span>
                         {listing.cancellationNote}
                       </div>
                     )}
                   </div>
 
-                  <div className="p-2.5 bg-cyber-green/10 border border-cyber-green/20 rounded-lg text-[11px] text-cyber-green flex items-start gap-2">
+                  {/* Warning: Host commitment, system does not automatically enforce refunds */}
+                  <div className="p-2.5 bg-cyber-amber/10 border border-cyber-amber/30 rounded-lg text-xs text-cyber-amber flex items-start gap-2 font-mono">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-cyber-amber" />
+                    <span>{t('lodging.cancelPolicyUnenforcedNote')}</span>
+                  </div>
+
+                  <div className="p-2.5 bg-cyber-green/10 border border-cyber-green/20 rounded-lg text-xs text-cyber-green flex items-start gap-2">
                     <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-cyber-green" />
                     <span>{t('listingDetail.depositInviolableNotice')}</span>
                   </div>

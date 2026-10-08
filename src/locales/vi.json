@@ -204,7 +204,9 @@
     "fiatEstimationPrivacyNote": "Tải theo yêu cầu, tắt mặc định để bảo vệ địa chỉ IP",
     "fiatEstimationDisclaimer": "Ước tính tham khảo. Thanh toán 100% bằng Bitcoin Lightning.",
     "verifiedNode": "Nút xác minh",
-    "viewDetails": "Xem chi tiết"
+    "viewDetails": "Xem chi tiết",
+    "unknownLocation": "Chưa cập nhật khu vực",
+    "cancelPolicyUnenforcedNote": "Cam kết của chủ nhà, hệ thống chưa tự thực thi hoàn tiền"
   },
   "relayLogs": {
     "title": "Bảng kiểm soát P2P & Relay Log",
