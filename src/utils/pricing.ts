@@ -1,5 +1,19 @@
 import { Listing, PriceRule, RoomType } from '../types';
 
+/**
+ * Tỷ lệ tiền cọc bảo đảm hoàn lại 10% khi đặt phòng (trả lại khi check-out thành công).
+ * Đơn nguồn chân lý dùng chung cho Thẻ Listing, Modal Đặt phòng, và Hạch toán Escrow.
+ */
+export const REFUNDABLE_CHECKOUT_DEPOSIT_RATE = 0.10;
+export const REFUNDABLE_CHECKOUT_DEPOSIT_PERCENT = 10;
+
+/**
+ * Tính toán số tiền cọc hoàn lại từ giá phòng.
+ */
+export function calculateRefundableDeposit(roomPriceSats: number): number {
+  return Math.floor(roomPriceSats * REFUNDABLE_CHECKOUT_DEPOSIT_RATE);
+}
+
 export const DAY_OF_WEEK_MAP: { [key: number]: string } = {
   0: 'SU',
   1: 'MO',

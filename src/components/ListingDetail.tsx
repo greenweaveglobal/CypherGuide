@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp, Bed, Scale, Clock, Maximize2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
@@ -447,9 +447,14 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
           <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
           
-          <div className="absolute top-4 right-4">
-            <Badge variant="primary" className="bg-black/80 backdrop-blur">
-              <MapPin className="w-3 h-3 mr-1" />
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            {listing.locationLabel && (
+              <Badge variant="primary" className="bg-black/85 backdrop-blur border border-cyber-blue/30 text-cyber-blue font-mono">
+                <MapPin className="w-3 h-3 mr-1" />
+                {listing.locationLabel}
+              </Badge>
+            )}
+            <Badge variant="default" className="bg-black/80 backdrop-blur font-mono text-[11px] text-gray-300">
               {listing.meshCoordinates}
             </Badge>
           </div>
@@ -466,6 +471,15 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                 <span className="text-sm font-mono text-text-secondary">{t('listingDetail.reviewsCount', { count: listing.reviews.length })}</span>
               </div>
               <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">{listing.title}</h1>
+              {listing.locationLabel && (
+                <div className="flex items-center gap-2 text-xs font-mono text-cyber-blue">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  <span>{listing.locationLabel}</span>
+                  <span className="text-[10px] text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                    {t('listingDetail.privacyCoarseLocation')}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex flex-col md:items-end">
               <span className="text-sm font-mono text-text-secondary uppercase mb-1">{t('listingDetail.pricePerNight')}</span>
@@ -520,6 +534,82 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                 <p className="text-text-secondary leading-relaxed mt-4 text-sm">
                   {listing.description}
                 </p>
+
+                {/* RFC-0018: Physical Stay Specifications */}
+                <div className="p-4 bg-surface/60 border border-border rounded-xl space-y-3 font-mono mt-4">
+                  <div className="flex items-center justify-between text-xs text-cyber-blue uppercase font-bold tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Bed className="w-4 h-4 text-cyber-blue" />
+                      {t('listingDetail.staySpecsTitle')}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
+                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.bedType')}</span>
+                      <span className="text-white font-medium text-[11px] block truncate" title={listing.bedType || '1 Giường đôi tiêu chuẩn'}>
+                        {listing.bedType || '1 Giường đôi tiêu chuẩn'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
+                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.roomArea')}</span>
+                      <span className="text-white font-medium text-[11px] block">
+                        {listing.areaM2 ? `${listing.areaM2} m²` : 'Tiêu chuẩn'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
+                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.checkIn')}</span>
+                      <span className="text-white font-medium text-[11px] block">
+                        {listing.checkInTime || '14:00'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
+                      <span className="text-[10px] text-text-secondary uppercase block">{t('listingDetail.checkOut')}</span>
+                      <span className="text-white font-medium text-[11px] block">
+                        {listing.checkOutTime || '11:00'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RFC-0018: Cancellation Policy */}
+                <div className="p-4 bg-surface/60 border border-border rounded-xl space-y-3 font-mono text-xs mt-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="flex items-center gap-1.5 text-cyber-green font-bold uppercase tracking-wider">
+                      <Scale className="w-4 h-4 text-cyber-green" />
+                      {t('listingDetail.cancellationPolicyTitle')}
+                    </span>
+                    <Badge 
+                      variant={listing.cancellationPolicy === 'nonrefundable' ? 'danger' : 'success'}
+                      className="uppercase font-bold text-[10px] tracking-wider"
+                    >
+                      {listing.cancellationPolicy === 'flexible' && 'Linh hoạt (Flexible)'}
+                      {listing.cancellationPolicy === 'moderate' && 'Vừa phải (Moderate)'}
+                      {listing.cancellationPolicy === 'strict' && 'Nghiêm ngặt (Strict)'}
+                      {(!listing.cancellationPolicy || listing.cancellationPolicy === 'nonrefundable') && 'Không hoàn tiền (Nonrefundable)'}
+                    </Badge>
+                  </div>
+
+                  <div className="p-3 bg-black/40 rounded-lg border border-white/5 space-y-2">
+                    <p className="text-text-secondary leading-relaxed">
+                      {listing.cancellationPolicy === 'flexible' && 'Hủy miễn phí trước 24 giờ so với giờ nhận phòng (hoàn 100% tiền phòng). Hủy muộn tính phí 50% đêm đầu tiên.'}
+                      {listing.cancellationPolicy === 'moderate' && 'Hủy miễn phí trước 5 ngày so với ngày nhận phòng (hoàn 100% tiền phòng). Hủy muộn tính phí 100% đêm đầu tiên.'}
+                      {listing.cancellationPolicy === 'strict' && 'Hủy miễn phí trước 14 ngày so với ngày nhận phòng (hoàn 100% tiền phòng). Hủy trong vòng 14 ngày không hoàn tiền phòng.'}
+                      {(!listing.cancellationPolicy || listing.cancellationPolicy === 'nonrefundable') && 'Không áp dụng hoàn tiền phòng sau khi giao dịch đặt phòng được xác nhận.'}
+                    </p>
+
+                    {listing.cancellationNote && (
+                      <div className="pt-2 border-t border-white/5 text-[11px] text-gray-300">
+                        <span className="text-cyber-green font-bold">{t('listingDetail.cancellationNote')} </span>
+                        {listing.cancellationNote}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-2.5 bg-cyber-green/10 border border-cyber-green/20 rounded-lg text-[11px] text-cyber-green flex items-start gap-2">
+                    <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-cyber-green" />
+                    <span>{t('listingDetail.depositInviolableNotice')}</span>
+                  </div>
+                </div>
               </section>
 
               {/* Room Types Section */}

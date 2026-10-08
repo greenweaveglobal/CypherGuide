@@ -1,8 +1,35 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, ChevronDown, ChevronUp, Copy, Search, SlidersHorizontal, Home, Calendar as CalendarIcon, Download, Share2, Zap, Sparkles, Bot } from 'lucide-react';
+import { 
+  MapPin, 
+  Users, 
+  Coins, 
+  Star, 
+  ShieldCheck, 
+  Check, 
+  Search, 
+  SlidersHorizontal, 
+  Home, 
+  Sparkles, 
+  Zap, 
+  Bot, 
+  Clock, 
+  Maximize2, 
+  Bed, 
+  DollarSign, 
+  Info,
+  ArrowRight
+} from 'lucide-react';
 import { Listing, NostrIdentity, Booking } from '../types';
-import { getEffectivePrice, getEffectivePriceRule, migrateListingToRoomTypes } from '../utils/pricing';
+import { 
+  getEffectivePrice, 
+  getEffectivePriceRule, 
+  migrateListingToRoomTypes, 
+  REFUNDABLE_CHECKOUT_DEPOSIT_PERCENT 
+} from '../utils/pricing';
+import { calculateDynamicFee, createFeeStructureFromPcm } from '../utils/dynamicFee';
+import { fetchBtcFiatRates, formatSatsToEstimatedFiat, BtcFiatRates } from '../services/fiatRateService';
+import { useAppStore } from '../store/useAppStore';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -20,28 +47,50 @@ interface Props {
 }
 
 export default function LodgingListings({ listings, identity, onSelectListing, onAddListing, onAddLog }: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [maxPrice, setMaxPrice] = useState<number>(500000);
-  const [copiedCoords, setCopiedCoords] = useState<string | null>(null);
   const [showHostModal, setShowHostModal] = useState(false);
+  const [fiatRates, setFiatRates] = useState<BtcFiatRates | null>(null);
+
+  const showFiatEstimation = useAppStore(state => state.showFiatEstimation);
+  const setShowFiatEstimation = useAppStore(state => state.setShowFiatEstimation);
+  const fiatCurrency = useAppStore(state => state.fiatCurrency);
+  const baseFeeRatePcm = useAppStore(state => state.baseFeeRatePcm);
+
+  // Fetch fiat rates on-demand only when user opts in
+  useEffect(() => {
+    let isMounted = true;
+    if (showFiatEstimation) {
+      fetchBtcFiatRates()
+        .then(rates => {
+          if (isMounted && rates) {
+            setFiatRates(rates);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setFiatRates(null);
+          }
+        });
+    } else {
+      setFiatRates(null);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [showFiatEstimation]);
 
   const filteredListings = useMemo(() => {
     return listings.filter(listing => {
-      const matchSearch = listing.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          listing.meshCoordinates.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = 
+        listing.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        listing.meshCoordinates.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (listing.locationLabel && listing.locationLabel.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchPrice = listing.priceSats <= maxPrice;
       return matchSearch && matchPrice;
     });
   }, [listings, searchTerm, maxPrice]);
-
-  const handleCopyMeshCoords = (e: React.MouseEvent, coords: string) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(coords);
-    setCopiedCoords(coords);
-    setTimeout(() => setCopiedCoords(null), 2000);
-    onAddLog('relay', t('lodging.copiedCoords', { coords }));
-  };
 
   const calcAverageRating = (listing: Listing) => {
     if (listing.reviews.length === 0) return 0;
@@ -49,11 +98,28 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
     return (sum / listing.reviews.length).toFixed(1);
   };
 
+  const getCancellationLabel = (policy?: string) => {
+    switch (policy) {
+      case 'flexible':
+        return t('lodging.cancelFlexible');
+      case 'moderate':
+        return t('lodging.cancelModerate');
+      case 'strict':
+        return t('lodging.cancelStrict');
+      case 'nonrefundable':
+        return t('lodging.cancelNonrefundable');
+      default:
+        return null;
+    }
+  };
+
+  const protocolFeeRatePercent = (baseFeeRatePcm / 100).toFixed(1);
+
   return (
     <div className="space-y-6 font-sans flex-1 flex flex-col min-h-0">
       {/* Search & Filter Bar */}
-      <div className="flex flex-col lg:flex-row items-center gap-4 mb-8">
-        <Card variant="glass" className="flex-1 flex flex-col md:flex-row gap-4 p-4 w-full">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 mb-8">
+        <Card variant="glass" className="flex-1 flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 w-full">
           <div className="flex-1 relative">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-text-disabled" />
             <input 
@@ -64,10 +130,11 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
               className="w-full bg-background border border-border rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
+
           <div className="flex items-center gap-3 bg-background border border-border rounded-lg px-4 py-2.5">
             <SlidersHorizontal className="w-5 h-5 text-text-disabled" />
-            <div className="flex flex-col flex-1 min-w-[150px]">
-              <div className="flex justify-between text-[10px] font-mono text-text-secondary mb-1">
+            <div className="flex flex-col flex-1 min-w-[140px]">
+              <div className="flex justify-between text-xs font-mono text-text-secondary mb-1">
                 <span>{t('lodging.maxPrice')}</span>
                 <span className="text-warning font-bold">{maxPrice.toLocaleString()} Sats</span>
               </div>
@@ -78,16 +145,34 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                 step="10000"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(parseInt(e.target.value))}
-                className="w-full accent-warning"
+                className="w-full accent-warning cursor-pointer"
               />
             </div>
+          </div>
+
+          {/* Privacy-Preserving Fiat Estimation Toggle */}
+          <div className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-2">
+            <button
+              type="button"
+              onClick={() => setShowFiatEstimation(!showFiatEstimation)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-all border ${
+                showFiatEstimation
+                  ? 'bg-primary/20 text-primary border-primary/40 font-bold'
+                  : 'bg-surface text-text-secondary border-border/50 hover:text-white'
+              }`}
+              title={t('lodging.fiatEstimationPrivacyNote')}
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              <span>{t('lodging.fiatEstimationToggle')}</span>
+              <span className={`w-2 h-2 rounded-full ${showFiatEstimation ? 'bg-primary animate-pulse' : 'bg-text-disabled'}`} />
+            </button>
           </div>
         </Card>
         
         <Button
           onClick={() => setShowHostModal(true)}
           variant="primary"
-          className="w-full lg:w-auto h-full px-6 py-4"
+          className="w-full lg:w-auto h-auto py-3 px-6 text-sm font-bold"
         >
           <Home className="w-5 h-5 mr-2" />
           {t('lodging.becomeHost')}
@@ -101,174 +186,249 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
             {t('lodging.noListingsFound')}
           </div>
         ) : (
-          filteredListings.map((listing) => (
-            <motion.div
-              key={listing.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -5 }}
-              onClick={() => onSelectListing(listing)}
-              className="cursor-pointer"
-            >
-              <Card variant="glass" className="overflow-hidden flex flex-col justify-between group h-full p-0">
-                {/* Image Section */}
-                <div className="relative h-48 overflow-hidden bg-black">
-                  <img 
-                    src={listing.imageUrl} 
-                    alt={listing.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-80"></div>
-                  
-                  {/* Mesh Tag */}
-                  <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
-                    <div className="flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded border border-border/50 shadow-xl">
-                      <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
-                      <span className="text-[10px] font-mono text-success font-bold tracking-tight">VERIFIED_NODE</span>
-                    </div>
-                    <div className="flex items-center gap-1 bg-black/75 backdrop-blur px-2 py-1 rounded border border-border text-[9px] font-mono text-primary/80">
-                      <MapPin className="w-2.5 h-2.5" />
-                      {listing.meshCoordinates}
-                      <button 
-                        onClick={(e) => handleCopyMeshCoords(e, listing.meshCoordinates)}
-                        className="ml-1 text-text-disabled hover:text-primary transition-colors"
-                      >
-                        {copiedCoords === listing.meshCoordinates ? <Check className="w-2.5 h-2.5 text-success" /> : <Copy className="w-2.5 h-2.5" />}
-                      </button>
-                    </div>
-                  </div>
+          filteredListings.map((listing) => {
+            const migrated = migrateListingToRoomTypes(listing);
+            const roomTypes = migrated.roomTypes;
+            const cheapestRoom = roomTypes.length > 0
+              ? roomTypes.reduce((min, rt) => rt.priceSats < min.priceSats ? rt : min, roomTypes[0])
+              : undefined;
+            const cheapestRoomId = cheapestRoom?.id;
+            const effectivePriceToday = getEffectivePrice(listing, new Date(), cheapestRoomId);
+            const activeRule = getEffectivePriceRule(listing, new Date(), cheapestRoomId);
+            
+            // Physical metrics
+            const maxGuests = listing.maxGuests || (cheapestRoom?.maxGuests ?? 2);
+            const bedType = listing.bedType || cheapestRoom?.bedType;
+            const areaM2 = listing.areaM2 || cheapestRoom?.areaM2;
+            const cancelLabel = getCancellationLabel(listing.cancellationPolicy);
+            
+            // Coarse Location (Strictly coarse per RFC-0018)
+            const coarseLocation = listing.locationLabel || listing.meshCoordinates;
 
-                  {/* Dana Badge (RFC-0008) */}
-                  {listing.priceModel === 'dana' && (
-                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-amber-950/90 backdrop-blur-md px-2.5 py-1 rounded border border-amber-500/60 text-amber-400 shadow-lg">
-                      <Sparkles className="w-3 h-3 text-amber-400" />
-                      <span className="text-[10px] font-mono font-bold tracking-tight">
-                        DANA / VOLUNTARY
-                      </span>
-                    </div>
-                  )}
+            // Estimated fiat formatted string
+            const estimatedFiat = showFiatEstimation && fiatRates
+              ? formatSatsToEstimatedFiat(effectivePriceToday, fiatCurrency, fiatRates)
+              : null;
 
-                  {/* 🔒 KYC Badge (RFC-0006) */}
-                  {listing.priceModel !== 'dana' && listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
-                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-black/90 backdrop-blur-md px-2 py-1 rounded border border-cyber-amber/60 text-cyber-amber shadow-lg">
-                      <span className="text-[10px] font-mono font-bold tracking-tight flex items-center gap-1">
-                        🔒 KYC REQUIRED ({listing.acceptedKycVerifiers.length} Verifier{listing.acceptedKycVerifiers.length > 1 ? 's' : ''})
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Rating Tag */}
-                  <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur px-2.5 py-1 rounded border border-white/5">
-                    <div className="flex items-center gap-1 text-[10px] font-bold text-warning">
-                      <Star className="w-3 h-3 fill-warning" />
-                      {listing.reviews.length > 0 ? calcAverageRating(listing) : 'NEW_ID'}
-                    </div>
-                    <div className="w-[1px] h-3 bg-white/10"></div>
-                    <div className="text-[9px] font-mono text-text-secondary/70">
-                      REVS: {listing.reviews.length}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Info Section */}
-                <CardContent className="p-5 flex-1 flex flex-col justify-between bg-black/10">
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[8px] font-mono text-text-secondary/50 tracking-widest uppercase">Registry ID: {listing.id.slice(0, 12)}</span>
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="w-1 h-1 bg-primary/20 rounded-full"></div>
-                          ))}
+            return (
+              <motion.div
+                key={listing.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -4 }}
+                onClick={() => onSelectListing(listing)}
+                className="cursor-pointer h-full"
+              >
+                <Card variant="glass" className="overflow-hidden flex flex-col justify-between group h-full p-0 border border-border/80 hover:border-primary/50 transition-all shadow-md">
+                  {/* Image Section */}
+                  <div className="relative h-52 sm:h-56 overflow-hidden bg-black">
+                    <img 
+                      src={listing.imageUrl} 
+                      alt={listing.title} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-black/40 opacity-90"></div>
+                    
+                    {/* Top Left Badges: Dana & KYC */}
+                    <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 max-w-[70%]">
+                      {listing.priceModel === 'dana' && (
+                        <div className="flex items-center gap-1 bg-amber-950/90 backdrop-blur-md px-2.5 py-1 rounded-md border border-amber-500/60 text-amber-300 shadow-md">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span className="text-xs font-bold font-sans">
+                            {t('lodging.danaVoluntary')}
+                          </span>
                         </div>
+                      )}
+
+                      {listing.priceModel !== 'dana' && listing.acceptedKycVerifiers && listing.acceptedKycVerifiers.length > 0 && (
+                        <div className="flex items-center gap-1 bg-black/90 backdrop-blur-md px-2.5 py-1 rounded-md border border-cyber-amber/60 text-cyber-amber shadow-md">
+                          <span className="text-xs font-bold font-sans">
+                            {t('lodging.kycRequired')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Top Right: Status Badge (Available / Occupied) */}
+                    <div className="absolute top-3 right-3 z-10">
+                      <div className={`flex items-center gap-1.5 backdrop-blur-md px-2.5 py-1 rounded-md border shadow-md ${
+                        listing.status === 'available'
+                          ? 'bg-black/85 border-success/40 text-success'
+                          : 'bg-black/85 border-danger/40 text-danger'
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full ${
+                          listing.status === 'available' ? 'bg-success animate-pulse' : 'bg-danger'
+                        }`} />
+                        <span className="text-xs font-bold font-sans">
+                          {listing.status === 'available' ? t('lodging.statusAvailable') : t('lodging.statusOccupied')}
+                        </span>
                       </div>
-                      <h3 className="text-md font-bold text-white leading-snug group-hover:text-primary transition-colors font-sans">
+                    </div>
+
+                    {/* Bottom Metadata Overlay: Rating & Coarse Location */}
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 z-10 text-white">
+                      {/* Rating */}
+                      <div className="flex items-center gap-1.5 bg-black/75 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 shadow">
+                        <Star className="w-3.5 h-3.5 fill-warning text-warning shrink-0" />
+                        <span className="text-xs font-bold text-white">
+                          {listing.reviews.length > 0 ? (
+                            <>
+                              {calcAverageRating(listing)} <span className="text-xs font-normal text-text-secondary">({t('lodging.reviewsCount', { count: listing.reviews.length })})</span>
+                            </>
+                          ) : (
+                            t('lodging.newListing')
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Coarse Regional Location (RFC-0018) */}
+                      <div className="flex items-center gap-1 bg-black/75 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 text-xs font-medium text-text-secondary truncate max-w-[55%] shadow" title={coarseLocation}>
+                        <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">{coarseLocation}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Section */}
+                  <CardContent className="p-5 flex-1 flex flex-col justify-between bg-surface/30 space-y-4">
+                    <div className="space-y-3">
+                      {/* Title */}
+                      <h3 className="text-base sm:text-lg font-bold text-white leading-snug group-hover:text-primary transition-colors font-sans line-clamp-2">
                         {listing.title}
                       </h3>
-                      <p className="text-[11px] text-text-secondary mt-2 line-clamp-2 leading-relaxed italic opacity-80">
+
+                      {/* Key Attributes Row (Users, Bed, Area, Rooms) */}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-text-secondary pt-1">
+                        <div className="flex items-center gap-1 text-white">
+                          <Users className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span>{t('lodging.maxGuestsCount', { count: maxGuests })}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <Home className="w-3.5 h-3.5 text-cyber-blue shrink-0" />
+                          <span>{roomTypes.length > 1 ? t('lodging.roomTypesCount', { count: roomTypes.length }) : t('lodging.singleRoomType')}</span>
+                        </div>
+
+                        {bedType && (
+                          <div className="flex items-center gap-1">
+                            <Bed className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span className="truncate max-w-[150px]">{bedType}</span>
+                          </div>
+                        )}
+
+                        {areaM2 && areaM2 > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Maximize2 className="w-3.5 h-3.5 text-success shrink-0" />
+                            <span>{areaM2} m²</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cancellation Policy Banner (RFC-0018) */}
+                      {cancelLabel && (
+                        <div className="flex items-center gap-1.5 text-xs text-cyber-green bg-cyber-green/10 border border-cyber-green/20 px-2.5 py-1.5 rounded-lg">
+                          <Clock className="w-3.5 h-3.5 text-cyber-green shrink-0" />
+                          <span className="font-medium truncate">{cancelLabel}</span>
+                        </div>
+                      )}
+
+                      {/* Description (2 lines clamp, minimum 12px) */}
+                      <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed italic opacity-85">
                         {listing.description}
                       </p>
-                    </div>
 
-                    <div className="flex flex-wrap gap-1.5">
-                      {listing.securitySpecs.slice(0, 3).map((spec, i) => {
-                        const isAgentReady = spec.toLowerCase().includes('agent-ready');
-                        return (
-                          <span 
-                            key={i} 
-                            className={`px-2 py-0.5 rounded text-[9px] font-mono border flex items-center gap-1 ${
-                              isAgentReady 
-                                ? 'bg-cyan-950/50 text-cyan-300 border-cyan-500/40 font-bold' 
-                                : 'bg-black/40 text-text-secondary border-border/30'
-                            }`}
-                          >
-                            {isAgentReady ? <Bot className="w-2.5 h-2.5 text-cyan-400" /> : <ShieldCheck className="w-2.5 h-2.5 opacity-60" />}
-                            {spec.toUpperCase()}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-border/30 flex items-center justify-between">
-                    {(() => {
-                      const roomTypes = migrateListingToRoomTypes(listing).roomTypes;
-                      const cheapestRoomId = roomTypes.length > 0
-                        ? roomTypes.reduce((min, rt) => rt.priceSats < min.priceSats ? rt : min, roomTypes[0]).id
-                        : undefined;
-                      const effectivePriceToday = getEffectivePrice(listing, new Date(), cheapestRoomId);
-                      const activeRule = getEffectivePriceRule(listing, new Date(), cheapestRoomId);
-                      return (
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] text-text-disabled font-mono uppercase tracking-tighter opacity-50">
-                              {listing.priceModel === 'dana' ? 'Pricing Model' : 'Giá hôm nay / Đêm'}
+                      {/* Amenities Chips (Human-readable, natural casing, minimum 12px) */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {listing.securitySpecs.slice(0, 3).map((spec, i) => {
+                          const isAgentReady = spec.toLowerCase().includes('agent-ready');
+                          return (
+                            <span 
+                              key={i} 
+                              className={`px-2.5 py-1 rounded text-xs border flex items-center gap-1 font-sans ${
+                                isAgentReady 
+                                  ? 'bg-cyan-950/40 text-cyan-300 border-cyan-500/40 font-bold' 
+                                  : 'bg-black/40 text-text-secondary border-border/40'
+                              }`}
+                            >
+                              {isAgentReady ? <Bot className="w-3 h-3 text-cyan-400 shrink-0" /> : <ShieldCheck className="w-3 h-3 text-primary/70 shrink-0" />}
+                              <span>{spec}</span>
                             </span>
+                          );
+                        })}
+                        {listing.securitySpecs.length > 3 && (
+                          <span className="px-2 py-1 rounded text-xs bg-black/30 text-text-disabled border border-border/30 font-mono">
+                            +{listing.securitySpecs.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Price & Booking Notice Section */}
+                    <div className="mt-4 pt-4 border-t border-border/40 space-y-2">
+                      <div className="flex items-baseline justify-between flex-wrap gap-2">
+                        {listing.priceModel === 'dana' ? (
+                          <div className="flex items-center gap-1.5 text-amber-400">
+                            <Sparkles className="w-4 h-4 text-amber-400" />
+                            <span className="text-lg font-bold font-mono">
+                              DANA / {t('lodging.danaVoluntary')}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            {roomTypes.length > 1 && (
+                              <span className="text-xs text-text-secondary">{t('lodging.fromPrice')}</span>
+                            )}
+                            <span className="text-lg sm:text-xl font-bold font-mono text-white tracking-tight flex items-center gap-1">
+                              <Zap className="w-4 h-4 text-warning shrink-0" />
+                              {effectivePriceToday.toLocaleString()}
+                              <span className="text-xs text-warning/80 font-normal">SATS</span>
+                            </span>
+                            <span className="text-xs text-text-secondary">{t('lodging.perNight')}</span>
+
+                            {/* Dynamic Price Rule Badge */}
                             {activeRule && (
-                              <span className="text-[8px] px-1 py-0.2 rounded bg-primary/20 text-primary border border-primary/30 font-mono">
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-mono ml-1">
                                 {activeRule.label}
                               </span>
                             )}
+
+                            {/* Optional Fiat Estimation Display */}
+                            {estimatedFiat && (
+                              <span 
+                                className="text-xs font-mono text-text-secondary bg-white/5 border border-white/10 px-1.5 py-0.5 rounded ml-1"
+                                title={t('lodging.fiatEstimationDisclaimer')}
+                              >
+                                {estimatedFiat}
+                              </span>
+                            )}
                           </div>
-                          {listing.priceModel === 'dana' ? (
-                            <div className="flex items-center gap-1.5 mt-0.5 text-amber-400">
-                              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                              <span className="text-sm font-bold font-mono tracking-tighter">
-                                DANA
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <Zap className="w-3.5 h-3.5 text-warning opacity-80" />
-                              <span className="text-sm font-bold font-mono text-white tracking-tighter">
-                                {roomTypes.length > 1 && <span className="text-xs font-normal text-text-secondary mr-1">Từ</span>}
-                                {effectivePriceToday.toLocaleString()} <span className="text-[10px] text-warning/70">SATS</span>
-                              </span>
-                            </div>
-                          )}
+                        )}
+
+                        <div className="flex items-center text-xs font-bold text-primary group-hover:translate-x-1 transition-transform">
+                          <span>{t('lodging.viewDetails')}</span>
+                          <ArrowRight className="w-3.5 h-3.5 ml-1" />
                         </div>
-                      );
-                    })()}
-                    
-                    <div className="flex items-center gap-3">
-                      <div className="flex -space-x-2">
-                        {listing.coOwners.slice(0, 3).map((owner, i) => (
-                          <div key={i} className="w-7 h-7 rounded-full bg-black border border-border/50 flex items-center justify-center overflow-hidden ring-2 ring-black" title={owner.name}>
-                            <Users className="w-3.5 h-3.5 text-text-disabled/50" />
-                          </div>
-                        ))}
                       </div>
-                      <div className="text-right">
-                        <div className="text-[9px] font-mono text-text-secondary/50 leading-none">AUTH_SIGS</div>
-                        <div className="text-[10px] font-mono text-white font-bold">{listing.coOwners.length}</div>
-                      </div>
+
+                      {/* Sub-price Upfront Financial Transparency Notice */}
+                      {listing.priceModel !== 'dana' && (
+                        <div className="text-xs text-text-secondary leading-snug flex items-center gap-1">
+                          <Info className="w-3.5 h-3.5 text-text-disabled shrink-0" />
+                          <span>
+                            {t('lodging.subPriceNotice', {
+                              feePercent: protocolFeeRatePercent,
+                              depositPercent: REFUNDABLE_CHECKOUT_DEPOSIT_PERCENT
+                            })}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })
         )}
       </div>
 

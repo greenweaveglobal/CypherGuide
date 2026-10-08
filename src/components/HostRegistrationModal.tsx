@@ -3,10 +3,10 @@ import { motion } from 'motion/react';
 import { 
   X, MapPin, Coins, Users, ShieldCheck, Home, Zap, Upload, Image as ImageIcon, 
   Trash2, Plus, Check, User, Percent, Key, PieChart, CheckCircle2, AlertCircle, 
-  Scale, Bot, Server, RefreshCw, AlertTriangle, Clock, Loader2 
+  Scale, Bot, Server, RefreshCw, AlertTriangle, Clock, Loader2, Bed, Calendar, Maximize2 
 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
-import { Listing, NostrIdentity, CoOwner, Nip94Image } from '../types';
+import { Listing, NostrIdentity, CoOwner, Nip94Image, CancellationPolicy } from '../types';
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
 import { safeRandomUUID } from '../utils/uuid';
 import { isValidNpub } from '../utils/kycAttestation';
@@ -107,6 +107,15 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [compressionLevel, setCompressionLevel] = useState<'low' | 'medium' | 'high'>('medium');
+
+  // RFC-0018 Standardized Accommodation Schema & Privacy State
+  const [locationLabel, setLocationLabel] = useState('');
+  const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>('flexible');
+  const [cancellationNote, setCancellationNote] = useState('');
+  const [bedType, setBedType] = useState('1 Giường đôi lớn (King)');
+  const [areaM2, setAreaM2] = useState('35');
+  const [checkInTime, setCheckInTime] = useState('14:00');
+  const [checkOutTime, setCheckOutTime] = useState('11:00');
 
   // Media server resilience & individual upload progress state
   const [activeServerInfo, setActiveServerInfo] = useState<SelectedServerResult | null>(null);
@@ -460,6 +469,13 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         id: listingId,
         title,
         description,
+        locationLabel: locationLabel.trim() || undefined,
+        cancellationPolicy,
+        cancellationNote: cancellationNote.trim() || undefined,
+        bedType: bedType.trim() || undefined,
+        areaM2: parseInt(areaM2) || undefined,
+        checkInTime: checkInTime.trim() || '14:00',
+        checkOutTime: checkOutTime.trim() || '11:00',
         roomTypes: [
           {
             id: `rt_${safeRandomUUID().slice(0, 8)}`,
@@ -469,7 +485,9 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
             securitySpecs: specsList,
             priceRules: [],
             images: [mainImg],
-            status: 'available'
+            status: 'available',
+            bedType: bedType.trim() || undefined,
+            areaM2: parseInt(areaM2) || undefined
           }
         ],
         priceSats: basePrice,
@@ -1011,6 +1029,120 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   placeholder={t('hostReg.phGps')}
                   className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyber-green/50"
                 />
+              </div>
+
+              {/* RFC-0018: Coarse Location Privacy */}
+              <div>
+                <label className="text-[10px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-cyber-blue"/> {t('hostReg.locationLabel')}
+                </label>
+                <input
+                  type="text"
+                  value={locationLabel}
+                  onChange={(e) => setLocationLabel(e.target.value)}
+                  placeholder={t('hostReg.phLocationLabel')}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyber-blue/50"
+                />
+                <span className="text-[9px] text-gray-500 font-mono block mt-0.5 leading-tight">
+                  {t('hostReg.locationLabelHint')}
+                </span>
+              </div>
+
+              {/* RFC-0018: Physical Room Specifications */}
+              <div className="p-3 bg-black/40 border border-white/10 rounded-xl space-y-2.5">
+                <label className="text-[10px] text-cyber-blue font-mono uppercase font-bold flex items-center gap-1.5">
+                  <Bed className="w-3.5 h-3.5 text-cyber-blue" />
+                  Thông số phòng thực tế (RFC-0018)
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">{t('hostReg.bedTypeLabel')}</label>
+                    <input
+                      type="text"
+                      value={bedType}
+                      onChange={(e) => setBedType(e.target.value)}
+                      placeholder={t('hostReg.phBedType')}
+                      className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyber-blue/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1"><Maximize2 className="w-2.5 h-2.5"/> {t('hostReg.areaM2Label')}</label>
+                    <input
+                      type="number"
+                      min="5"
+                      value={areaM2}
+                      onChange={(e) => setAreaM2(e.target.value)}
+                      placeholder={t('hostReg.phAreaM2')}
+                      className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyber-blue/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1"><Clock className="w-2.5 h-2.5"/> {t('hostReg.checkInTimeLabel')}</label>
+                    <input
+                      type="text"
+                      value={checkInTime}
+                      onChange={(e) => setCheckInTime(e.target.value)}
+                      placeholder={t('hostReg.phCheckInTime')}
+                      className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyber-blue/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1 flex items-center gap-1"><Clock className="w-2.5 h-2.5"/> {t('hostReg.checkOutTimeLabel')}</label>
+                    <input
+                      type="text"
+                      value={checkOutTime}
+                      onChange={(e) => setCheckOutTime(e.target.value)}
+                      placeholder={t('hostReg.phCheckOutTime')}
+                      className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyber-blue/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* RFC-0018: Cancellation Policy */}
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-2.5">
+                <label className="text-[10px] text-cyber-green font-mono uppercase font-bold flex items-center gap-1.5">
+                  <Scale className="w-3.5 h-3.5 text-cyber-green" />
+                  {t('hostReg.cancellationPolicyTitle')}
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['flexible', 'moderate', 'strict', 'nonrefundable'] as CancellationPolicy[]).map(policy => (
+                    <button
+                      key={policy}
+                      type="button"
+                      onClick={() => setCancellationPolicy(policy)}
+                      className={`p-2 rounded-lg border text-left text-[11px] font-mono transition-all ${
+                        cancellationPolicy === policy
+                          ? 'bg-cyber-green/20 border-cyber-green text-cyber-green font-bold shadow-sm'
+                          : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold uppercase text-[10px]">{policy}</div>
+                      <div className="text-[9px] opacity-80 line-clamp-1">
+                        {policy === 'flexible' && 'Hủy trước 24h: 100%'}
+                        {policy === 'moderate' && 'Hủy trước 5 ngày: 100%'}
+                        {policy === 'strict' && 'Hủy trước 14 ngày: 100%'}
+                        {policy === 'nonrefundable' && 'Không hoàn tiền'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="text-[9px] text-cyber-green/90 bg-cyber-green/10 border border-cyber-green/20 rounded-md p-1.5 font-mono">
+                  🛡️ {t('hostReg.cancellationPolicyHint')}
+                </div>
+                <div>
+                  <label className="text-[9px] text-gray-400 font-mono uppercase block mb-1">
+                    {t('hostReg.cancellationNoteLabel')}
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={100}
+                    value={cancellationNote}
+                    onChange={(e) => setCancellationNote(e.target.value)}
+                    placeholder={t('hostReg.phCancellationNote')}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyber-green/50"
+                  />
+                </div>
               </div>
 
               <div>

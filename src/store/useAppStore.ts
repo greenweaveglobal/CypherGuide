@@ -94,6 +94,11 @@ interface AppState {
   feeUpdatedBy: string;
   feeAuditNostrEventId: string;
   configAuditNostrEventId: string;
+  // RFC-0018 Fiat Estimation (Privacy-preserving, default FALSE)
+  showFiatEstimation: boolean;
+  setShowFiatEstimation: (show: boolean) => void;
+  fiatCurrency: 'VND' | 'USD';
+  setFiatCurrency: (currency: 'VND' | 'USD') => void;
   fetchProtocolConfig: () => Promise<void>;
   updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
   updateInfraIncentiveTreasuryLightningAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
@@ -151,6 +156,12 @@ export const useAppStore = create<AppState>()(
       feeUpdatedBy: 'npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh',
       feeAuditNostrEventId: '',
       configAuditNostrEventId: '',
+
+      // RFC-0018: Fiat estimation default OFF for privacy protection
+      showFiatEstimation: false,
+      setShowFiatEstimation: (show) => set({ showFiatEstimation: show }),
+      fiatCurrency: 'VND',
+      setFiatCurrency: (currency) => set({ fiatCurrency: currency }),
 
       fetchProtocolConfig: async () => {
         try {

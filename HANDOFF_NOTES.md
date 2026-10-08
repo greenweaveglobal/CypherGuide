@@ -6,9 +6,9 @@ Thay thế `HANDOFF_NOTES.md` cũ (25/07/2026, đã lỗi thời: mô tả trạ
 Giao thức + app lưu trú P2P phi tập trung. Khách/Host dùng Nostr (danh tính, tin nhắn, Proof-of-Stay) và Lightning (thanh toán). Repo công khai: `greenweaveglobal/CypherGuide`. Domain `cypherguide.org`, relay riêng `relay.cypherguide.org`.
 
 - Stack: React 19 + Vite + Tailwind 4 + Zustand (IndexedDB) + `nostr-tools` + Express (`server.ts`) + hàm serverless Vercel (`api/`).
-- Node >= 22.12. Test: `vitest` (8 file trong `tests/`). CI: `.github/workflows/ci.yml` (tsc, vitest, npm audit).
+- Node >= 22.12. Test: `vitest` (15 file trong `tests/`, 84 test passed 100%). CI: `.github/workflows/ci.yml` (tsc, vitest, npm audit).
 - Tài liệu: tiếng Việt là bản gốc, `.en.md` dịch theo. Sửa bản Việt trước, đồng bộ bản Anh trong cùng lần sửa.
-- RFC 0001-0016 nằm trong `RFC/`. Số RFC tiếp theo: **0017**. Chỉ mục ở `RFC/README.md`.
+- RFC 0001-0018 nằm trong `RFC/`. Số RFC tiếp theo: **0019**. Chỉ mục ở `RFC/README.md`.
 
 ## 2. Bản đồ mã nguồn
 | Khu vực | File chính |
@@ -23,26 +23,24 @@ Giao thức + app lưu trú P2P phi tập trung. Khách/Host dùng Nostr (danh t
 
 ## 3. Trạng thái bảo mật (đã đối chiếu với code)
 Đã vá và có trong code:
-- C3: kiểm magic-byte upload media (chặn SVG).
+- C3: kiểm magic-byte upload media (chặn SVG XSS).
 - C4: `isSimulatedInvoice()` luôn trả `false`; thanh toán yêu cầu `SHA-256(preimage) == payment_hash`.
-- Xác thực NIP-98 (kind 27235) cho endpoint admin, cửa sổ ±60 giây, kiểm tag `u`/`method`, whitelist pubkey.
-- NIP-49 vault, xác thực chữ ký KYC attestation, Proof-of-Stay đồng ký hai bên, chống SSRF LUD-06.
+- Xác thực NIP-98 (kind 27235) cho endpoint admin, cửa sổ ±60 giây, chống replay 120s bằng Redis/RAM, kiểm URL tuyệt đối & SHA-256 body hash, whitelist pubkey dùng chung tại `src/constants/adminPubkeys.ts`.
+- NIP-49 vault (`ncryptsec`/`scrypt`), xác thực chữ ký KYC attestation, Proof-of-Stay đồng ký hai bên, chống SSRF LUD-06.
+- Rate limiter Upstash (sliding window) kết nối cho cả Vercel (`api/`) và Express (`server.ts`), bảo vệ cả endpoint docs query lẫn resolve-invoice.
+- Hàm trích xuất IP `getClientIp` an toàn (`req.ip` hoặc phần tử cuối đáng tin cậy của `x-forwarded-for`).
+- Lưu trữ cấu hình `data/protocol_config.json` tích hợp Upstash Redis và fallback disk, tương thích với filesystem chỉ-đọc của serverless.
+- CORS whitelist so khớp chính xác tên miền (`cypherguide.org`, `media.cypherguide.org`, localhost ở dev), chặn hoàn toàn các domain lạ.
+- Chế độ Media Server NIP-96: Health probe nghiêm ngặt, tự động chuyển đổi dự phòng (failover) sang máy chủ NIP-96 công cộng, bỏ qua `/api/media-fallback` cục bộ khi chạy môi trường serverless không có backend Express.
 
-Còn mở (xếp theo mức ưu tiên đề xuất):
-1. **Trọng tài 2-of-3 vẫn là placeholder.** Ba pubkey trong `DEFAULT_ARBITRATOR_POOL` (`insuranceFund.ts`) không có ai giữ private key. Escrow/tranh chấp không dùng được. Ba key cũ bị lộ trong repo công khai phải coi là bị lộ vĩnh viễn. Việc cần làm: onboard 3 trọng tài độc lập thật.
-2. **Rate limit Upstash chưa nối vào `server.ts`.** Chỉ `api/docs-assistant/query.ts` (Vercel) dùng `@upstash/ratelimit`. `server.ts` dùng Map trong bộ nhớ, không đọc biến `UPSTASH_REDIS_*`. Nếu app chạy bằng `server.ts` (AI Studio/Cloud Run), việc đặt biến môi trường Upstash chưa có tác dụng. Cần nối Upstash vào `docsRateLimiter` của `server.ts`, giữ Map làm fallback.
-3. **Lấy IP từ `x-forwarded-for` phần tử đầu** (cả `server.ts` lẫn `api/docs-assistant/query.ts`). Trong `server.ts` đã có `trust proxy = 1`, nên dùng `req.ip`. Nếu không, client tự đặt header để né limit.
-4. **Ghi `data/protocol_config.json` bằng `fs` trong `api/protocol/{config,fee}.ts`.** Hệ thống file của hàm serverless Vercel là chỉ đọc, nên thay đổi phí/địa chỉ có thể lỗi 500 hoặc không lưu. Cần kiểm tra trên bản deploy thật; nếu đúng thì chuyển lưu trữ sang Upstash Redis (đã có sẵn dependency) hoặc KV.
-5. **Danh sách admin pubkey lặp ở 4 nơi** (`server.ts`, `api/protocol/config.ts`, `api/protocol/fee.ts`, `GovernancePanel.tsx`). Nên gom vào một module dùng chung hoặc biến môi trường.
-6. **NIP-98 chỉ chống replay bằng cửa sổ thời gian**, chưa lưu id event đã dùng; kiểm tag `u` bằng `includes/endsWith` khá lỏng. Cân nhắc cache id event trong cửa sổ 60 giây (Redis) và so khớp URL chính xác.
-7. `TEST_ADMIN_PUBKEY` (env) thêm một admin. Đảm bảo không đặt biến này ở production.
-8. CSP của helmet đang tắt (`contentSecurityPolicy: false`). CORS dùng `endsWith("cypherguide.org")` và `includes("run.app")` nên khớp cả domain lạ như `evilcypherguide.org`/`x.run.app`; nên so khớp chính xác danh sách origin.
+Còn mở:
+1. **Trọng tài 2-of-3 vẫn là placeholder.** Ba pubkey trong `DEFAULT_ARBITRATOR_POOL` (`insuranceFund.ts`) không có ai giữ private key. Escrow/tranh chấp không dùng được trên production. Việc cần làm: onboard 3 trọng tài độc lập thật.
 
-## 4. Sai lệch tài liệu cần dọn
-- `HANDOFF_NOTES.md` cũ: thay bằng file này.
-- `MATURITY.md` ghi "7 suites/23 tests"; thực tế 8 file test, khoảng 35 case (đếm `it/test`). Cập nhật số.
-- `ARCHITECTURE.md` ghi React 18; `package.json` dùng React 19.
-- `package.json`: `repository.url` là `greenweave/cypherguide` (org thật: `greenweaveglobal`); `vite` khai báo cả ở dependencies lẫn devDependencies.
+## 4. Kiểm toán và sự nhất quán
+- `MATURITY.md`: Đã đồng bộ 15 suites/84 tests, React 19, thêm mục 19 (RFC-0018).
+- `ARCHITECTURE.md`: React 19 + Tailwind CSS + Vite.
+- `package.json`: `greenweaveglobal/cypherguide`, `vite` ở devDependencies, script `check:esm` kiểm tra phân giải ESM của Vercel API routes.
+- Tất cả các nút mock/dev (giả lập verifier, giả lập tắt server chính) đều bị khóa cứng sau cờ `import.meta.env.DEV` và loại bỏ khỏi production build.
 - Còn code demo/mock trong UI: `ListingDetail.tsx` (`mockVerifierIdentity`, nút "KYC mock mint" – theo MATURITY chỉ nên bật ở dev), `HostRegistrationModal.tsx` (nút giả lập tắt server chính – nhãn "dev/acceptance test"). Cần xác nhận chúng bị ẩn ở production (`import.meta.env.DEV`).
 
 ## 5. Môi trường & cấu hình

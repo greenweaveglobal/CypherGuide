@@ -63,6 +63,8 @@ export interface BookingSnapshot {
   securitySpecs: string[];
 }
 
+export type CancellationPolicy = 'flexible' | 'moderate' | 'strict' | 'nonrefundable';
+
 export interface RoomType {
   id: string; // 'rt_' + random, duy nhất trong listing
   name: string; // "Bungalow Hướng Vườn", "Lều (Tent)"...
@@ -72,6 +74,8 @@ export interface RoomType {
   priceRules?: PriceRule[]; // TÁI SỬ DỤNG nguyên cấu trúc PriceRule đã có — mỗi room type có lịch giá riêng
   images?: string[]; // ảnh riêng cho loại phòng, tách khỏi ảnh chung listing
   status: 'available' | 'occupied' | 'inactive';
+  bedType?: string; // Loại giường riêng của phòng (vd: "1 Giường đôi King")
+  areaM2?: number; // Diện tích phòng tính bằng mét vuông (m²)
 }
 
 export interface Listing {
@@ -82,6 +86,13 @@ export interface Listing {
   imageUrl: string;
   images?: Nip94Image[]; // NIP-94 Signed Images
   meshCoordinates: string; // e.g., "mesh:10.77:106.69"
+  locationLabel?: string; // Tên khu vực thô cấp thành phố/quận (RFC-0018, bảo vệ quyền riêng tư)
+  cancellationPolicy?: CancellationPolicy; // Chính sách hủy phòng 4 cấp độ (RFC-0018)
+  cancellationNote?: string; // Ghi chú ngắn từ Host (tối đa 100 ký tự)
+  bedType?: string; // Loại giường (vd: "1 Giường đôi lớn (King)", "2 Giường đơn (Twin)")
+  areaM2?: number; // Diện tích phòng (m²)
+  checkInTime?: string; // Giờ nhận phòng tiêu chuẩn (vd: "14:00")
+  checkOutTime?: string; // Giờ trả phòng tiêu chuẩn (vd: "12:00")
   roomTypes: RoomType[]; // BẮT BUỘC, tối thiểu 1 phần tử
   priceSats: number; // = roomTypes[0].priceSats, tự động đồng bộ khi roomTypes[0] đổi
   priceModel?: 'fixed' | 'dana'; // RFC-0008: 'fixed' by default or 'dana' (voluntary offering / retreat)

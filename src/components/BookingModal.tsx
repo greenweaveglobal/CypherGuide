@@ -17,7 +17,7 @@ import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE }
 import { generateEscrowMultisigAddress } from '../utils/depositEscrow';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
-import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
+import { calculateStayPrice, getRoomType, migrateListingToRoomTypes, calculateRefundableDeposit } from '../utils/pricing';
 import { safeRandomUUID } from '../utils/uuid';
 
 interface Props {
@@ -1040,13 +1040,13 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                   <div className="min-w-0 flex-1">
                     <span className="text-xs sm:text-sm text-white font-bold block">{t('booking.subtotalTitle')}</span>
                     <span className="text-[10px] text-cyber-green font-mono block mt-0.5">
-                      * {t('booking.refundOnCheckout', { sats: Math.floor(totalPriceSats * 0.10).toLocaleString() })}
+                      * {t('booking.refundOnCheckout', { sats: calculateRefundableDeposit(totalPriceSats).toLocaleString() })}
                     </span>
                   </div>
                   <div className="font-mono text-cyber-amber font-bold text-base sm:text-lg flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                     <Coins className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                     <span>
-                      {(totalPriceSats + Math.floor(totalPriceSats * 0.10) + protocolFeeSats).toLocaleString()} Sats
+                      {(totalPriceSats + calculateRefundableDeposit(totalPriceSats) + protocolFeeSats).toLocaleString()} Sats
                     </span>
                   </div>
                 </div>
