@@ -178,7 +178,7 @@
     "hideLogs": "Thu gọn Log"
   },
   "lodging": {
-    "searchPlaceholder": "Tìm theo tên hoặc Mesh ID (VD: mesh:10.77)...",
+    "searchPlaceholder": "Tìm theo tên, mô tả hoặc khu vực...",
     "maxPrice": "Tối đa",
     "becomeHost": "Trở thành Chủ nhà",
     "noListingsFound": "Không tìm thấy cơ sở lưu trú nào phù hợp.",
@@ -396,6 +396,7 @@
     "roomArea": "Diện tích",
     "checkIn": "Nhận phòng",
     "checkOut": "Trả phòng",
+    "notSpecified": "Chưa cập nhật",
     "cancellationPolicyTitle": "Chính Sách Hủy Phòng (RFC-0018)",
     "depositInviolableNotice": "Khoản cọc an ninh 10% luôn được hoàn trả 100% nếu hủy trước giờ nhận phòng.",
     "cancellationNote": "Ghi chú từ Chủ nhà:"

@@ -454,7 +454,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
             </Badge>
             {isOwner && (
               <Badge variant="default" className="bg-black/85 backdrop-blur font-mono text-xs text-cyber-green border border-cyber-green/30">
-                [Host: {listing.meshCoordinates}]
+                {`[Host: ${listing.meshCoordinates}]`}
               </Badge>
             )}
           </div>
@@ -544,26 +544,26 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
                       <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.bedType')}</span>
-                      <span className="text-white font-medium text-xs block truncate" title={listing.bedType || '1 Giường đôi tiêu chuẩn'}>
-                        {listing.bedType || '1 Giường đôi tiêu chuẩn'}
+                      <span className="text-white font-medium text-xs block truncate" title={listing.bedType || t('listingDetail.notSpecified')}>
+                        {listing.bedType || t('listingDetail.notSpecified')}
                       </span>
                     </div>
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
                       <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.roomArea')}</span>
                       <span className="text-white font-medium text-xs block">
-                        {listing.areaM2 ? `${listing.areaM2} m²` : 'Tiêu chuẩn'}
+                        {listing.areaM2 ? `${listing.areaM2} m²` : t('listingDetail.notSpecified')}
                       </span>
                     </div>
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
                       <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.checkIn')}</span>
                       <span className="text-white font-medium text-xs block">
-                        {listing.checkInTime || '14:00'}
+                        {listing.checkInTime || t('listingDetail.notSpecified')}
                       </span>
                     </div>
                     <div className="p-2.5 bg-black/40 rounded-lg border border-white/5 space-y-1">
                       <span className="text-xs text-text-secondary uppercase block font-semibold">{t('listingDetail.checkOut')}</span>
                       <span className="text-white font-medium text-xs block">
-                        {listing.checkOutTime || '11:00'}
+                        {listing.checkOutTime || t('listingDetail.notSpecified')}
                       </span>
                     </div>
                   </div>

@@ -1,7 +1,7 @@
 # RFC-0018: Standardized Accommodation Schema & Privacy-Preserving Listing Metadata
 
 - **Status**: Draft
-- **Authors**: CypherGuide Core Contributors & Architecture Working Group
+- **Authors**: Project owner + AI-assisted drafting, community input needed
 - **Created**: 2026-10-08
 - **Inherits & Adheres To**: [RFC-0003](./0003-identity-portable-reputation.en.md), [RFC-0008](./0008-dana-based-stay.en.md), [RFC-0011](./0011-financialization-boundary-principle.en.md), [RFC-0012](./0012-sovereignty-boundary-principle.en.md), [RFC-0013](./0013-agent-ready-stay.en.md)
 
@@ -9,29 +9,37 @@
 
 ## 1. Summary
 
-This RFC standardizes the Accommodation Listing Schema across CypherGuide. Taking cues from modern travel platforms (Booking.com, Airbnb) regarding intuitive visual hierarchy, it strictly preserves CypherGuide's core sovereign foundation: **non-custodial escrow, zero mandatory KYC, native Bitcoin Lightning settlements, and uncompromising privacy**.
+This RFC standardizes the Accommodation Listing Schema across CypherGuide, referencing the clarity and visual hierarchy of modern booking platforms (Booking.com, Airbnb) while strictly upholding CypherGuide's core sovereign foundation: **non-custodial escrow, zero mandatory KYC, native Bitcoin Lightning/Ecash payments, and uncompromising privacy protection**.
 
-It eliminates 4 major informational gaps on prior listing cards:
-1. **Missing core physical metrics**: Bed configuration, room area, check-in/out hours, and clear capacity limits.
-2. **Ambiguous cancellation policies**: Establishing 4 standardized tiers with explicit deadlines and refund formulas.
-3. **Privacy leaks in public listings**: Forbidding exact street addresses and high-resolution GPS in public Nostr events; enforcing coarse regional descriptors (City, District).
-4. **Upfront financial transparency**: Exposing the baseline nightly rate, the current protocol fee structure, and the 10% refundable security deposit prior to checkout.
+This specification resolves 4 major informational gaps on previous listing cards:
+1. **Missing core physical metrics**: Bed configuration, room area, check-in/out times, and maximum guest capacity clearly presented.
+2. **Ambiguous cancellation policies**: Standardizing 4 cancellation policy tier names (`flexible`, `moderate`, `strict`, `nonrefundable`).
+3. **Privacy leaks in public listings**: Strictly forbidding detailed street addresses and precise GPS coordinates on public Nostr events; only coarse regional descriptors (City, District) are permitted.
+4. **Upfront financial transparency before booking**: The listing card must clearly display the baseline nightly rate, the 10% refundable security deposit rate, and current protocol fees.
 
 ---
 
-## 2. Four Standardized Cancellation Policies
+## 2. Four Cancellation Policy Tiers (Cancellation Policies)
 
-As ratified by the project lead, cancellation rules follow 4 deterministic tiers based on local accommodation timezone:
+The project owner has finalized **4 standardized tier names** for cancellation policies:
+- `flexible`
+- `moderate`
+- `strict`
+- `nonrefundable`
 
-| Policy Tier (`cancellationPolicy`) | Free Cancellation Window | Full Refund Condition | Late Cancellation Penalty |
+### Proposed Timelines & Penalty Rates (Pending Owner Approval, Not In Effect)
+
+The table below is a proposal for community discussion, currently **pending project owner approval and not in effect**:
+
+| Policy Tier (`cancellationPolicy`) | Free Cancellation Window (Proposed) | Full Refund Condition on Timely Cancel (Proposed) | Late Cancellation Rule (Proposed) |
 | :--- | :--- | :--- | :--- |
-| `flexible` | Prior to **24 hours** before check-in (`checkInTime`) | **100%** room price refund | First night charged at 50%; remaining nights refunded |
-| `moderate` | Prior to **5 days** before check-in date | **100%** room price refund | First night charged at 100%; remaining nights refunded |
-| `strict` | Prior to **14 days** before check-in date | **100%** room price refund | Non-refundable room price if cancelled within 14 days |
+| `flexible` | Prior to **24 hours** before check-in (`checkInTime`) | Refund **100%** of room price | Charge 50% room price of first night; refund remainder |
+| `moderate` | Prior to **5 days** before check-in date | Refund **100%** of room price | Charge 100% of first night; refund remaining nights |
+| `strict` | Prior to **14 days** before check-in date | Refund **100%** of room price | Non-refundable room price if cancelled within 14 days |
 | `nonrefundable` | No free cancellation window | Room price non-refundable | 100% room price retained by Host upon booking |
 
-### Invariant Escrow Deposit Principle
-Across **all 4 tiers above**, the **10% refundable security deposit** (`REFUNDABLE_CHECKOUT_DEPOSIT_RATE`) is **ALWAYS 100% REFUNDED TO THE GUEST** if the booking is cancelled prior to check-in or completed without property damage claims. Security deposits belong to the escrow trust account, never constitute Host revenue, and are immune to cancellation fee deductions.
+### Inviolable Principle Regarding Security Deposits (Security Deposit)
+Across **all 4 tiers above**, the **10% refundable security deposit** (`REFUNDABLE_CHECKOUT_DEPOSIT_RATE`) is **ALWAYS 100% REFUNDED TO THE GUEST** if the booking is cancelled prior to check-in time. The security deposit is an independent escrow collateral protecting against physical property damage, **never constitutes Host revenue**, and is never deducted according to cancellation penalty rates.
 
 ---
 
@@ -39,15 +47,17 @@ Across **all 4 tiers above**, the **10% refundable security deposit** (`REFUNDAB
 
 In strict compliance with [RFC-0012 (Sovereignty Boundary Principle)](./0012-sovereignty-boundary-principle.en.md):
 
-1. **Public Nostr Events (Kind 30078 / Kind 31923)**:
-   - Must only publish `locationLabel` at coarse administrative boundaries (e.g., `"Da Lat, Lam Dong"`, `"District 1, Ho Chi Minh City"`).
-   - Must NEVER include street names, house numbers, or precise GPS coordinates (<5km radius).
-2. **Confidential Dispatch**:
-   - Exact building addresses, smart lock codes, and precise directions are shared exclusively via end-to-end encrypted messages (E2EE NIP-04/NIP-44) **AFTER** payment confirmation.
+1. **On public interfaces and publicly broadcast metadata**:
+   - Only the `locationLabel` field at a coarse geographic region may be published (e.g., `"Da Lat, Lam Dong"`, `"District 1, Ho Chi Minh City"`, `"Con Dao District, Ba Ria - Vung Tau"`).
+   - If an accommodation has not updated `locationLabel`, the interface displays `"Not specified"`, and strictly **MUST NOT** display the `mesh:` coordinate string or GPS coordinates as a fallback.
+   - Strictly **FORBIDDEN** from publishing house numbers, alley/lane names, building names, or precise GPS coordinates (<5km radius) in public contents.
+   - If coordinates must be stored to support regional distance search, the system must round coordinates to coarse regional granularity (maximum 1 decimal place, ~11km protection radius) before entering any public index or query.
+2. **Confidential Dispatch Channel**:
+   - Physical street addresses, smart lock codes (PIN/Key), and detailed navigation directions are transmitted strictly via end-to-end encryption (E2EE via NIP-44 or NIP-17) and dispatched privately to the guest **AFTER** the Lightning/Ecash transaction is confirmed.
 
 ---
 
-## 4. TypeScript Schema Specification
+## 4. TypeScript Schema Specification (Listing Schema)
 
 ```typescript
 export type CancellationPolicy = 'flexible' | 'moderate' | 'strict' | 'nonrefundable';
@@ -86,16 +96,18 @@ export interface Listing {
 
 ---
 
-## 5. Nostr Event Tags
+## 5. Nostr Event Tag Mapping (Future Design)
 
-New fields map cleanly to Nostr event tags, safely ignored by legacy clients:
+*Note on current codebase state*: Currently CypherGuide listing data is stored locally (Zustand + IndexedDB) and seeded from `src/data.ts`. Existing Nostr events on the network are implemented solely for Proof-of-Stay (Kind 30078, `src/utils/proofOfStay.ts`), KYC Attestation (Kind 30388), NIP-98 Admin Auth (Kind 27235), and fee adjustment Audit Trail.
+
+The tag mapping below represents a **directional future design** for when public listing publishing on Nostr relays is introduced, without fixing a rigid event kind at this stage:
 
 ```json
 [
   ["d", "<listing_id>"],
   ["title", "Faraday Bunker & Bitcoin Mesh Lab"],
   ["location_label", "District 1, Ho Chi Minh City"],
-  ["cancel_policy", "flexible", "Free cancellation up to 24h prior"],
+  ["cancel_policy", "flexible"],
   ["bed_type", "1 King Bed"],
   ["area_m2", "45"],
   ["check_in", "14:00"],
@@ -105,12 +117,29 @@ New fields map cleanly to Nostr event tags, safely ignored by legacy clients:
 
 ---
 
-## 6. Price Transparency & Anti-Dark-Pattern Discipline
+## 6. Implementation Limitations
 
-1. **Honest Pricing**:
-   - Primary display: `From X sats / night`.
-   - Secondary subtitle: `Excludes protocol fee (~{feePercent}%) and 10% refundable deposit at booking`.
-2. **Zero False Urgency**:
-   - No fake "Only 1 room left!" banners unless corroborated by actual inventory states in `RoomType.status`.
-   - No countdown clocks urging instant checkout.
-   - No artificial "15 people are viewing this right now" popups.
+1. **System does not automatically enforce refunds per cancellation policy**: Currently the booking flow (`BookingModal.tsx`) and escrow mechanism (`depositEscrow.ts`) do not include automated refund calculation logic when a guest cancels.
+2. **Host commitment**: Cancellation policy terms currently displayed on listing cards and detail pages are a **commitment by the host**; the system does not automatically execute room fee refunds via Lightning/Ecash.
+3. **Mandatory UI warning label**: The user interface is required to display an accompanying note: *"Host commitment, system does not automatically enforce refunds"* alongside the cancellation policy name to avoid user misunderstandings.
+
+---
+
+## 7. Open Questions
+
+1. **Specific timelines and penalty percentages**: Are the proposed milestones (24 hours, 5 days, 14 days) and first-night penalty rates aligned with practical P2P homestay operations or should they be adjustable by season/room type? Pending formal project owner approval.
+2. **Dispute resolution handling upon cancellation**: When disputes arise regarding cancellation notification timestamps or room fee refunds between guest and host, what is the procedure for submitting evidence and arbitrating via the Arbitrator Council (RFC-0001)?
+3. **Technical enforcement mechanism**: Which cryptographic primitive (Hold Invoices LND/CLN, Discreet Log Contracts DLC, or Cashu NUT-11 multisig escrow) should be adopted to automate room fee refunds in a fully non-custodial manner?
+
+---
+
+## 8. Price Transparency & Anti-Dark-Patterns
+
+1. **Honest Pricing Display**:
+   - Primary listing card rate: `From X sats / night`.
+   - Mandatory secondary notice: `Excludes protocol fee (~{feePercent}%) and 10% refundable deposit at booking`.
+   - Ensures guests encounter no unexpected charges upon opening `BookingModal`.
+2. **Strict Prohibition of Artificial Scarcity (Anti-Slop / Anti-Urgency)**:
+   - Forbids "Only 1 room left!" banners unless corroborated by real inventory state in `RoomType.status`.
+   - Forbids countdown timers urging urgent checkout.
+   - Forbids fake popups such as "15 people are currently viewing this stay".

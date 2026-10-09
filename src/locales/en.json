@@ -178,7 +178,7 @@
     "hideLogs": "Hide Terminal Log"
   },
   "lodging": {
-    "searchPlaceholder": "Search by name or Mesh ID (e.g. mesh:10.77)...",
+    "searchPlaceholder": "Search by name, description, or region...",
     "maxPrice": "Max",
     "becomeHost": "Become a Host",
     "noListingsFound": "No matching accommodations found.",
@@ -396,6 +396,7 @@
     "roomArea": "Room Size",
     "checkIn": "Check-in",
     "checkOut": "Check-out",
+    "notSpecified": "Not specified",
     "cancellationPolicyTitle": "Cancellation Policy (RFC-0018)",
     "depositInviolableNotice": "The 10% refundable security deposit is always 100% refunded if cancelled before check-in time.",
     "cancellationNote": "Host Note:"

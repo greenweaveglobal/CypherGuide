@@ -6,7 +6,7 @@ Thay thế `HANDOFF_NOTES.md` cũ (25/07/2026, đã lỗi thời: mô tả trạ
 Giao thức + app lưu trú P2P phi tập trung. Khách/Host dùng Nostr (danh tính, tin nhắn, Proof-of-Stay) và Lightning (thanh toán). Repo công khai: `greenweaveglobal/CypherGuide`. Domain `cypherguide.org`, relay riêng `relay.cypherguide.org`.
 
 - Stack: React 19 + Vite + Tailwind 4 + Zustand (IndexedDB) + `nostr-tools` + Express (`server.ts`) + hàm serverless Vercel (`api/`).
-- Node >= 22.12. Test: `vitest` (15 file trong `tests/`, 84 test passed 100%). CI: `.github/workflows/ci.yml` (tsc, vitest, npm audit).
+- Node >= 22.12. Test: `vitest` (16 file trong `tests/`, 90 test passed 100%). CI: `.github/workflows/ci.yml` (tsc, vitest, npm audit).
 - Tài liệu: tiếng Việt là bản gốc, `.en.md` dịch theo. Sửa bản Việt trước, đồng bộ bản Anh trong cùng lần sửa.
 - RFC 0001-0018 nằm trong `RFC/`. Số RFC tiếp theo: **0019**. Chỉ mục ở `RFC/README.md`.
 
@@ -37,11 +37,12 @@ Còn mở:
 1. **Trọng tài 2-of-3 vẫn là placeholder.** Ba pubkey trong `DEFAULT_ARBITRATOR_POOL` (`insuranceFund.ts`) không có ai giữ private key. Escrow/tranh chấp không dùng được trên production. Việc cần làm: onboard 3 trọng tài độc lập thật.
 
 ## 4. Kiểm toán và sự nhất quán
-- `MATURITY.md`: Đã đồng bộ 15 suites/84 tests, React 19, thêm mục 19 (RFC-0018).
+- `MATURITY.md`: Đã đồng bộ 16 suites/90 tests, React 19, thêm mục 19 (RFC-0018).
 - `ARCHITECTURE.md`: React 19 + Tailwind CSS + Vite.
 - `package.json`: `greenweaveglobal/cypherguide`, `vite` ở devDependencies, script `check:esm` kiểm tra phân giải ESM của Vercel API routes.
 - Tất cả các nút mock/dev (giả lập verifier, giả lập tắt server chính) đều bị khóa cứng sau cờ `import.meta.env.DEV` và loại bỏ khỏi production build (Đã xác nhận kiểm tra trong code & production bundle).
-- Đã khắc phục các lỗi import component (MapPin trong BookingModal, AlertCircle trong ListingDetail), tsc/lint đạt 0 cảnh báo.
+- Đã khắc phục các lỗi import component, loại bỏ 100% các giá trị mặc định giả bịa đặt (`'14:00'`, `'11:00'`, `'1 Giường đôi tiêu chuẩn'`), tsc/lint đạt 0 cảnh báo.
+- Đã đồng bộ hoàn chỉnh RFC-0018 song ngữ (bản Anh đã xóa "Working Group", "NIP-04/NIP-44", nêu rõ mốc hủy là đề xuất chờ duyệt, bổ sung Implementation Limitations và Open Questions).
 - Bản build production (`npm run build`) và kiểm thử phân giải ESM (`npm run check:esm`) hoàn tất thành công 100%.
 
 ## 5. Môi trường & cấu hình

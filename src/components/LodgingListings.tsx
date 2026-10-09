@@ -197,7 +197,7 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
             const activeRule = getEffectivePriceRule(listing, new Date(), cheapestRoomId);
             
             // Physical metrics
-            const maxGuests = listing.maxGuests || (cheapestRoom?.maxGuests ?? 2);
+            const maxGuests = listing.maxGuests || cheapestRoom?.maxGuests;
             const bedType = listing.bedType || cheapestRoom?.bedType;
             const areaM2 = listing.areaM2 || cheapestRoom?.areaM2;
             const cancelLabel = getCancellationLabel(listing.cancellationPolicy);
@@ -300,10 +300,12 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
 
                       {/* Key Attributes Row (Users, Bed, Area, Rooms) */}
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-text-secondary pt-1">
-                        <div className="flex items-center gap-1 text-white">
-                          <Users className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span>{t('lodging.maxGuestsCount', { count: maxGuests })}</span>
-                        </div>
+                        {maxGuests && (
+                          <div className="flex items-center gap-1 text-white">
+                            <Users className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span>{t('lodging.maxGuestsCount', { count: maxGuests })}</span>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-1">
                           <Home className="w-3.5 h-3.5 text-cyber-blue shrink-0" />
@@ -333,7 +335,7 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                             <span className="font-medium truncate">{cancelLabel}</span>
                           </div>
                           <div className="text-xs text-gray-400 font-mono italic px-1">
-                            ({t('lodging.cancelPolicyUnenforcedNote')})
+                            {`(${t('lodging.cancelPolicyUnenforcedNote')})`}
                           </div>
                         </div>
                       )}

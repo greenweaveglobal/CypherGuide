@@ -112,10 +112,10 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
   const [locationLabel, setLocationLabel] = useState('');
   const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>('flexible');
   const [cancellationNote, setCancellationNote] = useState('');
-  const [bedType, setBedType] = useState('1 Giường đôi lớn (King)');
-  const [areaM2, setAreaM2] = useState('35');
-  const [checkInTime, setCheckInTime] = useState('14:00');
-  const [checkOutTime, setCheckOutTime] = useState('11:00');
+  const [bedType, setBedType] = useState('');
+  const [areaM2, setAreaM2] = useState('');
+  const [checkInTime, setCheckInTime] = useState('');
+  const [checkOutTime, setCheckOutTime] = useState('');
 
   // Media server resilience & individual upload progress state
   const [activeServerInfo, setActiveServerInfo] = useState<SelectedServerResult | null>(null);
@@ -474,8 +474,8 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         cancellationNote: cancellationNote.trim() || undefined,
         bedType: bedType.trim() || undefined,
         areaM2: parseInt(areaM2) || undefined,
-        checkInTime: checkInTime.trim() || '14:00',
-        checkOutTime: checkOutTime.trim() || '11:00',
+        checkInTime: checkInTime.trim() || undefined,
+        checkOutTime: checkOutTime.trim() || undefined,
         roomTypes: [
           {
             id: `rt_${safeRandomUUID().slice(0, 8)}`,
