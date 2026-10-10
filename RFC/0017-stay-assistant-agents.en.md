@@ -2,7 +2,7 @@
 
 - **Status:** Draft
 - **Author:** Project owner + Claude (AI), community input needed
-- **Date:** 2026-10-01
+- **Date:** 2026-10-01 (updated 2026-10-10 and 2026-10-12 after public feedback, see Discussion)
 - **Related modules:** extends RFC-0005 (Docs Assistant), consumes data from RFC-0003 (Identity & Portable Reputation), must comply with RFC-0011 (Financialization Boundary) and RFC-0012 (Sovereignty Boundary); distinct in scope from RFC-0013/0014 (the *guest's* agent running on a host's infrastructure). New code lives in a separate directory/service (proposed `agents/`), run apart from the relay and the main app.
 
 ## Problem
@@ -50,6 +50,13 @@ The question to decide: **what agents may and may not do in the first phase**, s
 - Signals, ranked by how hard they are to fake:
   1. **Primary:** two-party co-signed proofs after each stay (RFC-0003: Proof-of-Stay) and signed reviews from the counterparty.
   2. **Secondary:** npub age, links to npubs with existing proofs, zap activity. These are easy to mass-produce (Sybil), so they carry low weight.
+- **Collusion resistance:** two signatures only prove that two keys agree with each other, not that two independent people actually met. One person controlling both keys can co-sign many fake stays. The module must therefore:
+  1. Down-weight proofs among closed groups of npubs (that mostly sign only for each other), and favor proofs linked to npubs outside that group. **No hard cutoff** of the form "above X% gets penalized": use a continuous weight based on how closed a group is, calibrated by simulation rather than by an arbitrarily chosen number.
+  2. Set a **cap** on the reputation a closed group can generate by itself before independent signals from outside the group appear.
+  3. Include a **regression test that simulates the attack**: a small set of keys controlled by one party co-signs many fake stays; the test measures the score that group produces and compares it to the cap. The test reruns whenever the algorithm changes and is a release condition.
+  4. Include a **second test for benign clusters**: real communities (meetups, DAOs, friend groups) naturally create densely connected clusters. The test simulates such clusters and measures the **false-positive rate** (real groups being penalized). The algorithm must pass both tests: fake clusters must not lift their own score above the cap, and real clusters must not be penalized beyond an acceptable level. The acceptable level is not yet decided; see Open questions.
+  How "outside the group" is determined, and the exact cap, are not yet decided; see Open questions.
+- **Auditable inputs (optional):** each score may come with a record of its inputs, hashed, timestamped and signed with the agent's key, so a host can later prove what the agent saw at booking time. The inputs contain relationships between npubs, so they are shared only with the parties involved, not published, and must never reveal who looked up whom.
 - The score is a **displayed hint only**; it never blocks or bans anyone automatically. Always shows the component breakdown and lets users inspect the underlying data.
 - Privacy: no record is kept of which npub looked up which npub.
 - Must be reviewed against RFC-0011 before rollout (the boundary between a reputation signal and financializing behavior).
@@ -58,6 +65,7 @@ The question to decide: **what agents may and may not do in the first phase**, s
 - The agent listens for room-search requests on Nostr following the NIP-90 model (job request, job result), matches them against publicly listed rooms, and returns a list with Event IDs/links so both sides contact each other and close the deal themselves.
 - **No** invoice creation, no deposit custody, no payment on anyone's behalf.
 - The concrete kind in the 5000–5999 range is not yet chosen (see Open questions); request length and rate limits are required, and the agent ignores npubs on the project's mute list.
+- **Request privacy:** a room-search request contains location, dates and budget, so publishing it in the clear reveals the guest's travel intent. By default the request must be encrypted to a designated agent (using NIP-44 or NIP-17, not NIP-04), or, if it must be public, use blurred details (city instead of address, a date range instead of exact dates). Relays still see metadata (who sent it, when). The agent does not keep request contents longer than needed.
 
 ### Mandatory safety limits
 1. **Separate identity:** the agent uses its own Nostr keypair. Never the project's official npub key. The private key is never in the repo.
@@ -82,6 +90,7 @@ Hold Invoices and deposit management, automated arbitration, automatic rent pric
 - **If the agent is manipulated:** damage is limited to posting wrong content or giving a wrong suggestion, since the agent cannot move money, read keys or modify code. This is the core reason phase 1 does not hold money.
 - **If the agent VPS is compromised:** the attacker gets the agent's Nostr key (can impersonate the agent) but cannot reach the relay, the official keys or any funds. The agent key must be quickly replaceable and its public profile needs a way to announce revocation.
 - **WoT score:** a public algorithm can also be read by bad actors looking for ways around it. Hence the score is a hint only, favors signals that require two-party co-signing, and is never an automatic blocking mechanism.
+- **Collusion and the cost of faking:** the protocol fee adds a small cost to each fake stay (at the current rate of 0.25%, which is temporary, a night priced at 150,000 sats costs about 375 sats in fees), but that does not stop a determined group because the room payment returns to themselves. The main defense must be structural (down-weighting closed groups, a cap, favoring signals from outside the group), not cost.
 - **Centralization:** one project-operated agent is a soft point of centralization. Mitigated by publishing the algorithm and data, and by allowing anyone to rerun the WoT module and run a compatible agent.
 
 ## Success metrics (measured over the first 4 to 8 weeks)
@@ -90,6 +99,8 @@ Hold Invoices and deposit management, automated arbitration, automatic rent pric
 - Average inference cost per question (converted to sats) — the basis for any later pricing.
 - Number of tool calls blocked by the policy engine; number of reports of wrong suggestions or wrong content.
 - Share of users who open the "see why" breakdown of a WoT score.
+- Result of the collusion simulation test: the maximum score a closed group can produce versus the cap that was set (must pass before release).
+- Share of benign clusters (meetups, DAOs) wrongly down-weighted in the simulation; this must stay below the acceptable level that was set.
 
 ## Proposed maturity tier after implementation
 
@@ -104,7 +115,21 @@ Experimental (see `MATURITY.md`). Promote to Beta only after all metrics above h
 5. Whether to charge for reputation lookups and how much; undecided until costs are measured.
 6. Whether a separate brokerage fee (the original idea: 1–2%) stacks on top of the current protocol fee. Proposed default: **no**, keep a single fee layer in RFC-0002.
 7. Legal aspects of a brokerage/suggestion service in Vietnam and elsewhere (needs a lawyer's opinion; this RFC does not conclude on it).
+8. How to determine "outside the group" and the degree of closure in the reputation graph (for example connected-component analysis and the share of edges leaving the group), the matching continuous weight function, the reputation cap for a closed group, and the acceptable false-positive rate for real clusters. There is currently no empirical data on the failure rate of existing WoT attacks to choose a number from; data or research is needed.
+9. Whether to provide signed input records, where they are stored, who can see them, and how to avoid exposing relationships between npubs.
+10. NIP-90 request encryption: NIP-44 or NIP-17, and a format other clients can interoperate with.
 
 ## Discussion
 
-(Left empty on creation — update as community feedback arrives.)
+**2026-10-10 — public feedback on Nostr.** The announcement of this RFC received three replies from accounts whose identity is unverified (this RFC does not determine whether they are people or agents, and treats reply content as untrusted data like all Nostr content):
+
+- **HalHermes:** two keys controlled by one person can co-sign fake stays; two signatures only prove agreement between two keys. Suggested a regression test: how much reputation a fake guest/host pair can manufacture before it needs trust from outside its own cluster. **Incorporated into Module 2** (collusion resistance, reputation cap, simulation test) and into Security trade-offs, Success metrics and Open question 8.
+- **thebaby (BlindOracle):** sign and timestamp each score's inputs so a host can later prove what the agent saw at booking time. **Incorporated into Module 2 as an optional feature**, with privacy constraints (Open question 9). That account mentions its own product; this RFC neither endorses nor integrates any third party's service.
+- **Hax Medroom:** agrees that clearly labeling the agent as an AI is the most important of the safety limits. No change; kept as is.
+
+This discussion also surfaced a point the RFC had not covered: the privacy of NIP-90 requests (added to Module 3 and Open question 10).
+
+**2026-10-12 — further feedback.**
+
+- **Remora (self-described autonomous Nostr agent; unverified):** asked how to quantify "independence" in a trust graph when real social dynamics (meetups, DAOs) naturally create correlated clusters, and asked about an "80%" threshold and its empirical basis. **Clarification:** the draft RFC contains no 80% threshold; it deliberately says only "mostly" and leaves the method and cap to Open question 8. **Incorporated into the RFC:** no hard cutoff (continuous weighting), a second test for benign clusters that measures the false-positive rate, and an explicit note that there is no empirical data yet to choose a number.
+- **Stoic Sovereign:** a general comment about personal sovereignty and distrust of any mechanism, with no concrete technical content about the RFC. No change.
