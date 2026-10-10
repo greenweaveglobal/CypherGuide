@@ -17,9 +17,10 @@
 
 > **Lưu ý**: Vui lòng đọc kỹ [`MATURITY.md`](./MATURITY.md) trước khi tương tác với node thực tế hoặc thử nghiệm.
 
-- **Giai đoạn hiện tại**: **Tier 1 (Devnet / Testnet)**
-  - ✅ **Đã hoàn thành**: Ký sự kiện mật mã Schnorr BIP-340 (`@noble/curves`), mã hóa khóa AES-GCM-256 phía client, Quỹ bảo hiểm BFT 2-of-3 Arbitrator Escrow, thuật toán Dynamic Fee, huy hiệu mật mã Proof-of-Stay (Nostr Kind 30078), bộ tự phục hồi dữ liệu Data Reconciler.
-  - 🟡 **Đang tích cực triển khai (Tier 2)**: Kết nối đa relay Nostr thời gian thực (WSS WebSocket Relays), kết nối ví Lightning WalletConnect (NWC) mainnet, lưu trữ trạng thái có giới hạn trên L2.
+- **Giai đoạn hiện tại**: **Tier 1 (Devnet / Testnet) — Đã kiểm toán cốt lõi, Escrow trong quá trình chuyển đổi**
+  - ✅ **Đã hoàn thành & Kiểm toán**: Mã hóa NIP-49 Vault (`ncryptsec`/`scrypt`, loại bỏ raw key), phòng thủ SSRF LUD-06, xác thực chữ ký Schnorr KYC Attestation (Kind 30388), Proof-of-Stay (Kind 30078) đồng ký 2 bên (Khách + Host), xác thực NIP-98 HTTP Auth cho admin, kiểm tra magic-byte chặn SVG XSS cho media upload, xác minh Preimage SHA-256 cho thanh toán Lightning, tự động hóa kiểm thử Vitest (16 suites/90 tests passed 100%) & CI GitHub Actions.
+  - ⚠️ **Cảnh báo bắt buộc (Hội đồng Trọng tài)**: Hội đồng Trọng tài BFT 2-of-3 trong `insuranceFund.ts` hiện dùng public key placeholder mô phỏng/demo — chưa có bên trọng tài thứ ba độc lập nào nắm private key tương ứng. Giải quyết tranh chấp tự động chưa khả dụng trên production cho đến khi onboard 3 bên độc lập.
+  - 🟡 **Đang tích cực triển khai (Tier 2)**: Kết nối đa relay Nostr thời gian thực (WSS WebSocket Relays), kết nối ví Lightning WalletConnect (NWC) mainnet, lưu trữ trạng thái có giới hạn trên L2/Rootstock, hợp đồng ký quỹ thông minh (DLC / Hold Invoices).
 - **Nguyên tắc an toàn**: **TUYỆT ĐỐI KHÔNG nạp hay lưu ký tài sản thật giá trị lớn.** Chỉ thử nghiệm với satoshi testnet hoặc số tiền tối thiểu.
 
 ---
@@ -48,9 +49,10 @@
 ## Cấu Trúc Thư Mục
 
 ```text
-├── RFC/                 # 11 Tài liệu đề xuất tiêu chuẩn & kiến trúc
-│   ├── README.md        # Danh mục toàn bộ RFC (0001 - 0011)
-│   └── 0011-...md       # Nguyên tắc ranh giới tài chính hóa
+├── RFC/                 # 18 Tài liệu đề xuất tiêu chuẩn & kiến trúc
+│   ├── README.md        # Danh mục toàn bộ RFC (0001 - 0018)
+│   ├── README.en.md     # Danh mục bản dịch tiếng Anh
+│   └── 0018-...md       # Chuẩn hóa lược đồ lưu trú & siêu dữ liệu bảo vệ quyền riêng tư
 ├── src/
 │   ├── components/      # Các component giao diện React 19
 │   ├── locales/         # Bộ từ điển đa ngôn ngữ i18n (vi, en)

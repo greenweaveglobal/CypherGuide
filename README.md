@@ -19,7 +19,7 @@
 > **Important**: Please review [`MATURITY.md`](./MATURITY.md) before interacting with live nodes or testing.
 
 - **Current Stage**: **Tier 1 (Devnet / Testnet) — Core Audited, Escrow in Transition**
-  - ✅ **Completed & Audited**: NIP-49 Vault (`ncryptsec`/`scrypt`, zero raw keys in storage), SSRF-hardened LUD-06 resolver, BIP-340 Schnorr KYC attestation verification (Kind 30388), Dual-signed Proof-of-Stay badges (Kind 30078, Guest + Host co-signing), NIP-98 admin HTTP Auth, magic-byte image validation blocking SVG XSS, Preimage SHA-256 cryptographic verification for Lightning payments, automated 23-test Vitest CI suite.
+  - ✅ **Completed & Audited**: NIP-49 Vault (`ncryptsec`/`scrypt`, zero raw keys in storage), SSRF-hardened LUD-06 resolver, BIP-340 Schnorr KYC attestation verification (Kind 30388), Dual-signed Proof-of-Stay badges (Kind 30078, Guest + Host co-signing), NIP-98 admin HTTP Auth, magic-byte image validation blocking SVG XSS, Preimage SHA-256 cryptographic verification for Lightning payments, automated 16-suite / 90-test Vitest CI suite (100% pass rate) & CI GitHub Actions.
   - ⚠️ **Mandatory Disclosure (Arbitrator Council)**: The 2-of-3 BFT Arbitrator Council in `insuranceFund.ts` currently uses **placeholder public keys for simulation/demo** — no genuine independent third-party arbitrators hold the corresponding private keys. Automated trustless dispute resolution is NOT operational on production until 3 independent parties are onboarded.
   - 🟡 **In Active Development (Tier 2)**: Live multi-relay WebSocket connections (WSS), production Lightning WalletConnect (NWC) mainnet bindings, and non-custodial smart escrow contracts (DLC / Hold Invoices).
 - **Safety Rule**: **DO NOT deposit or stake significant mainnet funds.** Test with testnet satoshis or minimal experimental amounts only.
@@ -50,9 +50,10 @@
 ## Repository Structure
 
 ```text
-├── RFC/                 # 11 Formal Request for Comments & Architectural Standards
-│   ├── README.md        # Index of all RFCs (0001 - 0011)
-│   └── 0011-...md       # Financialization Boundary Principle
+├── RFC/                 # 18 Formal Request for Comments & Architectural Standards
+│   ├── README.md        # Index of all RFCs (0001 - 0018)
+│   ├── README.en.md     # English translation index
+│   └── 0018-...md       # Standardized accommodation schema & privacy-preserving metadata
 ├── src/
 │   ├── components/      # Modular React 19 UI components
 │   ├── locales/         # i18n localization dictionaries (vi, en)
