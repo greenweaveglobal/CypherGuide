@@ -1,3 +1,4 @@
+import { translate } from '../hooks/useTranslation';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { get, set as idbSet, del } from 'idb-keyval';
@@ -212,7 +213,7 @@ export const useAppStore = create<AppState>()(
           const timeIso = new Date().toISOString();
 
           // 1. Audit content description
-          const auditContent = `Phí protocol đổi từ ${oldPercent}% sang ${newPercent}%, bởi ${adminNpub}, lúc ${timeIso}${reason ? ` (${reason})` : ''}`;
+          const auditContent = `Protocol fee changed from ${oldPercent}% to ${newPercent}%, by ${adminNpub}, at ${timeIso}${reason ? ` (${reason})` : ''}`;
 
           let privKeyHex = '';
           if (identity?.nsec) {
@@ -252,7 +253,7 @@ export const useAppStore = create<AppState>()(
           if (!authHeader) {
             return {
               success: false,
-              error: 'Không thể tạo chữ ký NIP-98. Vui lòng đăng nhập bằng khóa Admin ủy quyền.'
+              error: translate('store.errNoNip98Admin')
             };
           }
 
@@ -282,10 +283,10 @@ export const useAppStore = create<AppState>()(
             }));
             return { success: true, eventId: data.feeAuditNostrEventId || auditEvent?.id };
           } else {
-            return { success: false, error: data.error || `HTTP ${res.status}: Thao tác đổi phí thất bại.` };
+            return { success: false, error: data.error || translate('store.errFeeUpdateFailed', { status: res.status }) };
           }
         } catch (e: any) {
-          return { success: false, error: e.message || 'Lỗi mạng khi kết nối tới máy chủ cập nhật phí.' };
+          return { success: false, error: e.message || translate('store.errFeeNetworkFailed') };
         }
       },
 
@@ -300,7 +301,7 @@ export const useAppStore = create<AppState>()(
           const timeIso = new Date().toISOString();
 
           // 1. Audit content description
-          const auditContent = `Địa chỉ devLnAddress đổi từ ${oldAddress} sang ${trimmedAddress}, bởi ${adminNpub}, lúc ${timeIso}`;
+          const auditContent = `devLnAddress changed from ${oldAddress} to ${trimmedAddress}, by ${adminNpub}, at ${timeIso}`;
 
           let privKeyHex = '';
           if (identity?.nsec) {
@@ -340,7 +341,7 @@ export const useAppStore = create<AppState>()(
           if (!authHeader) {
             return {
               success: false,
-              error: 'Không thể tạo chữ ký NIP-98. Vui lòng đăng nhập bằng khóa Admin ủy quyền.'
+              error: translate('store.errNoNip98Admin')
             };
           }
 
@@ -363,10 +364,10 @@ export const useAppStore = create<AppState>()(
             });
             return { success: true, eventId: data.configAuditNostrEventId || auditEvent?.id };
           } else {
-            return { success: false, error: data.error || `HTTP ${res.status}: Cập nhật địa chỉ dev thất bại.` };
+            return { success: false, error: data.error || translate('store.errDevUpdateFailed', { status: res.status }) };
           }
         } catch (e: any) {
-          return { success: false, error: e.message || 'Lỗi mạng khi kết nối tới máy chủ cập nhật cấu hình.' };
+          return { success: false, error: e.message || translate('store.errDevNetworkFailed') };
         }
       },
 
@@ -381,7 +382,7 @@ export const useAppStore = create<AppState>()(
           const timeIso = new Date().toISOString();
 
           // 1. Audit content description
-          const auditContent = `Địa chỉ infraIncentiveTreasuryLightningAddress đổi từ ${oldAddress} sang ${trimmedAddress}, bởi ${adminNpub}, lúc ${timeIso}`;
+          const auditContent = `infraIncentiveTreasuryLightningAddress changed from ${oldAddress} to ${trimmedAddress}, by ${adminNpub}, at ${timeIso}`;
 
           let privKeyHex = '';
           if (identity?.nsec) {
@@ -421,7 +422,7 @@ export const useAppStore = create<AppState>()(
           if (!authHeader) {
             return {
               success: false,
-              error: 'Không thể tạo chữ ký NIP-98. Vui lòng đăng nhập bằng khóa Admin ủy quyền.'
+              error: translate('store.errNoNip98Admin')
             };
           }
 
@@ -444,10 +445,10 @@ export const useAppStore = create<AppState>()(
             });
             return { success: true, eventId: data.configAuditNostrEventId || auditEvent?.id };
           } else {
-            return { success: false, error: data.error || `HTTP ${res.status}: Cập nhật địa chỉ treasury thất bại.` };
+            return { success: false, error: data.error || translate('store.errTreasuryUpdateFailed', { status: res.status }) };
           }
         } catch (e: any) {
-          return { success: false, error: e.message || 'Lỗi mạng khi kết nối tới máy chủ cập nhật treasury.' };
+          return { success: false, error: e.message || translate('store.errTreasuryNetworkFailed') };
         }
       },
 
@@ -592,9 +593,9 @@ export const useAppStore = create<AppState>()(
       addDocument: (doc) => set((state) => ({ documents: [doc, ...state.documents] })),
 
       logs: [
-        { id: 'log-0', timestamp: new Date().toLocaleTimeString(), type: 'relay', message: 'Mạng lưới P2P Meshnet địa phương đã sẵn sàng.' },
-        { id: 'log-1', timestamp: new Date().toLocaleTimeString(), type: 'relay', message: 'Kết nối thành công tới trạm Nostr Relay Cypherpunk: nostr://relay.mesh.local' },
-        { id: 'log-2', timestamp: new Date().toLocaleTimeString(), type: 'governance', message: 'Khởi động Smart Contract phân tách lợi nhuận đa bên v1.0.0' }
+        { id: 'log-0', timestamp: new Date().toLocaleTimeString(), type: 'relay', message: translate('store.initialLogMeshReady') },
+        { id: 'log-1', timestamp: new Date().toLocaleTimeString(), type: 'relay', message: translate('store.initialLogRelayConnected') },
+        { id: 'log-2', timestamp: new Date().toLocaleTimeString(), type: 'governance', message: translate('store.initialLogStateLoaded') }
       ],
       addLog: (type, message, hash) => set((state) => ({
         logs: [
@@ -648,9 +649,9 @@ export const useAppStore = create<AppState>()(
         }
 
         if (!report.isValid) {
-          get().addLog('governance', `CẢNH BÁO: Phát hiện ${report.errors.length} mâu thuẫn dữ liệu trong Protocol Core.`, report.details.listings);
+          get().addLog('governance', translate('store.auditConflictWarning', { count: report.errors.length }), report.details.listings);
         } else {
-          get().addLog('relay', `Đối soát Cypher Guide hoàn tất. Trạng thái: Toàn vẹn (Immutable).`, report.details.listings);
+          get().addLog('relay', translate('store.auditCompleted'), report.details.listings);
         }
       },
 

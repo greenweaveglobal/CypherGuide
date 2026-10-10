@@ -215,7 +215,7 @@ export default function HostCalendarPricing({
     const newId = `rt_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
     const newRoom: RoomType = {
       id: newId,
-      name: `Loại phòng mới ${draftRoomTypes.length + 1}`,
+      name: t('hostCalendar.newRoomDefaultName', { n: draftRoomTypes.length + 1 }),
       maxGuests: 2,
       priceSats: 100000,
       securitySpecs: [],
@@ -233,7 +233,7 @@ export default function HostCalendarPricing({
     setDraftStatus('available');
     setDraftRules([]);
     setStatusNotice({
-      message: `Đã tạo ${newRoom.name}. Bạn có thể cấu hình giá, quy tắc mùa và ký xác nhận.`,
+      message: t('hostCalendar.createdRoomNotice', { name: newRoom.name }),
       type: 'success'
     });
   };
@@ -242,7 +242,7 @@ export default function HostCalendarPricing({
   const handleDeleteRoomType = (roomTypeId: string) => {
     if (isUnauthorizedSolo) return;
     if (draftRoomTypes.length <= 1) {
-      setStatusNotice({ message: 'Cơ sở lưu trú phải duy trì ít nhất 1 loại phòng.', type: 'error' });
+      setStatusNotice({ message: t('hostCalendar.errMinOneRoom'), type: 'error' });
       return;
     }
     const remaining = draftRoomTypes.filter(rt => rt.id !== roomTypeId);
@@ -257,7 +257,7 @@ export default function HostCalendarPricing({
       setDraftStatus(nextTarget.status === 'occupied' ? 'occupied' : 'available');
       setDraftRules(nextTarget.priceRules || []);
     }
-    setStatusNotice({ message: 'Đã xóa loại phòng khỏi danh sách nháp. Hãy ký để áp dụng.', type: 'success' });
+    setStatusNotice({ message: t('hostCalendar.removedRoomDraftNotice'), type: 'success' });
   };
 
   // New Rule form state
@@ -366,7 +366,7 @@ export default function HostCalendarPricing({
     e.preventDefault();
     if (isUnauthorizedSolo) {
       setStatusNotice({
-        message: `Bạn không phải chủ sở hữu listing này — chỉ npub ${soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.`,
+        message: t('hostCalendar.notOwnerWarning', { npub: soloOwnerShortNpub }),
         type: 'error'
       });
       return;
@@ -429,9 +429,9 @@ export default function HostCalendarPricing({
     if (currentFullRoomTypes.length !== originalRoomTypes.length) {
       listA.push({
         field: 'roomTypesCount',
-        label: 'Danh sách loại phòng',
-        oldVal: `${originalRoomTypes.length} loại`,
-        newVal: `${currentFullRoomTypes.length} loại`
+        label: t('hostCalendar.diffRoomTypesList'),
+        oldVal: t('hostCalendar.diffCountRooms', { count: originalRoomTypes.length }),
+        newVal: t('hostCalendar.diffCountRooms', { count: currentFullRoomTypes.length })
       });
     }
 
@@ -440,15 +440,15 @@ export default function HostCalendarPricing({
       if (!orig) {
         listA.push({
           field: `roomType_${rt.id}_new`,
-          label: `Thêm loại phòng: ${rt.name}`,
-          oldVal: 'Chưa có',
-          newVal: `${rt.priceSats.toLocaleString()} Sats, ${rt.maxGuests} khách`
+          label: t('hostCalendar.diffAddRoom', { name: rt.name }),
+          oldVal: t('hostCalendar.diffNotSet'),
+          newVal: t('hostCalendar.diffRoomSummary', { sats: rt.priceSats.toLocaleString(), guests: rt.maxGuests })
         });
       } else {
         if (orig.name !== rt.name) {
           listA.push({
             field: `roomType_${rt.id}_name`,
-            label: `Tên phòng (${orig.name})`,
+            label: t('hostCalendar.diffRoomName', { name: orig.name }),
             oldVal: orig.name,
             newVal: rt.name
           });
@@ -456,7 +456,7 @@ export default function HostCalendarPricing({
         if (orig.priceSats !== rt.priceSats) {
           listA.push({
             field: `roomType_${rt.id}_price`,
-            label: `Giá cơ sở (${rt.name})`,
+            label: t('hostCalendar.diffBasePrice', { name: rt.name }),
             oldVal: `${orig.priceSats.toLocaleString()} Sats`,
             newVal: `${rt.priceSats.toLocaleString()} Sats`
           });
@@ -464,15 +464,15 @@ export default function HostCalendarPricing({
         if (JSON.stringify(orig.priceRules || []) !== JSON.stringify(rt.priceRules || [])) {
           listA.push({
             field: `roomType_${rt.id}_rules`,
-            label: `Quy tắc giá (${rt.name})`,
-            oldVal: `${(orig.priceRules || []).length} quy tắc`,
-            newVal: `${(rt.priceRules || []).length} quy tắc`
+            label: t('hostCalendar.diffPriceRules', { name: rt.name }),
+            oldVal: t('hostCalendar.diffRulesCount', { count: (orig.priceRules || []).length }),
+            newVal: t('hostCalendar.diffRulesCount', { count: (rt.priceRules || []).length })
           });
         }
         if (orig.status !== rt.status) {
           listA.push({
             field: `roomType_${rt.id}_status`,
-            label: `Trạng thái phòng (${rt.name})`,
+            label: t('hostCalendar.diffRoomStatus', { name: rt.name }),
             oldVal: orig.status || 'available',
             newVal: rt.status
           });
@@ -480,17 +480,17 @@ export default function HostCalendarPricing({
         if (JSON.stringify(orig.securitySpecs || []) !== JSON.stringify(rt.securitySpecs || [])) {
           listA.push({
             field: `roomType_${rt.id}_specs`,
-            label: `Tiện nghi phòng (${rt.name})`,
-            oldVal: (orig.securitySpecs || []).join(', ') || 'Không',
-            newVal: (rt.securitySpecs || []).join(', ') || 'Không'
+            label: t('hostCalendar.diffRoomSpecs', { name: rt.name }),
+            oldVal: (orig.securitySpecs || []).join(', ') || t('hostCalendar.diffNone'),
+            newVal: (rt.securitySpecs || []).join(', ') || t('hostCalendar.diffNone')
           });
         }
         if (orig.maxGuests !== rt.maxGuests) {
           listB.push({
             field: `roomType_${rt.id}_maxGuests`,
-            label: `Sức chứa phòng (${rt.name})`,
-            oldVal: `${orig.maxGuests} khách`,
-            newVal: `${rt.maxGuests} khách`
+            label: t('hostCalendar.diffRoomCapacity', { name: rt.name }),
+            oldVal: t('hostCalendar.diffGuestsCount', { count: orig.maxGuests }),
+            newVal: t('hostCalendar.diffGuestsCount', { count: rt.maxGuests })
           });
         }
       }
@@ -500,9 +500,9 @@ export default function HostCalendarPricing({
       if (!currentFullRoomTypes.some(rt => rt.id === orig.id)) {
         listA.push({
           field: `roomType_${orig.id}_deleted`,
-          label: `Xóa loại phòng: ${orig.name}`,
+          label: t('hostCalendar.diffRemoveRoom', { name: orig.name }),
           oldVal: orig.name,
-          newVal: 'Đã xóa'
+          newVal: t('hostCalendar.diffDeleted')
         });
       }
     });
@@ -511,7 +511,7 @@ export default function HostCalendarPricing({
     if (draftDesc.trim() !== selectedListing.description.trim()) {
       listA.push({
         field: 'description',
-        label: 'Mô tả Homestay',
+        label: t('hostCalendar.diffDesc'),
         oldVal: selectedListing.description.slice(0, 30) + '...',
         newVal: draftDesc.slice(0, 30) + '...'
       });
@@ -520,7 +520,7 @@ export default function HostCalendarPricing({
     if (draftImageUrl.trim() !== selectedListing.imageUrl.trim()) {
       listA.push({
         field: 'imageUrl',
-        label: 'Ảnh đại diện Homestay',
+        label: t('hostCalendar.diffCoverImg'),
         oldVal: selectedListing.imageUrl.slice(0, 30) + '...',
         newVal: draftImageUrl.slice(0, 30) + '...'
       });
@@ -530,7 +530,7 @@ export default function HostCalendarPricing({
     if (draftTitle.trim() !== selectedListing.title.trim()) {
       listB.push({
         field: 'title',
-        label: 'Tiêu đề Homestay',
+        label: t('hostCalendar.diffTitle'),
         oldVal: selectedListing.title,
         newVal: draftTitle.trim()
       });
@@ -540,16 +540,16 @@ export default function HostCalendarPricing({
     if (draftVerifiersStr.trim() !== currentVerifiers.trim()) {
       listB.push({
         field: 'acceptedKycVerifiers',
-        label: 'Nhà xác minh KYC hợp chuẩn',
-        oldVal: currentVerifiers || 'Không',
-        newVal: draftVerifiersStr || 'Không'
+        label: t('hostCalendar.diffKycVerifiers'),
+        oldVal: currentVerifiers || t('hostCalendar.diffNone'),
+        newVal: draftVerifiersStr || t('hostCalendar.diffNone')
       });
     }
 
     if (draftKycThreshold !== (selectedListing.kycThresholdSats || 0)) {
       listB.push({
         field: 'kycThresholdSats',
-        label: 'Ngưỡng KYC bắt buộc',
+        label: t('hostCalendar.diffKycThreshold'),
         oldVal: `${(selectedListing.kycThresholdSats || 0).toLocaleString()} Sats`,
         newVal: `${draftKycThreshold.toLocaleString()} Sats`
       });
@@ -569,26 +569,26 @@ export default function HostCalendarPricing({
   // Sign and apply changes
   const handleSignAndApply = async () => {
     if (!identity) {
-      setStatusNotice({ message: 'Vui lòng kết nối danh tính Nostr trước khi ký cập nhật.', type: 'error' });
+      setStatusNotice({ message: t('hostCalendar.errConnectNostr'), type: 'error' });
       return;
     }
 
     if (isUnauthorizedSolo) {
       setStatusNotice({
-        message: `Bạn không phải chủ sở hữu listing này — chỉ npub ${soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.`,
+        message: t('hostCalendar.notOwnerWarning', { npub: soloOwnerShortNpub }),
         type: 'error'
       });
       return;
     }
 
     if (!changes.hasChanges) {
-      setStatusNotice({ message: 'Chưa có thay đổi nào được ghi nhận để ký.', type: 'error' });
+      setStatusNotice({ message: t('hostCalendar.noChangesNotice'), type: 'error' });
       return;
     }
 
     if (changes.listB.length > 0 && isGroupBBlocked) {
       setStatusNotice({
-        message: 'Không thể sửa các trường Nhóm B khi đang có booking active.',
+        message: t('hostCalendar.errGroupBLockedActive'),
         type: 'error'
       });
       return;
@@ -651,11 +651,11 @@ export default function HostCalendarPricing({
           onUpdateListing(updatedListing);
           onAddLog(
             'relay',
-            `Chủ nhà solo (${identity.name || identity.npub.slice(0, 10)}) đã ký Schnorr và áp dụng ngay ${changes.listA.length} thay đổi Nhóm A cho "${selectedListing.title}".`,
+            t('hostCalendar.auditLogSoloApplied', { host: identity.name || identity.npub.slice(0, 10), count: changes.listA.length, title: selectedListing.title }),
             signature
           );
           setStatusNotice({
-            message: 'Đã ký Schnorr thành công! Thay đổi Nhóm A đã được cập nhật trực tiếp.',
+            message: t('hostCalendar.msgSoloApplied'),
             type: 'success'
           });
         } else {
@@ -665,8 +665,8 @@ export default function HostCalendarPricing({
             id: propId,
             listingId: selectedListing.id,
             listingTitle: selectedListing.title,
-            title: `[Solo Host Governance] Thay đổi Nhóm B: ${changes.listB.map(b => b.label).join(', ')}`,
-            description: `Chủ nhà solo sở hữu 100% tự động lưu vết Audit Trail cho các thay đổi cẩn trọng:\n${changes.listB.map(b => `- ${b.label}: ${b.oldVal} → ${b.newVal}`).join('\n')}`,
+            title: t('hostCalendar.titleSoloB', { labels: changes.listB.map(b => b.label).join(', ') }),
+            description: `${t('hostCalendar.descSoloB')}\n${changes.listB.map(b => `- ${b.label}: ${b.oldVal} → ${b.newVal}`).join('\n')}`,
             category: 'policy',
             creatorNpub: identity.npub,
             votes: { [identity.npub]: 'approve' },
@@ -678,11 +678,11 @@ export default function HostCalendarPricing({
           onUpdateListing(updatedListing);
           onAddLog(
             'governance',
-            `Đề xuất thay đổi Nhóm B của Solo Host đã tự động được phê duyệt với 100% đồng thuận và ghi vào Audit Trail.`,
+            t('hostCalendar.auditLogSoloBApproved'),
             signature
           );
           setStatusNotice({
-            message: 'Đã tạo và tự động thông qua Đề xuất Quản trị Solo Host (100% Share). Dữ liệu đã lưu vào Audit Trail.',
+            message: t('hostCalendar.msgSoloBApproved'),
             type: 'success'
           });
         }
@@ -696,8 +696,8 @@ export default function HostCalendarPricing({
           id: propId,
           listingId: selectedListing.id,
           listingTitle: selectedListing.title,
-          title: `[Extranet Proposal] Cập nhật: ${changedLabels}`,
-          description: `Đề xuất cập nhật Lịch & Giá và Thông tin từ Co-Owner ${identity.name || identity.npub.slice(0, 12)}:\n${[...changes.listA, ...changes.listB].map(c => `- ${c.label}: ${c.oldVal} → ${c.newVal}`).join('\n')}`,
+          title: t('hostCalendar.titleProposalExtranet', { labels: changedLabels }),
+          description: `${t('hostCalendar.descProposalExtranet', { host: identity.name || identity.npub.slice(0, 12) })}\n${[...changes.listA, ...changes.listB].map(c => `- ${c.label}: ${c.oldVal} → ${c.newVal}`).join('\n')}`,
           category: hasPriceChange ? 'finance' : 'policy',
           value: hasPriceChange ? `${draftPriceSats.toLocaleString()} Sats` : undefined,
           creatorNpub: identity.npub,
@@ -709,17 +709,17 @@ export default function HostCalendarPricing({
         onAddProposal(multiProposal);
         onAddLog(
           'governance',
-          `Đã tạo đề xuất quản trị Extranet mới cho "${selectedListing.title}". Đang chờ các co-owners khác biểu quyết.`,
+          t('hostCalendar.auditLogProposal', { title: selectedListing.title }),
           signature
         );
         setStatusNotice({
-          message: 'Đã tạo Đề xuất Quản trị mới! Do homestay có nhiều Co-Owners, đề xuất cần được các thành viên biểu quyết đạt >50% để áp dụng.',
+          message: t('hostCalendar.auditProposalNotice'),
           type: 'success'
         });
       }
     } catch (err: any) {
       console.error('Sign and apply error:', err);
-      setStatusNotice({ message: `Lỗi khi ký Schnorr: ${err.message || err}`, type: 'error' });
+      setStatusNotice({ message: t('hostCalendar.errSchnorrSign', { msg: err.message || err }), type: 'error' });
     } finally {
       setIsSigning(false);
     }
@@ -728,7 +728,7 @@ export default function HostCalendarPricing({
   if (!selectedListing) {
     return (
       <div className="glass-panel p-8 text-center text-text-secondary font-mono text-xs rounded-xl border border-border">
-        Không tìm thấy cơ sở lưu trú nào để quản lý lịch và giá.
+        {t('hostCalendar.noListingFound')}
       </div>
     );
   }
@@ -756,7 +756,7 @@ export default function HostCalendarPricing({
 
         {(hostListings.length > 1 || listings.length > 1) && (
           <div className="flex items-center gap-2 w-full md:w-auto">
-            <span className="text-xs font-mono text-text-secondary shrink-0">Chọn cơ sở:</span>
+            <span className="text-xs font-mono text-text-secondary shrink-0">{t('hostCalendar.selectListingLabel')}</span>
             <select
               value={selectedListingId}
               onChange={(e) => setSelectedListingId(e.target.value)}
@@ -777,18 +777,18 @@ export default function HostCalendarPricing({
         <div className="glass-panel p-4 rounded-xl border border-border bg-surface flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs font-mono text-text-secondary mb-1">
-              <span>CƠ CHẾ SỞ HỮU</span>
+              <span>{t('hostCalendar.ownershipMechanism')}</span>
               <ShieldCheck className="w-4 h-4 text-primary" />
             </div>
             <div className="text-sm font-bold font-mono text-white flex items-center gap-2 mt-1">
               {isSoloListing ? (
                 hasDirectEditAccess ? (
                   <span className="text-success flex items-center gap-1.5">
-                    <Check className="w-4 h-4" /> Solo Host (100% Cổ phần)
+                    <Check className="w-4 h-4" /> {t('hostCalendar.soloHost100')}
                   </span>
                 ) : (
                   <span className="text-danger flex items-center gap-1.5">
-                    <Lock className="w-4 h-4" /> Solo Host (Chỉ xem)
+                    <Lock className="w-4 h-4" /> {t('hostCalendar.soloHostViewOnly')}
                   </span>
                 )
               ) : (
@@ -801,15 +801,15 @@ export default function HostCalendarPricing({
           <p className="text-[10px] font-mono mt-2">
             {isUnauthorizedSolo ? (
               <span className="text-danger font-semibold">
-                Bạn không phải chủ sở hữu listing này — chỉ npub {soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.
+                {t('hostCalendar.notOwnerWarning', { npub: soloOwnerShortNpub })}
               </span>
             ) : hasDirectEditAccess ? (
               <span className="text-text-secondary">
-                Nhóm A: Ký 1 lần áp dụng ngay. Nhóm B: Tự động lưu vết Governance.
+                {t('hostCalendar.groupARuleSolo')}
               </span>
             ) : (
               <span className="text-text-secondary">
-                Mọi thay đổi Nhóm A & B đều tạo Đề xuất Quản trị cần biểu quyết &gt;50%.
+                {t('hostCalendar.groupARuleMulti')}
               </span>
             )}
           </p>
@@ -818,40 +818,40 @@ export default function HostCalendarPricing({
         <div className="glass-panel p-4 rounded-xl border border-border bg-surface flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs font-mono text-text-secondary mb-1">
-              <span>GIÁ CƠ SỞ & QUY TẮC</span>
+              <span>{t('hostCalendar.basePriceAndRules')}</span>
               <Zap className="w-4 h-4 text-warning" />
             </div>
             <div className="text-sm font-bold font-mono text-warning mt-1">
-              {draftPriceSats.toLocaleString()} Sats / đêm
+              {t('hostCalendar.satsPerNight', { sats: draftPriceSats.toLocaleString() })}
             </div>
           </div>
           <p className="text-[10px] text-text-secondary font-mono mt-2">
-            Đang cấu hình <span className="text-white font-bold">{draftRules.length}</span> quy tắc giá theo ngày/mùa.
+            <span dangerouslySetInnerHTML={{ __html: t('hostCalendar.configuringRules', { count: draftRules.length }) }} />
           </p>
         </div>
 
         <div className="glass-panel p-4 rounded-xl border border-border bg-surface flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs font-mono text-text-secondary mb-1">
-              <span>TRẠNG THÁI BOOKING ACTIVE</span>
+              <span>{t('hostCalendar.activeBookingStatus')}</span>
               <Clock className="w-4 h-4 text-primary" />
             </div>
             <div className="text-sm font-bold font-mono text-white mt-1">
               {activeBookings.length > 0 ? (
                 <span className="text-warning flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" /> {activeBookings.length} Đang hoạt động
+                  <AlertCircle className="w-4 h-4" /> {t('hostCalendar.activeBookingsCount', { count: activeBookings.length })}
                 </span>
               ) : (
                 <span className="text-success flex items-center gap-1">
-                  <Check className="w-4 h-4" /> Sẵn sàng (0 active)
+                  <Check className="w-4 h-4" /> {t('hostCalendar.readyZeroActive')}
                 </span>
               )}
             </div>
           </div>
           <p className="text-[10px] text-text-secondary font-mono mt-2">
             {isGroupBBlocked
-              ? 'Nhóm B bị khóa để bảo vệ khách có booking chưa hoàn tất.'
-              : 'Các trường Nhóm B có thể chỉnh sửa an toàn.'}
+              ? t('hostCalendar.groupBLockedReason')
+              : t('hostCalendar.groupBEditableReason')}
           </p>
         </div>
       </div>
@@ -862,7 +862,7 @@ export default function HostCalendarPricing({
           <div className="flex items-center gap-2">
             <DoorOpen className="w-4 h-4 text-primary" />
             <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">
-              Quản Lý Loại Phòng Trong Cơ Sở ({draftRoomTypes.length} loại phòng)
+              {t('hostCalendar.roomTypesHeading', { count: draftRoomTypes.length })}
             </h3>
           </div>
           {!isUnauthorizedSolo && (
@@ -874,7 +874,7 @@ export default function HostCalendarPricing({
               className="text-xs font-mono py-1 px-3"
             >
               <Plus className="w-3.5 h-3.5 mr-1" />
-              Thêm loại phòng mới
+              {t('hostCalendar.addNewRoomType')}
             </Button>
           )}
         </div>
@@ -906,10 +906,10 @@ export default function HostCalendarPricing({
                       </span>
                     </div>
                     <div className="text-[11px] text-text-secondary flex items-center gap-2">
-                      <span>Tối đa {displayGuests} khách</span>
+                      <span>{t('hostCalendar.maxGuests', { count: displayGuests })}</span>
                       <span>•</span>
                       <span className={displayStatus === 'available' ? 'text-success' : 'text-danger'}>
-                        {displayStatus === 'available' ? 'Đang mở' : 'Tạm đóng'}
+                        {displayStatus === 'available' ? t('hostCalendar.statusOpen') : t('hostCalendar.statusClosed')}
                       </span>
                     </div>
                   </div>
@@ -921,7 +921,7 @@ export default function HostCalendarPricing({
                         e.stopPropagation();
                         handleDeleteRoomType(rt.id);
                       }}
-                      title="Xóa loại phòng này"
+                      title={t('hostCalendar.deleteRoomTitle')}
                       className="p-1 rounded text-text-disabled hover:text-danger hover:bg-danger/20 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -933,10 +933,10 @@ export default function HostCalendarPricing({
                   <div className="flex items-center gap-1 text-warning font-bold">
                     <Zap className="w-3 h-3" />
                     <span>{displayPrice.toLocaleString()} Sats</span>
-                    <span className="text-[9px] font-normal text-text-secondary">/đêm</span>
+                    <span className="text-[9px] font-normal text-text-secondary">/ {t('hostReg.perNight')}</span>
                   </div>
                   <span className="text-[10px] text-text-secondary">
-                    {displayRules.length > 0 ? `${displayRules.length} quy tắc mùa` : 'Giá cố định'}
+                    {displayRules.length > 0 ? t('hostCalendar.seasonalRulesCount', { count: displayRules.length }) : t('hostCalendar.fixedPrice')}
                   </span>
                 </div>
               </div>
@@ -954,7 +954,7 @@ export default function HostCalendarPricing({
               <div className="flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">
-                  Lịch Giá: <span className="text-primary">{draftRoomName || 'Loại phòng'}</span>
+                  {t('hostCalendar.priceCalendarTitle')} <span className="text-primary">{draftRoomName || t('listingDetail.roomTypeLabel')}</span>
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -965,7 +965,7 @@ export default function HostCalendarPricing({
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <span className="text-xs font-mono font-bold text-white px-2">
-                  Tháng {currentDate.getMonth() + 1} / {currentDate.getFullYear()}
+                  {t('hostCalendar.monthFormat', { month: currentDate.getMonth() + 1, year: currentDate.getFullYear() })}
                 </span>
                 <button
                   onClick={handleNextMonth}
@@ -1031,15 +1031,15 @@ export default function HostCalendarPricing({
               <div className="pt-3 border-t border-border/40 flex flex-wrap items-center gap-4 text-[10px] font-mono text-text-secondary">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded bg-surface border border-border" />
-                  <span>Giá cơ sở (Mặc định)</span>
+                  <span>{t('hostCalendar.legendBasePrice')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded bg-primary/20 border border-primary" />
-                  <span>Áp dụng quy tắc động</span>
+                  <span>{t('hostCalendar.legendDynamicRule')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded bg-accent" />
-                  <span>Hôm nay</span>
+                  <span>{t('hostCalendar.legendToday')}</span>
                 </div>
               </div>
             </CardContent>
@@ -1053,7 +1053,7 @@ export default function HostCalendarPricing({
               <div className="flex items-center gap-2">
                 <Tag className="w-4 h-4 text-warning" />
                 <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">
-                  Quy Tắc Giá: <span className="text-warning">{draftRoomName || 'Loại phòng'}</span>
+                  {t('hostCalendar.pricingRulesTitle')} <span className="text-warning">{draftRoomName || t('listingDetail.roomTypeLabel')}</span>
                 </h3>
               </div>
               {!isUnauthorizedSolo && (
@@ -1064,7 +1064,7 @@ export default function HostCalendarPricing({
                   onClick={() => setShowAddRuleForm(!showAddRuleForm)}
                 >
                   <Plus className="w-3.5 h-3.5 mr-1" />
-                  {showAddRuleForm ? 'Đóng' : 'Thêm quy tắc'}
+                  {showAddRuleForm ? t('hostCalendar.closeRuleForm') : t('hostCalendar.addRuleForm')}
                 </Button>
               )}
             </CardHeader>
@@ -1082,15 +1082,15 @@ export default function HostCalendarPricing({
                   >
                     <div className="font-bold text-primary flex items-center gap-1.5 pb-1 border-b border-white/5">
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Thiết Lập Quy Tắc Giá Mới</span>
+                      <span>{t('hostCalendar.setupNewRule')}</span>
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-text-secondary uppercase block mb-1">Tên Quy Tắc / Nhãn:</label>
+                      <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.ruleNameLabel')}</label>
                       <input
                         type="text"
                         required
-                        placeholder="Ví dụ: Tết 2026, Cuối tuần VIP..."
+                        placeholder={t('hostCalendar.ruleNamePlaceholder')}
                         value={ruleLabel}
                         onChange={(e) => setRuleLabel(e.target.value)}
                         className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-primary"
@@ -1099,20 +1099,20 @@ export default function HostCalendarPricing({
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-text-secondary uppercase block mb-1">Loại Quy Tắc:</label>
+                        <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.ruleTypeLabel')}</label>
                         <select
                           value={ruleType}
                           onChange={(e) => setRuleType(e.target.value as PriceRuleType)}
                           className="w-full bg-surface border border-border rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-primary"
                         >
-                          <option value="day_of_week">Thứ trong tuần</option>
-                          <option value="date_range">Khoảng ngày cụ thể</option>
-                          <option value="recurring_month">Tháng định kỳ</option>
+                          <option value="day_of_week">{t('hostCalendar.ruleTypeDayOfWeek')}</option>
+                          <option value="date_range">{t('hostCalendar.ruleTypeDateRange')}</option>
+                          <option value="recurring_month">{t('hostCalendar.ruleTypeRecurringMonth')}</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="text-[10px] text-text-secondary uppercase block mb-1">Độ Ưu Tiên (Priority):</label>
+                        <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.priorityLabel')}</label>
                         <input
                           type="number"
                           value={rulePriority}
@@ -1127,7 +1127,7 @@ export default function HostCalendarPricing({
                     {/* Conditional inputs by type */}
                     {ruleType === 'day_of_week' && (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] text-text-secondary uppercase block">Chọn các thứ áp dụng:</label>
+                        <label className="text-[10px] text-text-secondary uppercase block">{t('hostCalendar.selectDaysOfWeek')}</label>
                         <div className="flex flex-wrap gap-1.5">
                           {['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map(day => (
                             <button
@@ -1154,14 +1154,14 @@ export default function HostCalendarPricing({
                             onClick={() => setRuleDaysOfWeek(['SA', 'SU'])}
                             className="text-primary hover:underline"
                           >
-                            + Cuối tuần (T7, CN)
+                            {t('hostCalendar.btnWeekend')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setRuleDaysOfWeek(['MO', 'TU', 'WE', 'TH', 'FR'])}
                             className="text-text-secondary hover:text-white hover:underline"
                           >
-                            + Ngày thường (T2-T6)
+                            {t('hostCalendar.btnWeekdays')}
                           </button>
                         </div>
                       </div>
@@ -1170,7 +1170,7 @@ export default function HostCalendarPricing({
                     {ruleType === 'date_range' && (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-text-secondary uppercase block mb-1">Từ ngày:</label>
+                          <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.fromDateLabel')}</label>
                           <input
                             type="date"
                             value={ruleStartDate}
@@ -1179,7 +1179,7 @@ export default function HostCalendarPricing({
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-text-secondary uppercase block mb-1">Đến ngày:</label>
+                          <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.toDateLabel')}</label>
                           <input
                             type="date"
                             value={ruleEndDate}
@@ -1193,26 +1193,26 @@ export default function HostCalendarPricing({
                     {ruleType === 'recurring_month' && (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-text-secondary uppercase block mb-1">Từ tháng:</label>
+                          <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.fromMonthLabel')}</label>
                           <select
                             value={ruleStartMonth}
                             onChange={(e) => setRuleStartMonth(Number(e.target.value))}
                             className="w-full bg-surface border border-border rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-primary"
                           >
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                              <option key={m} value={m}>Tháng {m}</option>
+                              <option key={m} value={m}>{t('hostCalendar.monthOption', { month: m })}</option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px] text-text-secondary uppercase block mb-1">Đến tháng:</label>
+                          <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.toMonthLabel')}</label>
                           <select
                             value={ruleEndMonth}
                             onChange={(e) => setRuleEndMonth(Number(e.target.value))}
                             className="w-full bg-surface border border-border rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-primary"
                           >
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                              <option key={m} value={m}>Tháng {m}</option>
+                              <option key={m} value={m}>{t('hostCalendar.monthOption', { month: m })}</option>
                             ))}
                           </select>
                         </div>
@@ -1220,7 +1220,7 @@ export default function HostCalendarPricing({
                     )}
 
                     <div>
-                      <label className="text-[10px] text-text-secondary uppercase block mb-1">Giá Tuyệt Đối (Sats/đêm):</label>
+                      <label className="text-[10px] text-text-secondary uppercase block mb-1">{t('hostCalendar.absolutePriceLabel')}</label>
                       <input
                         type="number"
                         required
@@ -1239,10 +1239,10 @@ export default function HostCalendarPricing({
                         size="sm"
                         onClick={() => setShowAddRuleForm(false)}
                       >
-                        Hủy
+                        {t('common.cancel')}
                       </Button>
                       <Button type="submit" variant="primary" size="sm">
-                        Lưu vào danh sách
+                        {t('hostCalendar.btnSaveRule')}
                       </Button>
                     </div>
                   </motion.form>
@@ -1253,7 +1253,7 @@ export default function HostCalendarPricing({
               <div className="space-y-2">
                 {draftRules.length === 0 ? (
                   <div className="p-6 text-center text-text-secondary font-mono text-xs bg-black/20 rounded-xl border border-border/50">
-                    Chưa có quy tắc giá theo ngày nào. Giá phòng sẽ áp dụng mức cố định cơ sở ({draftPriceSats.toLocaleString()} Sats).
+                    {t('hostCalendar.noRulesNotice', { sats: draftPriceSats.toLocaleString() })}
                   </div>
                 ) : (
                   draftRules.map((rule) => (
@@ -1271,9 +1271,9 @@ export default function HostCalendarPricing({
 
                         <div className="text-[10px] text-text-secondary flex items-center gap-2">
                           <span>
-                            {rule.type === 'day_of_week' && `Thứ: ${rule.daysOfWeek?.join(', ')}`}
+                            {rule.type === 'day_of_week' && t('hostCalendar.ruleDayOfWeekDesc', { days: rule.daysOfWeek?.join(', ') || '' })}
                             {rule.type === 'date_range' && `${rule.startDate} → ${rule.endDate}`}
-                            {rule.type === 'recurring_month' && `Tháng ${rule.startMonth} - ${rule.endMonth} hàng năm`}
+                            {rule.type === 'recurring_month' && t('hostCalendar.ruleRecurringMonthDesc', { start: rule.startMonth, end: rule.endMonth })}
                           </span>
                         </div>
                       </div>
@@ -1287,7 +1287,7 @@ export default function HostCalendarPricing({
                             type="button"
                             onClick={() => handleDeleteRule(rule.id)}
                             className="p-1 rounded text-text-disabled hover:text-danger hover:bg-danger/10 transition-colors"
-                            title="Xóa quy tắc"
+                            title={t('hostCalendar.deleteRuleTitle')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1310,13 +1310,13 @@ export default function HostCalendarPricing({
               <Lock className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-base font-bold font-mono text-white">Quyền Chỉnh Sửa Trực Tiếp Bị Khóa</h4>
+              <h4 className="text-base font-bold font-mono text-white">{t('hostCalendar.directEditLockedTitle')}</h4>
               <p className="text-sm font-mono text-danger font-medium">
-                Bạn không phải chủ sở hữu listing này — chỉ npub {soloOwnerShortNpub} mới có quyền chỉnh sửa trực tiếp.
+                {t('hostCalendar.notOwnerWarning', { npub: soloOwnerShortNpub })}
               </p>
             </div>
             <p className="text-xs font-mono text-text-secondary max-w-md mx-auto">
-              Listing này được bảo vệ theo cơ chế xác thực Cypher BFT. Chỉ danh tính Nostr sở hữu 100% quyền quản trị ({soloOwnerShortNpub}) mới có quyền chỉnh sửa trực tiếp dữ liệu cơ sở lưu trú.
+              {t('hostCalendar.directEditLockedDesc', { npub: soloOwnerShortNpub })}
             </p>
           </CardContent>
         </Card>
@@ -1325,10 +1325,10 @@ export default function HostCalendarPricing({
           <CardHeader className="pb-4 border-b border-border">
             <h3 className="text-base font-bold font-mono text-white flex items-center gap-2">
               <Sliders className="w-5 h-5 text-primary" />
-              <span>Phân Quyền Sửa Dữ Liệu Theo Nhóm Rủi Ro</span>
+              <span>{t('hostCalendar.riskGroupingTitle')}</span>
             </h3>
             <p className="text-xs text-text-secondary font-mono">
-              Phân loại rõ ràng các trường dữ liệu theo chính sách giao thức BFT của Cypher Travel.
+              {t('hostCalendar.riskGroupingDesc')}
             </p>
           </CardHeader>
 
@@ -1338,29 +1338,29 @@ export default function HostCalendarPricing({
               <div className="flex items-center justify-between pb-2 border-b border-border/40">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded bg-success/20 text-success border border-success/30 font-mono text-xs font-bold">
-                    Nhóm A
+                    {t('hostCalendar.groupATitle')}
                   </span>
-                  <span className="text-xs font-bold font-mono text-white uppercase">Tức Thời (Low Risk)</span>
+                  <span className="text-xs font-bold font-mono text-white uppercase">{t('hostCalendar.groupASubtitle')}</span>
                 </div>
                 <span className="text-[10px] font-mono text-text-secondary">
-                  {hasDirectEditAccess ? 'Solo: Ký 1 lần & Áp dụng ngay' : 'Multi: Qua Governance đề xuất'}
+                  {hasDirectEditAccess ? t('hostCalendar.groupASoloAccess') : t('hostCalendar.groupAMultiAccess')}
                 </span>
               </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
               <div>
-                <label className="text-text-secondary block mb-1">Tên loại phòng đang chọn (Room Name):</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelRoomName')}</label>
                 <input
                   type="text"
                   value={draftRoomName}
                   onChange={(e) => setDraftRoomName(e.target.value)}
-                  placeholder="Ví dụ: Lều Glamping, Bungalow..."
+                  placeholder={t('hostCalendar.phRoomName')}
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white font-bold focus:outline-none focus:border-primary"
                 />
               </div>
 
               <div>
-                <label className="text-text-secondary block mb-1">Giá cơ sở phòng này (Base Sats/đêm):</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelBasePrice')}</label>
                 <input
                   type="number"
                   value={draftPriceSats}
@@ -1371,7 +1371,7 @@ export default function HostCalendarPricing({
               </div>
 
               <div>
-                <label className="text-text-secondary block mb-1">Sức chứa loại phòng này (Khách):</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelCapacity')}</label>
                 <input
                   type="number"
                   value={draftMaxGuests}
@@ -1383,22 +1383,22 @@ export default function HostCalendarPricing({
               </div>
 
               <div>
-                <label className="text-text-secondary block mb-1">Trạng thái nhận khách của phòng:</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelRoomStatus')}</label>
                 <select
                   value={draftStatus}
                   onChange={(e) => setDraftStatus(e.target.value as any)}
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
                 >
-                  <option value="available">Available (Đang mở nhận khách)</option>
-                  <option value="occupied">Occupied / Đóng cửa (Tạm dừng nhận khách)</option>
+                  <option value="available">{t('hostCalendar.optAvailable')}</option>
+                  <option value="occupied">{t('hostCalendar.optOccupied')}</option>
                 </select>
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-text-secondary block mb-1">Tiện nghi riêng của loại phòng (phân tách dấu phẩy):</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelRoomSpecs')}</label>
                 <input
                   type="text"
-                  placeholder="Lồng Faraday, Ban công view rừng, Khóa Nostr tử tế..."
+                  placeholder={t('hostCalendar.phRoomSpecs')}
                   value={draftRoomSpecsStr}
                   onChange={(e) => setDraftRoomSpecsStr(e.target.value)}
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
@@ -1406,7 +1406,7 @@ export default function HostCalendarPricing({
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-text-secondary block mb-1">URL Ảnh Đại Diện Homestay:</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelCoverUrl')}</label>
                 <input
                   type="text"
                   value={draftImageUrl}
@@ -1416,7 +1416,7 @@ export default function HostCalendarPricing({
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-text-secondary block mb-1">Mô tả Tổng quan Homestay:</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelDesc')}</label>
                 <textarea
                   rows={3}
                   value={draftDesc}
@@ -1432,12 +1432,12 @@ export default function HostCalendarPricing({
             <div className="flex items-center justify-between pb-2 border-b border-border/40">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-warning/20 text-warning border border-warning/30 font-mono text-xs font-bold">
-                  Nhóm B
+                  {t('hostCalendar.groupBTitle')}
                 </span>
-                <span className="text-xs font-bold font-mono text-white uppercase">Cẩn Trọng (Medium Risk)</span>
+                <span className="text-xs font-bold font-mono text-white uppercase">{t('hostCalendar.groupBSubtitle')}</span>
               </div>
               <span className="text-[10px] font-mono text-text-secondary">
-                Luôn qua Governance Audit Trail. Chặn sửa nếu có booking active.
+                {t('hostCalendar.groupBDesc')}
               </span>
             </div>
 
@@ -1445,14 +1445,14 @@ export default function HostCalendarPricing({
               <div className="p-3 bg-warning/10 border border-warning/30 rounded-xl text-xs font-mono text-warning flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 shrink-0" />
                 <span>
-                  Đang có {activeBookings.length} booking đang hoạt động trên listing này. Nhóm B tạm thời bị khóa để bảo vệ khách theo giao thức.
+                  {t('hostCalendar.groupBLockedActiveNotice', { count: activeBookings.length })}
                 </span>
               </div>
             )}
 
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono ${isGroupBBlocked ? 'opacity-50 pointer-events-none' : ''}`}>
               <div className="md:col-span-2">
-                <label className="text-text-secondary block mb-1">Tiêu đề Homestay (Title):</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelListingTitle')}</label>
                 <input
                   type="text"
                   disabled={isGroupBBlocked}
@@ -1463,7 +1463,7 @@ export default function HostCalendarPricing({
               </div>
 
               <div>
-                <label className="text-text-secondary block mb-1">Danh sách KYC Verifiers (npub phân tách bằng dấu phẩy):</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelKycVerifiers')}</label>
                 <input
                   type="text"
                   disabled={isGroupBBlocked}
@@ -1475,7 +1475,7 @@ export default function HostCalendarPricing({
               </div>
 
               <div>
-                <label className="text-text-secondary block mb-1">Ngưỡng KYC bắt buộc (Sats, 0 = không bắt buộc):</label>
+                <label className="text-text-secondary block mb-1">{t('hostCalendar.labelKycThreshold')}</label>
                 <input
                   type="number"
                   disabled={isGroupBBlocked}
@@ -1493,26 +1493,26 @@ export default function HostCalendarPricing({
             <div className="flex items-center justify-between pb-2 border-b border-border/40">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-danger/20 text-danger border border-danger/30 font-mono text-xs font-bold flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Nhóm C
+                  <Lock className="w-3 h-3" /> {t('hostCalendar.groupCTitle')}
                 </span>
-                <span className="text-xs font-bold font-mono text-white uppercase">Khóa Cứng (Immutable / Council Only)</span>
+                <span className="text-xs font-bold font-mono text-white uppercase">{t('hostCalendar.groupCSubtitle')}</span>
               </div>
               <span className="text-[10px] font-mono text-text-secondary">
-                Không thể sửa qua Extranet
+                {t('hostCalendar.groupCDesc')}
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono text-text-secondary">
               <div className="p-3 bg-black/30 rounded-lg border border-border/40">
-                <span className="text-[10px] uppercase text-text-disabled block mb-1">Tọa độ Meshnet Coordinates:</span>
+                <span className="text-[10px] uppercase text-text-disabled block mb-1">{t('hostCalendar.labelMeshCoords')}</span>
                 <span className="text-white font-mono">{selectedListing.meshCoordinates}</span>
                 <p className="text-[9px] text-text-disabled mt-1 italic">
-                  *Bất biến: Phải tạo listing mới nếu di dời vị trí vật lý.
+                  {t('hostCalendar.noteMeshImmutable')}
                 </p>
               </div>
 
               <div className="p-3 bg-black/30 rounded-lg border border-border/40">
-                <span className="text-[10px] uppercase text-text-disabled block mb-1">Danh sách Cổ đông & Tỷ lệ Share:</span>
+                <span className="text-[10px] uppercase text-text-disabled block mb-1">{t('hostCalendar.labelCoOwnersShares')}</span>
                 <div className="space-y-0.5">
                   {selectedListing.coOwners.map((co, i) => (
                     <div key={i} className="text-[11px] text-white flex justify-between">
@@ -1522,7 +1522,7 @@ export default function HostCalendarPricing({
                   ))}
                 </div>
                 <p className="text-[9px] text-text-disabled mt-1 italic">
-                  *Chỉ thay đổi qua Đề xuất BFT Council tại Tab Quản trị.
+                  {t('hostCalendar.noteCouncilProposal')}
                 </p>
               </div>
             </div>
@@ -1534,19 +1534,19 @@ export default function HostCalendarPricing({
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2 text-xs font-mono">
                 <div className="font-bold text-primary flex items-center gap-2">
                   <FileCheck className="w-4 h-4" />
-                  <span>Tổng kết {changes.listA.length + changes.listB.length} thay đổi đang chờ ký:</span>
+                  <span>{t('hostCalendar.pendingChangesSummary', { count: changes.listA.length + changes.listB.length })}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
                   {changes.listA.map((c, i) => (
                     <div key={`a_${i}`} className="p-2 bg-black/30 rounded border border-white/5">
-                      <span className="text-success font-bold block">[Nhóm A] {c.label}</span>
+                      <span className="text-success font-bold block">[{t('hostCalendar.groupATitle')}] {c.label}</span>
                       <span className="text-text-disabled line-through text-[10px]">{c.oldVal}</span>{' '}
                       <span className="text-white font-bold">{c.newVal}</span>
                     </div>
                   ))}
                   {changes.listB.map((c, i) => (
                     <div key={`b_${i}`} className="p-2 bg-black/30 rounded border border-white/5">
-                      <span className="text-warning font-bold block">[Nhóm B] {c.label}</span>
+                      <span className="text-warning font-bold block">[{t('hostCalendar.groupBTitle')}] {c.label}</span>
                       <span className="text-text-disabled line-through text-[10px]">{c.oldVal}</span>{' '}
                       <span className="text-white font-bold">{c.newVal}</span>
                     </div>
@@ -1555,7 +1555,7 @@ export default function HostCalendarPricing({
               </div>
             ) : (
               <div className="text-center py-2 text-xs font-mono text-text-disabled">
-                Chưa có thay đổi nào so với dữ liệu listing hiện tại.
+                {t('hostCalendar.noChangesNotice')}
               </div>
             )}
 
@@ -1578,11 +1578,11 @@ export default function HostCalendarPricing({
                 className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider"
               >
                 {isSigning ? (
-                  <span>Đang ký Schnorr...</span>
+                  <span>{t('hostCalendar.signingSchnorr')}</span>
                 ) : hasDirectEditAccess ? (
-                  <span>Ký Schnorr & Áp Dụng Ngay (Solo Host)</span>
+                  <span>{t('hostCalendar.signSoloApply')}</span>
                 ) : (
-                  <span>Ký & Tạo Đề Xuất Quản Trị (Multi-Owner)</span>
+                  <span>{t('hostCalendar.signMultiProposal')}</span>
                 )}
               </Button>
             </div>

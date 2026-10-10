@@ -178,7 +178,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      const msg = t('hostReg.errImgOver10MB') || 'Dung lượng ảnh vượt quá 10MB! Vui lòng chọn ảnh nhỏ hơn.';
+      const msg = t('hostReg.errImgOver10MB');
       setErrorMsg(msg);
       setCoverUploadState({ status: 'error', progress: 0, error: msg });
       return;
@@ -212,7 +212,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
               server,
               isFallback: !server.isPrimary,
               latency: server.latency ?? 0,
-              warning: server.isPrimary ? undefined : `Đã tải ảnh thành công qua máy chủ: ${server.name}`
+              warning: server.isPrimary ? undefined : t('hostReg.uploadedViaServer', { server: server.name })
             });
           }
         }
@@ -225,7 +225,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       }, 1500);
     } catch (err: any) {
       console.error('Image upload error:', err);
-      const errMsg = err.message || 'Lỗi khi tải ảnh bìa lên máy chủ Nostr.';
+      const errMsg = err.message || t('hostReg.errUploadCoverNostr');
       setCoverUploadState({ status: 'error', progress: 0, error: errMsg });
       setErrorMsg(errMsg);
     } finally {
@@ -241,7 +241,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     if (!files || files.length === 0) return;
 
     if (files.length > 10) {
-      setErrorMsg('Chỉ chọn tối đa 10 ảnh mỗi lần, vui lòng chọn ít hơn.');
+      setErrorMsg(t('hostReg.errMax10Images'));
       return;
     }
 
@@ -262,7 +262,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         previewUrl,
         status: isOverSize ? 'error' : 'queued',
         progress: 0,
-        error: isOverSize ? (t('hostReg.errImgOver10MB') || 'Kích thước vượt quá 10MB') : undefined
+        error: isOverSize ? t('hostReg.errImgOver10MB') : undefined
       };
     });
 
@@ -278,7 +278,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     } catch (serverErr: any) {
       setUploadQueue(prev => prev.map(item => {
         if (newItems.some(ni => ni.id === item.id) && item.status === 'queued') {
-          return { ...item, status: 'error', error: serverErr.message || 'Không tìm thấy server media khả dụng' };
+          return { ...item, status: 'error', error: serverErr.message || t('hostReg.errNoMediaServer') };
         }
         return item;
       }));
@@ -299,7 +299,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
       try {
         compressedBlob = await compressImage(item.file, compressionLevel);
       } catch (compErr: any) {
-        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'error', error: 'Lỗi nén ảnh: ' + compErr.message } : q));
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'error', error: t('hostReg.errCompressImg', { msg: compErr.message }) } : q));
         continue;
       }
 
@@ -320,7 +320,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 server,
                 isFallback: !server.isPrimary,
                 latency: server.latency ?? 0,
-                warning: server.isPrimary ? undefined : `Đã tải ảnh thành công qua máy chủ: ${server.name}`
+                warning: server.isPrimary ? undefined : t('hostReg.uploadedViaServer', { server: server.name })
               });
             }
           }
@@ -340,7 +340,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         }, 1200);
       } catch (uploadErr: any) {
         console.error('Batch item upload error:', uploadErr);
-        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'error', error: uploadErr.message || 'Lỗi tải ảnh' } : q));
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'error', error: uploadErr.message || t('hostReg.errUploadImg') } : q));
       }
 
       // Delay 300ms to allow mobile browser Garbage Collector to clean up canvas/img memory
@@ -516,7 +516,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
     } catch (err) {
       console.error(err);
       const detail = err instanceof Error ? err.message : String(err);
-      setErrorMsg(`${t('hostReg.errSigning')} — Chi tiết: ${detail}`);
+      setErrorMsg(`${t('hostReg.errSigning')} — ${t('hostReg.detailPrefix')}: ${detail}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -608,10 +608,10 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Server className="w-3.5 h-3.5 text-cyber-blue shrink-0" />
-                    <span className="text-[10px] uppercase font-bold text-gray-400">Máy chủ Media (NIP-96):</span>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">{t('hostReg.mediaServerLabel')}</span>
                     {isTestingServer ? (
                       <span className="inline-flex items-center gap-1 text-[10px] text-cyber-amber">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Đang kiểm tra kết nối...
+                        <Loader2 className="w-3 h-3 animate-spin" /> {t('hostReg.checkingConn')}
                       </span>
                     ) : activeServerInfo ? (
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -621,10 +621,10 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${activeServerInfo.isFallback ? 'bg-cyber-amber animate-pulse' : 'bg-cyber-green'}`} />
                         {activeServerInfo.server.name} ({activeServerInfo.latency}ms)
-                        {activeServerInfo.isFallback && ' [Dự phòng]'}
+                        {activeServerInfo.isFallback && t('hostReg.fallbackBadge')}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-gray-500">Chưa kiểm tra</span>
+                      <span className="text-[10px] text-gray-500">{t('hostReg.notChecked')}</span>
                     )}
                   </div>
 
@@ -638,10 +638,10 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                           ? 'bg-danger/20 border-danger/40 text-danger hover:bg-danger/30'
                           : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                       }`}
-                      title="Mô phỏng máy chủ chính bị tắt để kiểm tra tính năng tự động chuyển sang máy chủ dự phòng"
+                      title={t('hostReg.simulateOfflineTooltip')}
                     >
                       <RefreshCw className={`w-2.5 h-2.5 ${isTestingServer ? 'animate-spin' : ''}`} />
-                      <span>{simulateOffline ? '🧪 Server chính: ĐANG TẮT (Giả lập)' : '🧪 Giả lập tắt server chính'}</span>
+                      <span>{simulateOffline ? t('hostReg.simPrimaryOffline') : t('hostReg.simPrimaryAction')}</span>
                     </button>
                   )}
                 </div>
@@ -651,7 +651,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   <div className="p-2 bg-cyber-amber/10 border border-cyber-amber/30 rounded-lg text-[10px] text-cyber-amber flex items-start gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-cyber-amber" />
                     <div>
-                      <span className="font-bold">Cảnh báo chuyển hướng:</span> {activeServerInfo.warning}
+                      <span className="font-bold">{t('hostReg.redirectWarning')}:</span> {activeServerInfo.warning}
                     </div>
                   </div>
                 )}
@@ -674,17 +674,17 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     {coverUploadState.status === 'compressing' ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                        <span>Nén ảnh bìa...</span>
+                        <span>{t('hostReg.compressingCover')}</span>
                       </>
                     ) : coverUploadState.status === 'uploading' ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                        <span>Đang tải lên {coverUploadState.progress}%</span>
+                        <span>{t('hostReg.uploadingProgress', { progress: coverUploadState.progress })}</span>
                       </>
                     ) : (
                       <>
                         <Upload className="w-4 h-4" />
-                        <span>{imageUrl ? 'Đổi ảnh bìa từ tệp' : t('hostReg.uploadFromFile')}</span>
+                        <span>{imageUrl ? t('hostReg.changeCoverFromFile') : t('hostReg.uploadFromFile')}</span>
                       </>
                     )}
                   </label>
@@ -749,21 +749,21 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     onClick={() => setCompressionLevel('high')}
                     className={`flex-1 text-[10px] font-mono py-1 rounded transition-colors ${compressionLevel === 'high' ? 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                   >
-                    Tiết kiệm dữ liệu
+                    {t('hostReg.presetDataSaver')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCompressionLevel('medium')}
                     className={`flex-1 text-[10px] font-mono py-1 rounded transition-colors ${compressionLevel === 'medium' ? 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                   >
-                    Cân bằng
+                    {t('hostReg.presetBalanced')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCompressionLevel('low')}
                     className={`flex-1 text-[10px] font-mono py-1 rounded transition-colors ${compressionLevel === 'low' ? 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                   >
-                    Chất lượng cao
+                    {t('hostReg.presetHighQuality')}
                   </button>
                 </div>
 
@@ -781,7 +781,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     {isBatchProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-cyber-blue" />
-                        <span>Đang xử lý tải ảnh...</span>
+                        <span>{t('hostReg.processingUpload')}</span>
                       </>
                     ) : (
                       <>
@@ -806,11 +806,11 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
                       <span className="font-bold flex items-center gap-1 text-white">
                         <Clock className="w-3 h-3 text-cyber-blue" />
-                        Tiến trình từng ảnh ({uploadQueue.filter(q => q.status === 'done').length}/{uploadQueue.length}):
+                        {t('hostReg.queueProgress', { done: uploadQueue.filter(q => q.status === 'done').length, total: uploadQueue.length })}
                       </span>
                       {isBatchProcessing && (
                         <span className="text-cyber-blue text-[9px] animate-pulse">
-                          Đang tải lên tuần tự...
+                          {t('hostReg.uploadingSequential')}
                         </span>
                       )}
                     </div>
@@ -857,27 +857,27 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                             <div className="flex items-center justify-between gap-1 mt-0.5">
                               {item.status === 'queued' && (
                                 <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                                  <Clock className="w-3 h-3" /> Đang chờ...
+                                  <Clock className="w-3 h-3" /> {t('hostReg.queueWaiting')}
                                 </span>
                               )}
                               {item.status === 'compressing' && (
                                 <span className="text-[10px] text-cyber-blue flex items-center gap-1">
-                                  <Loader2 className="w-3 h-3 animate-spin" /> Nén ảnh...
+                                  <Loader2 className="w-3 h-3 animate-spin" /> {t('hostReg.queueCompressing')}
                                 </span>
                               )}
                               {item.status === 'uploading' && (
                                 <span className="text-[10px] text-cyber-blue font-bold flex items-center gap-1">
-                                  <span>Đang tải lên {item.progress}%</span>
+                                  <span>{t('hostReg.uploadingProgress', { progress: item.progress })}</span>
                                 </span>
                               )}
                               {item.status === 'done' && (
                                 <span className="text-[10px] text-cyber-green flex items-center gap-1 font-bold">
-                                  <CheckCircle2 className="w-3 h-3" /> Đã xong ✓
+                                  <CheckCircle2 className="w-3 h-3" /> {t('hostReg.queueDone')}
                                 </span>
                               )}
                               {item.status === 'error' && (
                                 <span className="text-[10px] text-danger flex items-center gap-1 truncate" title={item.error}>
-                                  <AlertTriangle className="w-3 h-3 shrink-0" /> {item.error || 'Lỗi tải ảnh'}
+                                  <AlertTriangle className="w-3 h-3 shrink-0" /> {item.error || t('hostReg.errUploadImg')}
                                 </span>
                               )}
                             </div>
@@ -899,7 +899,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                               type="button"
                               onClick={() => removeQueueItem(item.id)}
                               className="p-1 hover:bg-danger/20 text-danger rounded transition-colors shrink-0"
-                              title="Xóa thông báo lỗi này"
+                              title={t('hostReg.clearErrorTooltip')}
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -1052,7 +1052,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
               <div className="p-3 bg-black/40 border border-white/10 rounded-xl space-y-2.5">
                 <label className="text-[10px] text-cyber-blue font-mono uppercase font-bold flex items-center gap-1.5">
                   <Bed className="w-3.5 h-3.5 text-cyber-blue" />
-                  Thông số phòng thực tế (RFC-0018)
+                  {t('hostReg.physicalSpecsTitle')}
                 </label>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
@@ -1119,10 +1119,10 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                     >
                       <div className="font-bold uppercase text-[10px]">{policy}</div>
                       <div className="text-[9px] opacity-80 line-clamp-1">
-                        {policy === 'flexible' && 'Hủy trước 24h: 100%'}
-                        {policy === 'moderate' && 'Hủy trước 5 ngày: 100%'}
-                        {policy === 'strict' && 'Hủy trước 14 ngày: 100%'}
-                        {policy === 'nonrefundable' && 'Không hoàn tiền'}
+                        {policy === 'flexible' && t('hostReg.summaryPolicyFlexible')}
+                        {policy === 'moderate' && t('hostReg.summaryPolicyModerate')}
+                        {policy === 'strict' && t('hostReg.summaryPolicyStrict')}
+                        {policy === 'nonrefundable' && t('hostReg.summaryPolicyNonrefundable')}
                       </div>
                     </button>
                   ))}
@@ -1210,7 +1210,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
             </div>
           </div>
 
-          {/* Cổ đông Multisig (Co-Owners) */}
+          {/* Multisig Co-Owners */}
           {(() => {
             const totalShares = coOwners.reduce((sum, owner) => sum + (Number(owner.share) || 0), 0);
             const isTotalValid = totalShares === 100;
@@ -1449,7 +1449,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
               className="px-6 py-2.5 bg-cyber-green hover:bg-cyber-green/80 text-black rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 disabled:opacity-50"
             >
               <ShieldCheck className="w-4 h-4" />
-              {isSubmitting ? t('hostReg.signingBtn') : (isBatchProcessing || coverUploadState.status === 'uploading') ? 'Đang tải ảnh...' : t('hostReg.signAndBroadcast')}
+              {isSubmitting ? t('hostReg.signingBtn') : (isBatchProcessing || coverUploadState.status === 'uploading') ? t('hostReg.uploadingImagesBtn') : t('hostReg.signAndBroadcast')}
             </button>
           </div>
         </form>

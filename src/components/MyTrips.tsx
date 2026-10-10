@@ -118,13 +118,13 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
                       </h4>
                       <div className="text-[10px] text-text-secondary font-mono space-y-1">
                         <p>{t('myTrips.checkInLabel')} <span className="text-white font-bold">{trip.startDate}</span></p>
-                        <p>{t('myTrips.checkOutLabel')} <span className="text-white font-bold">{trip.endDate}</span> ({trip.nights} đêm)</p>
+                        <p>{t('myTrips.checkOutLabel')} <span className="text-white font-bold">{trip.endDate}</span> ({t('myTrips.nightsCount', { nights: trip.nights })})</p>
                         <p>
-                          Giá đã đóng băng: <span className="text-warning font-bold">
+                          {t('myTrips.lockedPriceLabel')} <span className="text-warning font-bold">
                             {trip.bookingSnapshot?.pricePerNightSats !== undefined
-                              ? `${trip.bookingSnapshot.pricePerNightSats.toLocaleString()} Sats/đêm`
-                              : `${Math.round(trip.totalPriceSats / Math.max(1, trip.nights)).toLocaleString()} Sats/đêm`}
-                          </span> · Tổng: <span className="text-white font-bold">{trip.totalPriceSats.toLocaleString()} Sats</span>
+                              ? `${trip.bookingSnapshot.pricePerNightSats.toLocaleString()} Sats/${t('hostReg.perNight')}`
+                              : `${Math.round(trip.totalPriceSats / Math.max(1, trip.nights)).toLocaleString()} Sats/${t('hostReg.perNight')}`}
+                          </span> · {t('myTrips.totalLabel')} <span className="text-white font-bold">{trip.totalPriceSats.toLocaleString()} Sats</span>
                         </p>
                         {trip.bookingSnapshot?.securitySpecs && trip.bookingSnapshot.securitySpecs.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -181,13 +181,13 @@ export default function MyTrips({ bookings, listings, identity, onUpdateBookingS
                           {trip.bookingSnapshot?.title || trip.listingTitle}
                         </h4>
                         <div className="text-[10px] text-text-secondary font-mono space-y-1">
-                          <p>{trip.startDate} — {trip.endDate} ({trip.nights} đêm)</p>
+                          <p>{trip.startDate} — {trip.endDate} ({t('myTrips.nightsCount', { nights: trip.nights })})</p>
                           <p>
-                            Giá đóng băng: <span className="text-warning font-bold">
+                            {t('myTrips.lockedPriceLabel')} <span className="text-warning font-bold">
                               {trip.bookingSnapshot?.pricePerNightSats !== undefined
-                                ? `${trip.bookingSnapshot.pricePerNightSats.toLocaleString()} Sats/đêm`
-                                : `${Math.round(trip.totalPriceSats / Math.max(1, trip.nights)).toLocaleString()} Sats/đêm`}
-                            </span> · Tổng: <span className="text-white font-bold">{trip.totalPriceSats.toLocaleString()} Sats</span>
+                                ? `${trip.bookingSnapshot.pricePerNightSats.toLocaleString()} Sats/${t('hostReg.perNight')}`
+                                : `${Math.round(trip.totalPriceSats / Math.max(1, trip.nights)).toLocaleString()} Sats/${t('hostReg.perNight')}`}
+                            </span> · {t('myTrips.totalLabel')} <span className="text-white font-bold">{trip.totalPriceSats.toLocaleString()} Sats</span>
                           </p>
                           <p>Booking ID: {trip.id}</p>
                           {trip.bookingSnapshot?.securitySpecs && trip.bookingSnapshot.securitySpecs.length > 0 && (

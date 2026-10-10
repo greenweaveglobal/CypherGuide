@@ -173,7 +173,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
 
     const targetLightningAddress = listing.coOwners?.[0]?.lightningAddress;
     if (!targetLightningAddress) {
-      setErrorMsg('Listing này chưa có Lightning Address hợp lệ của Host để nhận thanh toán.');
+      setErrorMsg(t('booking.listingNoHostLightningAddress'));
       return;
     }
 
@@ -195,7 +195,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     // Resolve Host invoice for room price
     const hostResolved = await resolveLightningAddressToInvoice(targetLightningAddress, finalHostSats);
     if (!hostResolved.invoice || !hostResolved.isReal) {
-      setErrorMsg(hostResolved.error || `Không thể tạo invoice từ máy chủ Lightning của Host (${targetLightningAddress}).`);
+      setErrorMsg(hostResolved.error || t('booking.cannotCreateHostInvoice', { address: targetLightningAddress }));
       return;
     }
 
@@ -227,13 +227,13 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
 
     // Verify invoice amounts
     if (parsedH && parsedH.amountSats > 0 && parsedH.amountSats !== finalHostSats) {
-      setErrorMsg(`Số tiền invoice Host (${parsedH.amountSats} Sats) không khớp với tiền phòng (${finalHostSats} Sats)!`);
+      setErrorMsg(t('booking.hostAmountMismatch', { invoiceSats: parsedH.amountSats, expectedSats: finalHostSats }));
       return;
     }
     if (!shouldMerge && treasuryResolvedInvoice) {
       const parsedT = parseBolt11(treasuryResolvedInvoice);
       if (parsedT && parsedT.amountSats > 0 && parsedT.amountSats !== finalTreasurySats) {
-        setErrorMsg(`Số tiền invoice Treasury (${parsedT.amountSats} Sats) không khớp với phí protocol (${finalTreasurySats} Sats)!`);
+        setErrorMsg(t('booking.treasuryAmountMismatch', { invoiceSats: parsedT.amountSats, expectedSats: finalTreasurySats }));
         return;
       }
     }
@@ -274,20 +274,20 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     } else if (shouldMerge) {
       setPaymentLog([
         t('booking.lnLogBolt11', { sats: finalHostSats.toLocaleString() }),
-        `ℹ️ [RFC-0016] Phí protocol (${protocolFeeSats} Sats) được gộp vào hóa đơn Host (${targetLightningAddress}) do quá nhỏ để tách riêng (< 1 Sat) hoặc yêu cầu minSendable từ treasury.`,
-        `Hóa đơn Host: ${hostResolved.invoice.slice(0, 32)}...`,
+        t('booking.protocolFeeMergedLogDetail', { sats: protocolFeeSats, address: targetLightningAddress }),
+        t('booking.hostInvoiceLog', { invoice: hostResolved.invoice.slice(0, 32) }),
         t('booking.lnLogTracking')
       ]);
-      onAddLog('lightning', `Hóa đơn thanh toán Host: ${finalHostSats} Sats (đã gộp phí protocol)`, parsedHHash);
+      onAddLog('lightning', t('booking.hostRoomFeeMergedLog', { sats: finalHostSats }), parsedHHash);
     } else {
       setPaymentLog([
-        `⚡ [RFC-0016 Lightning Payout Flow] Khởi tạo 2 hóa đơn Lightning phân tách độc lập:`,
-        `  ├─ Hóa đơn 1 (Host): ${finalHostSats.toLocaleString()} Sats -> ${targetLightningAddress}`,
-        `  └─ Hóa đơn 2 (Treasury Quỹ Thưởng): ${finalTreasurySats.toLocaleString()} Sats -> ${treasuryAddress}`,
-        `⚠️ TIÊU CHUẨN MẬT MÃ: Cả hai hóa đơn đều phải được xác nhận bằng Preimage SHA-256 mới kích hoạt booking.`,
-        `Trạng thái: 0/2 Hoàn tất. Đang chờ thanh toán Khoản 1...`
+        t('booking.rfc0016DualInvoiceInit'),
+        t('booking.rfc0016Invoice1Log', { sats: finalHostSats.toLocaleString(), address: targetLightningAddress }),
+        t('booking.rfc0016Invoice2Log', { sats: finalTreasurySats.toLocaleString(), address: treasuryAddress }),
+        t('booking.rfc0016CryptoStandardNote'),
+        t('booking.rfc0016StatusWaitingPart1')
       ]);
-      onAddLog('lightning', `Khởi tạo thanh toán 2 invoice: Host (${finalHostSats} Sats) + Treasury (${finalTreasurySats} Sats)`, parsedHHash);
+      onAddLog('lightning', t('booking.rfc0016InitTwoInvoicesLog', { hostSats: finalHostSats, treasurySats: finalTreasurySats }), parsedHHash);
     }
   };
 
@@ -303,7 +303,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
 
     if (!isTreasuryMerged && protocolFeeSats > 0) {
       const treasuryAddress = (infraIncentiveTreasuryLightningAddress || 'peevishtender468@walletofsatoshi.com').trim();
-      onAddLog('lightning', `  ├─ RFC-0016 Treasury: ${protocolFeeSats.toLocaleString()} Sats -> Ví Quỹ Thưởng Hạ Tầng: ${treasuryAddress}`);
+      onAddLog('lightning', t('booking.rfc0016TreasuryLogShare', { sats: protocolFeeSats.toLocaleString(), address: treasuryAddress }));
     }
   };
 
@@ -311,25 +311,25 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     const tab = targetTab || activeInvoiceTab;
     const invToPay = tab === 'host' ? hostInvoice : treasuryInvoice;
     const targetHash = tab === 'host' ? hostPaymentHash : treasuryPaymentHash;
-    const label = tab === 'host' ? `Khoản 1 (Tiền phòng Host: ${totalPriceSats.toLocaleString()} Sats)` : `Khoản 2 (Phí Treasury: ${protocolFeeSats.toLocaleString()} Sats)`;
+    const label = tab === 'host' ? t('booking.part1HostLabel', { sats: totalPriceSats.toLocaleString() }) : t('booking.part2TreasuryLabel', { sats: protocolFeeSats.toLocaleString() });
 
     if (!invToPay) return;
     setIsPaying(true);
-    setPaymentLog(prev => [...prev, `[WebLN] Đang gửi yêu cầu thanh toán cho ${label}...`]);
+    setPaymentLog(prev => [...prev, t('booking.weblnSendingPayment', { label })]);
 
     const result = await payViaWebLN(invToPay);
     if (result.success && result.preimage) {
       const isValid = await verifyLightningPreimage(result.preimage, targetHash);
       if (!isValid) {
         setIsPaying(false);
-        setPaymentLog(prev => [...prev, `❌ [WebLN] Chữ ký preimage không khớp payment_hash của ${label}!`]);
-        setErrorMsg(`Chữ ký preimage từ ví không khớp payment_hash của ${label}!`);
+        setPaymentLog(prev => [...prev, t('booking.weblnPreimageMismatch', { label })]);
+        setErrorMsg(t('booking.preimageMismatchError', { label }));
         return;
       }
 
       setPaymentLog(prev => [
         ...prev,
-        `✓ [WebLN] ${label} đã thanh toán & xác minh thành công!`,
+        t('booking.weblnPaymentSuccess', { label }),
         `  └─ Preimage: ${result.preimage?.slice(0, 32)}...`
       ]);
 
@@ -343,7 +343,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
           setActiveInvoiceTab('treasury');
           setPaymentLog(prev => [
             ...prev,
-            `⚠️ TRẠNG THÁI MỘT PHẦN (1/2): Đã thanh toán Host. Vui lòng thanh toán tiếp Khoản 2 (Phí Treasury: ${protocolFeeSats.toLocaleString()} Sats) để hoàn tất!`
+            t('booking.partialPaidHost', { sats: protocolFeeSats.toLocaleString() })
           ]);
         }
       } else {
@@ -356,14 +356,14 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
           setActiveInvoiceTab('host');
           setPaymentLog(prev => [
             ...prev,
-            `⚠️ TRẠNG THÁI MỘT PHẦN (1/2): Đã thanh toán Treasury. Vui lòng thanh toán tiếp Khoản 1 (Tiền phòng Host: ${totalPriceSats.toLocaleString()} Sats) để hoàn tất!`
+            t('booking.partialPaidTreasury', { sats: totalPriceSats.toLocaleString() })
           ]);
         }
       }
     } else {
       setIsPaying(false);
-      setPaymentLog(prev => [...prev, `❌ [WebLN] Lỗi thanh toán ${label}: ${result.error || 'Giao dịch bị từ chối'}`]);
-      setErrorMsg(result.error || `Thanh toán ${label} bị từ chối`);
+      setPaymentLog(prev => [...prev, t('booking.weblnPaymentError', { label, error: result.error || t('booking.txRejected') })]);
+      setErrorMsg(result.error || t('booking.paymentRejected', { label }));
     }
   };
 
@@ -379,13 +379,13 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     const tab = targetTab || activeInvoiceTab;
     const invToPay = tab === 'host' ? hostInvoice : treasuryInvoice;
     const targetHash = tab === 'host' ? hostPaymentHash : treasuryPaymentHash;
-    const label = tab === 'host' ? `Khoản 1 (Tiền phòng Host: ${totalPriceSats.toLocaleString()} Sats)` : `Khoản 2 (Phí Treasury: ${protocolFeeSats.toLocaleString()} Sats)`;
+    const label = tab === 'host' ? t('booking.part1HostLabel', { sats: totalPriceSats.toLocaleString() }) : t('booking.part2TreasuryLabel', { sats: protocolFeeSats.toLocaleString() });
 
     if (!invToPay) return;
     setIsPaying(true);
     setPaymentLog(prev => [
       ...prev,
-      `⚡ [NWC NIP-47] Đang gửi yêu cầu thanh toán ${label}...`,
+      t('booking.nwcSendingPayment', { label }),
       t('booking.nwcLogWaiting')
     ]);
 
@@ -394,14 +394,14 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
       const isValid = await verifyLightningPreimage(result.preimage, targetHash);
       if (!isValid) {
         setIsPaying(false);
-        setPaymentLog(prev => [...prev, `❌ [NWC] Preimage không khớp payment_hash của ${label}!`]);
-        setErrorMsg(`Chữ ký preimage từ NWC không khớp payment_hash của ${label}!`);
+        setPaymentLog(prev => [...prev, t('booking.nwcPreimageMismatch', { label })]);
+        setErrorMsg(t('booking.nwcPreimageMismatchError', { label }));
         return;
       }
 
       setPaymentLog(prev => [
         ...prev,
-        `✓ [NWC] ${label} đã xác nhận thanh toán!`,
+        t('booking.nwcConfirmedPayment', { label }),
         `  └─ Preimage: ${result.preimage?.slice(0, 32)}...`
       ]);
 
@@ -415,7 +415,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
           setActiveInvoiceTab('treasury');
           setPaymentLog(prev => [
             ...prev,
-            `⚠️ TRẠNG THÁI MỘT PHẦN (1/2): Đã thanh toán Host. Vui lòng thanh toán tiếp Khoản 2 (Phí Treasury: ${protocolFeeSats.toLocaleString()} Sats) để hoàn tất!`
+            t('booking.partialPaidHost', { sats: protocolFeeSats.toLocaleString() })
           ]);
         }
       } else {
@@ -428,14 +428,14 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
           setActiveInvoiceTab('host');
           setPaymentLog(prev => [
             ...prev,
-            `⚠️ TRẠNG THÁI MỘT PHẦN (1/2): Đã thanh toán Treasury. Vui lòng thanh toán tiếp Khoản 1 (Tiền phòng Host: ${totalPriceSats.toLocaleString()} Sats) để hoàn tất!`
+            t('booking.partialPaidTreasury', { sats: totalPriceSats.toLocaleString() })
           ]);
         }
       }
     } else {
       setIsPaying(false);
-      setPaymentLog(prev => [...prev, `❌ [NWC] Lỗi thanh toán ${label}: ${result.error}`]);
-      setErrorMsg(result.error || `Thanh toán ${label} qua NWC thất bại`);
+      setPaymentLog(prev => [...prev, t('booking.nwcPaymentError', { label, error: result.error || '' })]);
+      setErrorMsg(result.error || t('booking.nwcFailedLabel', { label }));
     }
   };
 
@@ -456,20 +456,20 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     if (!hostPaid) {
       setPaymentLog(prev => [
         ...prev,
-        `⚡ [NWC NIP-47] Đang thanh toán Khoản 1: Tiền phòng Host (${totalPriceSats.toLocaleString()} Sats)...`
+        t('booking.nwcPayingPart1', { sats: totalPriceSats.toLocaleString() })
       ]);
       const resH = await payInvoiceViaNWC(uri, hostInvoice);
       if (!resH.success || !resH.preimage) {
         setIsPaying(false);
-        setPaymentLog(prev => [...prev, `❌ [NWC] Lỗi thanh toán Khoản 1 (Host): ${resH.error}`]);
-        setErrorMsg(`Thanh toán Khoản 1 thất bại: ${resH.error}`);
+        setPaymentLog(prev => [...prev, t('booking.nwcPart1Error', { error: resH.error || '' })]);
+        setErrorMsg(t('booking.nwcPart1Failed', { error: resH.error || '' }));
         return;
       }
       const validH = await verifyLightningPreimage(resH.preimage, hostPaymentHash);
       if (!validH) {
         setIsPaying(false);
-        setPaymentLog(prev => [...prev, `❌ [NWC] Preimage Khoản 1 không khớp payment_hash!`]);
-        setErrorMsg('Preimage Khoản 1 không khớp payment_hash!');
+        setPaymentLog(prev => [...prev, t('booking.nwcPart1PreimageMismatchLog')]);
+        setErrorMsg(t('booking.nwcPart1PreimageMismatch'));
         return;
       }
       currentHostPre = resH.preimage;
@@ -477,7 +477,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
       setHostPreimage(resH.preimage);
       setPaymentLog(prev => [
         ...prev,
-        `✓ [NWC] Khoản 1 (Host) đã thanh toán & xác minh thành công! (Preimage: ${resH.preimage?.slice(0, 24)}...)`
+        t('booking.nwcPart1Success', { preimage: resH.preimage?.slice(0, 24) || '' })
       ]);
     }
 
@@ -485,7 +485,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     if (!isTreasuryMerged && !treasuryPaid) {
       setPaymentLog(prev => [
         ...prev,
-        `⚡ [NWC NIP-47] Đang thanh toán Khoản 2: Phí Treasury (${protocolFeeSats.toLocaleString()} Sats)...`
+        t('booking.nwcPayingPart2', { sats: protocolFeeSats.toLocaleString() })
       ]);
       const resT = await payInvoiceViaNWC(uri, treasuryInvoice);
       if (!resT.success || !resT.preimage) {
@@ -493,18 +493,18 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
         setActiveInvoiceTab('treasury');
         setPaymentLog(prev => [
           ...prev,
-          `❌ [NWC] Lỗi thanh toán Khoản 2 (Treasury): ${resT.error}`,
-          `⚠️ TRẠNG THÁI MỘT PHẦN (1/2): Tiền phòng Host đã trả, nhưng phí Treasury thất bại! Vui lòng hoàn tất thanh toán Khoản 2.`
+          t('booking.nwcPart2Error', { error: resT.error || '' }),
+          t('booking.partialPaidHostTreasuryFailed')
         ]);
-        setErrorMsg(`Thanh toán Khoản 2 (Treasury) thất bại: ${resT.error}. Trạng thái giữ một phần!`);
+        setErrorMsg(t('booking.nwcPart2FailedPartial', { error: resT.error || '' }));
         return;
       }
       const validT = await verifyLightningPreimage(resT.preimage, treasuryPaymentHash);
       if (!validT) {
         setIsPaying(false);
         setActiveInvoiceTab('treasury');
-        setPaymentLog(prev => [...prev, `❌ [NWC] Preimage Khoản 2 không khớp payment_hash!`]);
-        setErrorMsg('Preimage Khoản 2 không khớp payment_hash! Trạng thái giữ một phần!');
+        setPaymentLog(prev => [...prev, t('booking.nwcPart2PreimageMismatchLog')]);
+        setErrorMsg(t('booking.nwcPart2PreimageMismatchPartial'));
         return;
       }
       currentTreasuryPre = resT.preimage;
@@ -512,7 +512,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
       setTreasuryPreimage(resT.preimage);
       setPaymentLog(prev => [
         ...prev,
-        `✓ [NWC] Khoản 2 (Treasury) đã thanh toán & xác minh thành công! (Preimage: ${resT.preimage?.slice(0, 24)}...)`
+        t('booking.nwcPart2Success', { preimage: resT.preimage?.slice(0, 24) || '' })
       ]);
     }
 
@@ -553,18 +553,18 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     const tab = targetTab || activeInvoiceTab;
     const cleanPreimage = externalPreimage.trim();
     if (!cleanPreimage) {
-      setErrorMsg('Vui lòng dán mã Preimage (32 bytes hex) từ ví Lightning sau khi thanh toán.');
+      setErrorMsg(t('booking.pastePreimagePrompt'));
       return;
     }
     setErrorMsg('');
     setIsPaying(true);
 
     const targetHash = tab === 'host' ? hostPaymentHash : treasuryPaymentHash;
-    const label = tab === 'host' ? `Khoản 1 (Tiền phòng: ${totalPriceSats.toLocaleString()} Sats)` : `Khoản 2 (Phí Treasury: ${protocolFeeSats.toLocaleString()} Sats)`;
+    const label = tab === 'host' ? t('booking.part1HostRoomLabel', { sats: totalPriceSats.toLocaleString() }) : t('booking.part2TreasuryLabel', { sats: protocolFeeSats.toLocaleString() });
 
     setPaymentLog(prev => [
       ...prev,
-      `Kiểm tra Proof-of-Payment: Đang xác minh Preimage cho ${label}...`,
+      t('booking.verifyingPreimageFor', { label }),
       `Preimage input: ${cleanPreimage.slice(0, 32)}...`
     ]);
 
@@ -573,19 +573,19 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
       setIsPaying(false);
       setPaymentLog(prev => [
         ...prev,
-        `❌ XÁC MINH THẤT BẠI: Preimage không khớp với payment_hash của ${label}!`,
+        t('booking.verifyFailedPreimageMismatch', { label }),
         `  └─ SHA-256(preimage) !== ${targetHash.slice(0, 32)}...`
       ]);
-      setErrorMsg(`Xác minh mật mã thất bại: Preimage không khớp với payment_hash của ${label}!`);
+      setErrorMsg(t('booking.verifyFailedPreimageMismatchError', { label }));
       return;
     }
 
     setPaymentLog(prev => [
       ...prev,
-      `✓ XÁC MINH MẬT MÃ THÀNH CÔNG: SHA-256(preimage) === payment_hash (${label})`,
-      `  └─ Proof-of-Payment hợp lệ (Preimage: ${cleanPreimage.slice(0, 32)}...)`
+      t('booking.verifySuccessSha256', { label }),
+      t('booking.proofOfPaymentValid', { preimage: cleanPreimage.slice(0, 32) })
     ]);
-    onAddLog('lightning', `Xác nhận thanh toán ${label} thành công qua Preimage: ${cleanPreimage.slice(0, 16)}...`, targetHash);
+    onAddLog('lightning', t('booking.paymentConfirmedLog', { label, preimage: cleanPreimage.slice(0, 16) }), targetHash);
     setExternalPreimage('');
 
     if (tab === 'host') {
@@ -598,7 +598,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
         setActiveInvoiceTab('treasury');
         setPaymentLog(prev => [
           ...prev,
-          `⚠️ TRẠNG THÁI MỘT PHẦN (1/2 HOÀN TẤT): Đã xác minh tiền phòng Host. Vui lòng thanh toán tiếp Khoản 2 (Phí Treasury: ${protocolFeeSats.toLocaleString()} Sats) để hoàn tất đặt phòng.`
+          t('booking.partialVerifiedHostPrompt', { sats: protocolFeeSats.toLocaleString() })
         ]);
       }
     } else {
@@ -611,7 +611,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
         setActiveInvoiceTab('host');
         setPaymentLog(prev => [
           ...prev,
-          `⚠️ TRẠNG THÁI MỘT PHẦN (1/2 HOÀN TẤT): Đã xác minh phí Treasury. Vui lòng thanh toán tiếp Khoản 1 (Tiền phòng Host: ${totalPriceSats.toLocaleString()} Sats) để hoàn tất đặt phòng.`
+          t('booking.partialVerifiedTreasuryPrompt', { sats: totalPriceSats.toLocaleString() })
         ]);
       }
     }
@@ -627,17 +627,17 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
       setPaymentLog(prev => [
         ...prev, 
         t('booking.lnLogConfirmed'),
-        `🎉 TẤT CẢ KHOẢN THANH TOÁN ĐÃ ĐƯỢC XÁC THỰC MẬT MÃ:`,
-        `  ├─ Tiền phòng Host: ${totalPriceSats.toLocaleString()} Sats (Preimage: ${finalHostPreimage.slice(0, 24)}...)`,
+        t('booking.allPaymentsCryptographicallyVerified'),
+        t('booking.hostRoomFeeLog', { sats: totalPriceSats.toLocaleString(), preimage: finalHostPreimage.slice(0, 24) }),
         isTreasuryMerged 
-          ? `  └─ Phí Protocol: Đã gộp vào hóa đơn Host`
-          : `  └─ Phí Protocol Treasury: ${protocolFeeSats.toLocaleString()} Sats (Preimage: ${finalTreasuryPreimage.slice(0, 24)}...)`
+          ? t('booking.protocolFeeMergedLog')
+          : t('booking.protocolFeeTreasuryLog', { sats: protocolFeeSats.toLocaleString(), preimage: finalTreasuryPreimage.slice(0, 24) })
       ]);
       
       setTimeout(async () => {
         executeProfitSplit();
         
-        // Trích thưởng 1% Referral Sats nếu đủ điều kiện (Chỉ áp dụng lượt Đặt Phòng Đầu Tiên)
+        // 1% Referral Sats reward execution if eligible
         const referrerNpub = sessionStorage.getItem('cypher_referrer_npub');
         const existingReferrals = useAppStore.getState().referrals;
         const eligibility = checkReferralEligibility(referrerNpub, identity?.npub, existingReferrals);
@@ -755,10 +755,10 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                 <div>
                   <h4 className="text-sm font-bold text-white font-mono uppercase tracking-wide flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-cyber-amber" />
-                    Chọn Loại Phòng Lưu Trú
+                    {t('booking.selectRoomTypeTitle')}
                   </h4>
                   <p className="text-xs text-text-secondary mt-0.5 font-mono">
-                    {listing.title} • {roomTypes.length} loại phòng sẵn có
+                    {listing.title} • {t('booking.availableRoomCount', { count: roomTypes.length })}
                   </p>
                 </div>
               </div>
@@ -793,18 +793,18 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                             <h5 className="text-sm font-bold text-white truncate">{rt.name}</h5>
                             {rt.status === 'occupied' ? (
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-danger/20 text-danger border border-danger/30 font-mono">
-                                Đã có khách
+                                {t('booking.roomOccupied')}
                               </span>
                             ) : (
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-success/20 text-success border border-success/30 font-mono">
-                                Sẵn sàng
+                                {t('booking.roomAvailable')}
                               </span>
                             )}
                           </div>
                           <div className="flex items-center gap-3 text-xs text-text-secondary font-mono">
                             <span className="flex items-center gap-1">
                               <Users className="w-3.5 h-3.5 text-primary" />
-                              Tối đa {rt.maxGuests} khách
+                              {t('booking.maxGuestsCount', { count: rt.maxGuests })}
                             </span>
                           </div>
                           {rt.securitySpecs && rt.securitySpecs.length > 0 && (
@@ -824,14 +824,14 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           <div className="text-sm font-bold font-mono text-warning">
                             {rt.priceSats.toLocaleString()} Sats
                           </div>
-                          <span className="text-[10px] text-text-disabled font-mono block">/ đêm</span>
+                          <span className="text-[10px] text-text-disabled font-mono block">{t('booking.perNight')}</span>
                         </div>
                         <button
                           type="button"
                           disabled={!isAvailable}
                           className="px-3 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs font-mono font-bold flex items-center gap-1 transition-colors"
                         >
-                          <span>Chọn phòng</span>
+                          <span>{t('booking.chooseRoom')}</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -868,7 +868,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                               onClick={() => setStep('select_room')}
                               className="text-[11px] font-mono text-primary hover:underline shrink-0 flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 border border-primary/25"
                             >
-                              Đổi loại phòng
+                              {t('booking.changeRoomType')}
                             </button>
                           )}
                         </div>
@@ -880,7 +880,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           </span>
                           {currentRoom && (
                             <span className="text-text-secondary font-mono text-xs">
-                              • Tối đa {currentRoom.maxGuests} khách • <strong className="text-warning font-semibold">{currentRoom.priceSats.toLocaleString()} Sats/đêm</strong>
+                              • {t('booking.maxGuestsCount', { count: currentRoom.maxGuests })} • <strong className="text-warning font-semibold">{t('booking.satsPerNight', { sats: currentRoom.priceSats.toLocaleString() })}</strong>
                             </span>
                           )}
                         </div>
@@ -1033,7 +1033,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
 
                 {paymentMethod === 'lightning' && (
                   <div className="flex justify-between items-center text-xs text-gray-300 font-mono">
-                    <span title="Phí định tuyến Lightning ước tính (không thu vào CypherGuide)">{t('booking.lightningRoutingFee')}</span>
+                    <span title={t('booking.routingFeeTooltip')}>{t('booking.lightningRoutingFee')}</span>
                     <span className="font-bold text-white text-xs shrink-0">{lnRoutingFeeSats.toLocaleString()} Sats</span>
                   </div>
                 )}
@@ -1136,8 +1136,8 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                     <div className="p-2.5 bg-cyber-blue/10 border border-cyber-blue/30 rounded-lg text-[11px] font-mono text-cyber-blue flex items-start gap-2">
                       <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-cyber-blue" />
                       <div>
-                        <span className="font-bold block">HÓA ĐƠN GỘP (RFC-0016)</span>
-                        Phí Protocol ({protocolFeeSats} Sats) được gộp vào hóa đơn Host ({listing.coOwners?.[0]?.lightningAddress}) do phí nhỏ hơn 1 Sat hoặc yêu cầu minSendable từ ví.
+                        <span className="font-bold block">{t('booking.mergedInvoiceTitle')}</span>
+                        {t('booking.mergedInvoiceDesc', { sats: protocolFeeSats, address: listing.coOwners?.[0]?.lightningAddress || '' })}
                       </div>
                     </div>
                   ) : (
@@ -1147,8 +1147,8 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                         <div className="p-2.5 bg-cyber-amber/15 border border-cyber-amber/40 rounded-lg text-xs font-mono text-cyber-amber flex items-start gap-2">
                           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-cyber-amber animate-pulse" />
                           <div>
-                            <span className="font-bold block">⚠️ TRẠNG THÁI MỘT PHẦN (1/2 HOÀN TẤT)</span>
-                            Đã thanh toán tiền phòng Host. Vui lòng thanh toán tiếp Khoản 2 (Phí Protocol: {protocolFeeSats.toLocaleString()} Sats) để hoàn tất đặt phòng!
+                            <span className="font-bold block">{t('booking.partialStatusBadge')}</span>
+                            {t('booking.partialStatusHostPaid', { sats: protocolFeeSats.toLocaleString() })}
                           </div>
                         </div>
                       )}
@@ -1156,8 +1156,8 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                         <div className="p-2.5 bg-cyber-amber/15 border border-cyber-amber/40 rounded-lg text-xs font-mono text-cyber-amber flex items-start gap-2">
                           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-cyber-amber animate-pulse" />
                           <div>
-                            <span className="font-bold block">⚠️ TRẠNG THÁI MỘT PHẦN (1/2 HOÀN TẤT)</span>
-                            Đã thanh toán phí Treasury. Vui lòng thanh toán tiếp Khoản 1 (Tiền phòng: {totalPriceSats.toLocaleString()} Sats) để hoàn tất đặt phòng!
+                            <span className="font-bold block">{t('booking.partialStatusBadge')}</span>
+                            {t('booking.partialStatusTreasuryPaid', { sats: totalPriceSats.toLocaleString() })}
                           </div>
                         </div>
                       )}
@@ -1165,10 +1165,10 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                         <div className="p-2 bg-black/60 border border-white/10 rounded-lg text-[11px] font-mono text-gray-300 flex items-center justify-between">
                           <span className="flex items-center gap-1.5 text-cyber-amber">
                             <Zap className="w-3.5 h-3.5 fill-cyber-amber" />
-                            Tiến độ thanh toán song song:
+                            {t('booking.parallelProgressTitle')}
                           </span>
                           <span className="px-2 py-0.5 rounded bg-white/10 text-white font-bold text-[10px]">
-                            0/2 Khoản đã xác nhận
+                            {t('booking.parallelProgressRatio', { confirmed: (hostPaid ? 1 : 0) + (isTreasuryMerged || treasuryPaid ? 1 : 0), total: 2 })}
                           </span>
                         </div>
                       )}
@@ -1185,13 +1185,13 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           }`}
                         >
                           <div className="flex items-center justify-between text-[10px] mb-1">
-                            <span className="font-bold uppercase tracking-wider">Khoản 1: Tiền phòng Host</span>
+                            <span className="font-bold uppercase tracking-wider">{t('booking.part1HostTitle')}</span>
                             {hostPaid ? (
                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyber-green/20 text-cyber-green font-bold flex items-center gap-0.5">
-                                <CheckCircle2 className="w-2.5 h-2.5" /> Đã trả
+                                <CheckCircle2 className="w-2.5 h-2.5" /> {t('booking.paidStatus')}
                               </span>
                             ) : (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-gray-400">Chờ trả</span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-gray-400">{t('booking.pendingStatus')}</span>
                             )}
                           </div>
                           <div className="text-xs font-bold text-cyber-green">{totalPriceSats.toLocaleString()} Sats</div>
@@ -1208,13 +1208,13 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           }`}
                         >
                           <div className="flex items-center justify-between text-[10px] mb-1">
-                            <span className="font-bold uppercase tracking-wider">Khoản 2: Phí Treasury</span>
+                            <span className="font-bold uppercase tracking-wider">{t('booking.part2TreasuryTitle')}</span>
                             {treasuryPaid ? (
                               <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyber-green/20 text-cyber-green font-bold flex items-center gap-0.5">
-                                <CheckCircle2 className="w-2.5 h-2.5" /> Đã trả
+                                <CheckCircle2 className="w-2.5 h-2.5" /> {t('booking.paidStatus')}
                               </span>
                             ) : (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-gray-400">Chờ trả</span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-gray-400">{t('booking.pendingStatus')}</span>
                             )}
                           </div>
                           <div className="text-xs font-bold text-cyber-amber">{protocolFeeSats.toLocaleString()} Sats</div>
@@ -1243,7 +1243,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           <CheckCircle2 className="w-8 h-8 text-cyber-green mx-auto" />
                           <div>
                             <h5 className="text-xs font-bold text-white uppercase">
-                              {currentTab === 'host' ? 'Khoản 1: Tiền phòng Host đã xác nhận' : 'Khoản 2: Phí Treasury đã xác nhận'}
+                              {currentTab === 'host' ? t('booking.part1ConfirmedNotice') : t('booking.part2ConfirmedNotice')}
                             </h5>
                             <p className="text-[11px] text-cyber-green mt-1">
                               {currentAmount.toLocaleString()} Sats → {currentRecipient}
@@ -1259,7 +1259,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                               onClick={() => setActiveInvoiceTab(currentTab === 'host' ? 'treasury' : 'host')}
                               className="w-full py-2 bg-cyber-amber text-black font-bold text-xs rounded uppercase hover:bg-cyber-amber/80 transition-all flex items-center justify-center gap-1.5"
                             >
-                              <span>Chuyển sang thanh toán Khoản {currentTab === 'host' ? '2 (Phí Treasury)' : '1 (Tiền phòng)'}</span>
+                              <span>{t('booking.switchPaymentNotice', { next: currentTab === 'host' ? t('booking.part2TreasuryShort') : t('booking.part1HostShort') })}</span>
                               <ChevronRight className="w-4 h-4" />
                             </button>
                           )}
@@ -1271,7 +1271,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                       <div className="flex flex-col items-center justify-center space-y-3">
                         <div className="text-center font-mono space-y-0.5">
                           <span className="text-[10px] text-gray-400 uppercase tracking-wider block">
-                            Quét mã QR thanh toán {currentTab === 'host' ? 'Tiền phòng Host' : 'Phí Protocol Treasury'}
+                            {t('booking.scanQrToPay', { target: currentTab === 'host' ? t('booking.hostRoomFeeShort') : t('booking.treasuryFeeShort') })}
                           </span>
                           <span className="text-xs text-white font-bold block">
                             {currentAmount.toLocaleString()} Sats → <span className="text-cyber-green">{currentRecipient}</span>
@@ -1308,7 +1308,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                               className="w-full py-2 bg-cyber-amber text-black font-bold text-xs rounded font-mono uppercase flex items-center justify-center gap-1.5 hover:bg-cyber-amber/80 disabled:opacity-50 transition-all shadow-md shadow-cyber-amber/20"
                             >
                               <Zap className="w-3.5 h-3.5 fill-black" />
-                              <span>Thanh toán cả 2 khoản qua NWC ({(totalPriceSats + protocolFeeSats).toLocaleString()} Sats)</span>
+                              <span>{t('booking.payBothNwcBtn', { sats: (totalPriceSats + protocolFeeSats).toLocaleString() })}</span>
                             </button>
                           )}
 
@@ -1340,14 +1340,14 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                           {/* External Preimage Verification */}
                           <div className="pt-2 border-t border-white/10 space-y-1.5 text-left">
                             <label className="text-[10px] text-gray-400 font-mono block">
-                              Đã quét thanh toán từ ví ngoài (Zeus / Phoenix / Alby)?
+                              {t('booking.paidViaExternalWalletPrompt')}
                             </label>
                             <div className="flex gap-1.5">
                               <input
                                 type="text"
                                 value={externalPreimage}
                                 onChange={(e) => setExternalPreimage(e.target.value)}
-                                placeholder="Dán Preimage hex (64 ký tự)..."
+                                placeholder={t('booking.pastePreimagePlaceholder')}
                                 className="flex-1 bg-black/80 border border-white/10 rounded px-2 py-1.5 text-[11px] text-white font-mono focus:outline-none focus:border-cyber-green/50 placeholder:text-gray-600"
                               />
                               <button
@@ -1357,7 +1357,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                                 className="px-2.5 py-1.5 bg-cyber-green text-black font-bold text-[10px] rounded font-mono uppercase hover:bg-cyber-green/80 disabled:opacity-50 transition-all shrink-0"
                                 id="verify-external-preimage-btn"
                               >
-                                Xác minh
+                                {t('booking.verifyBtn')}
                               </button>
                             </div>
                           </div>
@@ -1434,10 +1434,9 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
           <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-6 text-center">
             <div className="bg-cyber-gray border border-cyber-amber/40 p-5 rounded-xl max-w-md space-y-4 shadow-2xl">
               <AlertTriangle className="w-10 h-10 text-cyber-amber mx-auto animate-pulse" />
-              <h4 className="text-white font-bold font-mono text-sm uppercase">Cảnh Báo: Thanh Toán Một Phần!</h4>
+              <h4 className="text-white font-bold font-mono text-sm uppercase">{t('booking.partialWarningTitle')}</h4>
               <p className="text-xs text-gray-300 font-mono leading-relaxed">
-                Bạn đã thanh toán 1 trong 2 khoản ({hostPaid ? 'đã thanh toán tiền phòng Host' : 'đã thanh toán phí Treasury'}).
-                Nếu thoát ngay bây giờ, đặt phòng sẽ <strong>chưa được xác nhận hoàn tất</strong> cho tới khi cả hai khoản đều được thanh toán và xác minh.
+                {t('booking.partialWarningDesc', { paid: hostPaid ? t('booking.paidHostRoomShort') : t('booking.paidTreasuryShort') })}
               </p>
               <div className="flex gap-2">
                 <button
@@ -1445,7 +1444,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                   onClick={() => setShowPartialExitConfirm(false)}
                   className="flex-1 py-2 bg-cyber-green text-black font-bold font-mono text-xs rounded uppercase hover:bg-cyber-green/80 transition-colors"
                 >
-                  Tiếp tục thanh toán
+                  {t('booking.continuePaymentBtn')}
                 </button>
                 <button
                   type="button"
@@ -1455,7 +1454,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                   }}
                   className="px-3 py-2 bg-white/10 text-gray-300 font-mono text-xs rounded hover:bg-white/20 transition-colors"
                 >
-                  Vẫn thoát
+                  {t('booking.exitAnywayBtn')}
                 </button>
               </div>
             </div>

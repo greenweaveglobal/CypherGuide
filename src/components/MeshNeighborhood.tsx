@@ -905,7 +905,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
         })}
       </div>
 
-      {/* 7. Infrastructure Incentives (Ưu đãi hạ tầng Node & Relay Operators) */}
+      {/* 7. Infrastructure Incentives (Node & Relay Operator Incentives) */}
       <Card variant="glass" className="border-cyber-green/30 bg-cyber-green/5 p-6 mt-8 font-mono">
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-cyber-green/20 pb-4">
@@ -958,7 +958,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
 
               <div className="pt-2 border-t border-cyber-green/20">
                 <span className="text-[9px] uppercase tracking-wider text-gray-400 block mb-1">
-                  Lightning Address (Quỹ Hạ Tầng):
+                  {t('mesh.treasuryLnLabel')}
                 </span>
                 <div className="flex items-center justify-between gap-2 p-2 bg-black/60 border border-cyber-green/30 rounded-lg">
                   <span className="text-xs font-mono font-bold text-cyber-green truncate select-all" title={infraIncentiveTreasuryLightningAddress}>
@@ -984,10 +984,10 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
                   </button>
                 </div>
                 <p className="text-[10px] text-gray-400 font-mono leading-tight pt-1">
-                  Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
-                    <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                  {t('mesh.historyPublicNostr')}{configAuditNostrEventId ? (
+                    <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">{t('mesh.linkToEvent')}</a>]</>
                   ) : (
-                    <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                    <> [<span className="text-gray-500 italic">{t('mesh.auditTrailRelay')}</span>]</>
                   )}.
                 </p>
               </div>
@@ -1012,7 +1012,7 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
 
               <div className="pt-2 border-t border-warning/20">
                 <span className="text-[9px] uppercase tracking-wider text-gray-400 block mb-1">
-                  Lightning Address (Ủng Hộ Dev):
+                  {t('mesh.devDonationLnLabel')}
                 </span>
                 <div className="flex items-center justify-between gap-2 p-2 bg-black/60 border border-warning/30 rounded-lg">
                   <span className="text-xs font-mono font-bold text-warning truncate select-all" title={devLnAddress}>
@@ -1038,10 +1038,10 @@ export default function MeshNeighborhood({ onAddLog }: Props) {
                   </button>
                 </div>
                 <p className="text-[10px] text-gray-400 font-mono leading-tight pt-1">
-                  Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
-                    <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-warning underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                  {t('mesh.historyPublicNostr')}{configAuditNostrEventId ? (
+                    <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-warning underline hover:text-white inline-flex items-center">{t('mesh.linkToEvent')}</a>]</>
                   ) : (
-                    <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                    <> [<span className="text-gray-500 italic">{t('mesh.auditTrailRelay')}</span>]</>
                   )}.
                 </p>
               </div>

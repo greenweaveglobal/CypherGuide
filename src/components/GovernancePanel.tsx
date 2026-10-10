@@ -86,7 +86,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
   const handleSaveAdminFee = async () => {
     const pcm = parseInt(adminFeeInput, 10);
     if (isNaN(pcm) || pcm < 0 || pcm > 5000) {
-      setFeeUpdateResult({ success: false, msg: 'Tỷ lệ pcm phải là số nguyên từ 0 đến 5000 (0% - 50%).' });
+      setFeeUpdateResult({ success: false, msg: t('governance.feeRateRangeError') });
       return;
     }
     setIsUpdatingFee(true);
@@ -94,13 +94,13 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     const res = await updateProtocolFee(pcm, adminFeeReason);
     setIsUpdatingFee(false);
     if (res.success) {
-      setFeeUpdateResult({ success: true, msg: `Cập nhật thành công sang ${(pcm / 100).toFixed(2)}%! Nostr event: ${res.eventId?.slice(0, 16) || 'đã phát tán'}` });
+      setFeeUpdateResult({ success: true, msg: t('governance.feeRateUpdateSuccess', { rate: (pcm / 100).toFixed(2), id: res.eventId?.slice(0, 16) || 'broadcasted' }) });
       setTimeout(() => {
         setShowAdminFeeModal(false);
         setFeeUpdateResult(null);
       }, 2000);
     } else {
-      setFeeUpdateResult({ success: false, msg: res.error || 'Cập nhật thất bại' });
+      setFeeUpdateResult({ success: false, msg: res.error || t('governance.feeRateUpdateFailed') });
     }
   };
 
@@ -109,11 +109,11 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     {
       id: 'disp_001_mesh_hcm',
       bookingId: 'book_mesh_772',
-      listingTitle: 'Phòng Trọ An Toàn Meshnet Saigon',
+      listingTitle: t('governance.mockClaimTitle'),
       guestNpub: 'npub1guest_saigon_001',
       hostNpub: 'npub1host_mesh_001',
       amountSats: 150000,
-      reason: 'Sự cố mất điện bất ngờ trong thời gian ở do sự cố cáp chính, khách yêu cầu hoàn lại 50% tiền phòng.',
+      reason: t('governance.mockClaimReason'),
       status: 'open',
       createdAt: Date.now() - 3600000 * 5,
       votes: []
@@ -169,18 +169,18 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
         {
           id: caseId,
           bookingId: 'book_mesh_772',
-          listingTitle: 'Phòng Trọ An Toàn Meshnet Saigon',
+          listingTitle: t('governance.mockClaimTitle'),
           guestNpub: 'npub1guest_saigon_001',
           hostNpub: 'npub1host_mesh_001',
           amountSats: 150000,
-          reason: 'Sự cố mất điện bất ngờ trong thời gian ở do sự cố cáp chính, khách yêu cầu hoàn lại 50% tiền phòng.',
+          reason: t('governance.mockClaimReason'),
           status: 'open',
           createdAt: Date.now() - 3600000 * 5,
           votes: [vote1, vote3]
         }
       ]);
     } catch (e) {
-      console.error('Lỗi khởi tạo phiếu bầu trọng tài:', e);
+      console.error('Error initializing arbitrator votes:', e);
     }
   }, []);
 
@@ -883,17 +883,17 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
 
                 <div className="space-y-1.5 p-2.5 rounded-lg bg-black/30 border border-white/5">
                   <div className="flex justify-between items-center text-[10px] font-mono uppercase text-gray-400">
-                    <span className="text-gray-300 font-semibold">Phí Protocol (Admin Config)</span>
+                    <span className="text-gray-300 font-semibold">{t('governance.protocolFeeAdminTitle')}</span>
                     <span className="text-cyber-green font-bold text-xs">{currentFeePercent}%</span>
                   </div>
                   <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
                     <div className="bg-cyber-pink h-full transition-all duration-500" style={{ width: `${Math.min(100, (Number(currentFeePercent) / 5) * 100)}%` }} />
                   </div>
                   <p className="text-[10px] text-gray-400 font-mono leading-tight pt-0.5">
-                    Phí hiện tại: <span className="text-white font-bold">{currentFeePercent}%</span> — do CypherGuide Admin đặt ({shortAdmin}), lịch sử thay đổi công khai trên Nostr{feeAuditNostrEventId ? (
-                      <> [<a href={`https://njump.me/${feeAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                    {t('governance.currentFeeDesc', { fee: currentFeePercent })} ({shortAdmin}), {t('governance.historyPublicNostr')}{feeAuditNostrEventId ? (
+                      <> [<a href={`https://njump.me/${feeAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">{t('governance.linkToEvent')}</a>]</>
                     ) : (
-                      <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                      <> [<span className="text-gray-500 italic">{t('governance.auditTrailRelay')}</span>]</>
                     )}.
                   </p>
                   {isAdminUser && (
@@ -904,19 +904,19 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                       }}
                       className="mt-1 w-full text-[9px] font-mono uppercase py-1 px-2 bg-cyber-pink/15 hover:bg-cyber-pink/25 text-cyber-pink border border-cyber-pink/30 rounded flex items-center justify-center gap-1 transition"
                     >
-                      <Pencil className="w-3 h-3" /> Điều chỉnh phí (NIP-98)
+                      <Pencil className="w-3 h-3" /> {t('governance.adjustFeeBtn')}
                     </button>
                   )}
                 </div>
 
                 <div className="space-y-1.5 p-2.5 rounded-lg bg-black/30 border border-white/5">
                   <div className="flex justify-between items-center text-[10px] font-mono uppercase text-gray-400">
-                    <span className="text-gray-300 font-semibold">Ví Protocol & Quỹ Hạ Tầng</span>
+                    <span className="text-gray-300 font-semibold">{t('governance.protocolWalletsTitle')}</span>
                   </div>
                   <div className="text-[10px] text-gray-300 font-mono space-y-1.5 pt-0.5">
                     <div>
                       <div className="flex justify-between items-center text-[9px] text-gray-400">
-                        <span>Quỹ Hạ Tầng (Treasury):</span>
+                        <span>{t('governance.treasuryFundLabel')}</span>
                         {configAuditNostrEventId && (
                           <a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center text-[9px]">
                             audit event ↗
@@ -930,7 +930,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
 
                     <div>
                       <div className="flex justify-between items-center text-[9px] text-gray-400">
-                        <span>Ủng Hộ Dev (Donation):</span>
+                        <span>{t('governance.devSupportLabel')}</span>
                         {configAuditNostrEventId && (
                           <a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-warning underline hover:text-white inline-flex items-center text-[9px]">
                             audit event ↗
@@ -943,10 +943,10 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                     </div>
                   </div>
                   <p className="text-[10px] text-gray-400 font-mono leading-tight pt-0.5">
-                    Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
-                      <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                    {t('governance.historyPublicNostr')}{configAuditNostrEventId ? (
+                      <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">{t('governance.linkToEvent')}</a>]</>
                     ) : (
-                      <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                      <> [<span className="text-gray-500 italic">{t('governance.auditTrailRelay')}</span>]</>
                     )}.
                   </p>
                 </div>
@@ -1579,7 +1579,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <div className="flex items-center gap-2">
                 <Pencil className="w-4 h-4 text-cyber-pink" />
-                <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">Cập Nhật Phí Protocol (NIP-98)</h3>
+                <h3 className="text-sm font-bold font-mono text-white uppercase tracking-wider">{t('governance.updateFeeModalTitle')}</h3>
               </div>
               <button 
                 onClick={() => { setShowAdminFeeModal(false); setFeeUpdateResult(null); }}
@@ -1591,12 +1591,12 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
 
             <div className="space-y-4 font-mono text-xs">
               <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-gray-300 text-[11px] leading-relaxed">
-                <span className="text-cyber-pink font-bold">Minh bạch Cypherpunk:</span> Mọi thay đổi phí được bảo vệ bằng NIP-98 (Kind 27235) với chữ ký Schnorr của Admin, đồng thời tự động phát tán một sự kiện Nostr công khai lên các relay giao thức làm Audit Trail bất biến.
+                <span className="text-cyber-pink font-bold">{t('governance.cypherpunkTransparency')}</span> {t('governance.feeModalNotice')}
               </div>
 
               <div>
                 <label className="block text-gray-400 text-[10px] uppercase mb-1">
-                  Tỷ lệ phí cơ sở (baseFeeRatePcm):
+                  {t('governance.labelBaseFeeRatePcm')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -1607,7 +1607,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                     value={adminFeeInput}
                     onChange={(e) => setAdminFeeInput(e.target.value)}
                     className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-white font-mono text-sm focus:border-cyber-pink focus:outline-none"
-                    placeholder="20 (tương đương 0.20%)"
+                    placeholder={t('governance.phBaseFeeRatePcm')}
                   />
                   <span className="text-gray-400 text-xs whitespace-nowrap font-bold">
                     = {(!isNaN(Number(adminFeeInput)) ? (Number(adminFeeInput) / 100).toFixed(2) : '0.00')}%
@@ -1618,14 +1618,14 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
 
               <div>
                 <label className="block text-gray-400 text-[10px] uppercase mb-1">
-                  Lý do thay đổi (ghi vào Nostr Audit Trail):
+                  {t('governance.labelFeeChangeReason')}
                 </label>
                 <input
                   type="text"
                   value={adminFeeReason}
                   onChange={(e) => setAdminFeeReason(e.target.value)}
                   className="w-full bg-black/60 border border-white/10 rounded px-3 py-2 text-white font-mono text-xs focus:border-cyber-pink focus:outline-none"
-                  placeholder="Ví dụ: Tối ưu chi phí mạng lưới theo RFC-0016"
+                  placeholder={t('governance.phFeeChangeReason')}
                 />
               </div>
 
@@ -1642,7 +1642,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                   className="px-4 py-2 text-xs font-mono text-gray-400 hover:text-white transition"
                   disabled={isUpdatingFee}
                 >
-                  Hủy
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -1653,11 +1653,11 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                   {isUpdatingFee ? (
                     <>
                       <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Đang ký NIP-98...
+                      {t('governance.signingNip98')}
                     </>
                   ) : (
                     <>
-                      <Check className="w-3.5 h-3.5" /> Xác nhận & Ký NIP-98
+                      <Check className="w-3.5 h-3.5" /> {t('governance.confirmSignNip98')}
                     </>
                   )}
                 </button>

@@ -40,7 +40,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   const effectiveListing = migrateListingToRoomTypes(listing);
   const roomTypes = effectiveListing.roomTypes || [];
   
-  // Khởi tạo loại phòng mặc định: Chọn loại phòng có giá thấp nhất còn trống để khớp với giá "Từ ..." ngoài danh sách
+  // Initialize default room type: pick lowest priced available room
   const getInitialRoomTypeId = () => {
     if (roomTypes.length === 0) return undefined;
     const available = roomTypes.filter(rt => rt.status !== 'occupied');
@@ -97,7 +97,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       }
       navigator.clipboard.writeText(url.toString());
       setCopiedShareLink(true);
-      onAddLog('relay', `Đã sao chép liên kết chia sẻ listing: ${url.toString()}`);
+      onAddLog('relay', t('listingDetail.copiedShareLinkLog', { url: url.toString() }));
       setTimeout(() => setCopiedShareLink(false), 3000);
     }
   };
@@ -265,11 +265,11 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
           addPaymentLog(`Received authentic Lightning Invoice: ${resolved.invoice.slice(0, 15)}...`);
           onAddLog('lightning', t('listingDetail.invoiceReceivedLog', { invoice: resolved.invoice.slice(0, 20) }));
         } else {
-          addPaymentLog(`Lỗi: ${resolved.error || 'Không thể tạo invoice từ máy chủ Host'}`);
+          addPaymentLog(t('listingDetail.cannotCreateInvoiceLog', { error: resolved.error || t('listingDetail.hostServerError') }));
         }
       });
     } else {
-      addPaymentLog(`Lỗi: Chưa cấu hình Lightning Address cho Host.`);
+      addPaymentLog(t('listingDetail.noHostLnConfiguredLog'));
     }
   };
 
@@ -376,7 +376,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
       
       executeProfitSplit();
 
-      // Kiểm tra & Xử lý thưởng 1% Referral Sats (Gọi hàm audit checkReferralEligibility)
+      // 1% Referral Sats bonus processing
       const referrerNpub = sessionStorage.getItem('cypher_referrer_npub');
       const existingReferrals = useAppStore.getState().referrals;
       const eligibility = checkReferralEligibility(referrerNpub, identity?.npub, existingReferrals);
@@ -491,7 +491,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                   <div className="flex items-center gap-2 text-warning">
                     <Coins className="w-6 h-6" />
                     {roomTypes.length > 1 && (
-                      <span className="text-xs font-mono text-text-secondary uppercase">Từ</span>
+                      <span className="text-xs font-mono text-text-secondary uppercase">{t('listingDetail.priceFrom')}</span>
                     )}
                     <span className="text-3xl font-bold font-mono">
                       {(roomTypes.length > 0 ? Math.min(...roomTypes.map(rt => rt.priceSats)) : listing.priceSats).toLocaleString()}
@@ -500,7 +500,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                   </div>
                   {roomTypes.length > 1 && (
                     <span className="text-[11px] font-mono text-primary mt-0.5">
-                      {roomTypes.length} loại phòng sẵn có
+                      {t('listingDetail.availableRoomTypes', { count: roomTypes.length })}
                     </span>
                   )}
                 </div>
@@ -580,19 +580,19 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                       variant={listing.cancellationPolicy === 'nonrefundable' ? 'danger' : 'success'}
                       className="uppercase font-bold text-xs tracking-wider"
                     >
-                      {listing.cancellationPolicy === 'flexible' && 'Linh hoạt (Flexible)'}
-                      {listing.cancellationPolicy === 'moderate' && 'Vừa phải (Moderate)'}
-                      {listing.cancellationPolicy === 'strict' && 'Nghiêm ngặt (Strict)'}
-                      {(!listing.cancellationPolicy || listing.cancellationPolicy === 'nonrefundable') && 'Không hoàn tiền (Nonrefundable)'}
+                      {listing.cancellationPolicy === 'flexible' && t('listingDetail.policyFlexibleLabel')}
+                      {listing.cancellationPolicy === 'moderate' && t('listingDetail.policyModerateLabel')}
+                      {listing.cancellationPolicy === 'strict' && t('listingDetail.policyStrictLabel')}
+                      {(!listing.cancellationPolicy || listing.cancellationPolicy === 'nonrefundable') && t('listingDetail.policyNonrefundableLabel')}
                     </Badge>
                   </div>
 
                   <div className="p-3 bg-black/40 rounded-lg border border-white/5 space-y-2">
                     <p className="text-text-secondary leading-relaxed">
-                      {listing.cancellationPolicy === 'flexible' && 'Hủy miễn phí trước 24 giờ so với giờ nhận phòng (hoàn 100% tiền phòng). Hủy muộn tính phí 50% đêm đầu tiên.'}
-                      {listing.cancellationPolicy === 'moderate' && 'Hủy miễn phí trước 5 ngày so với ngày nhận phòng (hoàn 100% tiền phòng). Hủy muộn tính phí 100% đêm đầu tiên.'}
-                      {listing.cancellationPolicy === 'strict' && 'Hủy miễn phí trước 14 ngày so với ngày nhận phòng (hoàn 100% tiền phòng). Hủy trong vòng 14 ngày không hoàn tiền phòng.'}
-                      {(!listing.cancellationPolicy || listing.cancellationPolicy === 'nonrefundable') && 'Không áp dụng hoàn tiền phòng sau khi giao dịch đặt phòng được xác nhận.'}
+                      {listing.cancellationPolicy === 'flexible' && t('listingDetail.policyFlexibleDesc')}
+                      {listing.cancellationPolicy === 'moderate' && t('listingDetail.policyModerateDesc')}
+                      {listing.cancellationPolicy === 'strict' && t('listingDetail.policyStrictDesc')}
+                      {(!listing.cancellationPolicy || listing.cancellationPolicy === 'nonrefundable') && t('listingDetail.policyNonrefundableDesc')}
                     </p>
 
                     {listing.cancellationNote && (
@@ -622,10 +622,10 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                   <div>
                     <h3 className="text-lg font-bold text-white flex items-center gap-2 font-mono">
                       <Sparkles className="w-5 h-5 text-cyber-amber" />
-                      Danh Sách Loại Phòng ({roomTypes.length} loại)
+                      {t('listingDetail.roomTypesListTitle', { count: roomTypes.length })}
                     </h3>
                     <p className="text-xs text-text-secondary font-mono mt-0.5">
-                      Chọn loại phòng phù hợp với nhu cầu và sức chứa của bạn
+                      {t('listingDetail.roomTypesListDesc')}
                     </p>
                   </div>
                 </div>
@@ -666,17 +666,17 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                               <h4 className="text-base font-bold text-white font-sans">{rt.name}</h4>
                               {rt.status === 'occupied' ? (
                                 <span className="text-[10px] px-2 py-0.5 rounded bg-danger/20 text-danger border border-danger/30 font-mono">
-                                  Đã có khách
+                                  {t('listingDetail.roomOccupied')}
                                 </span>
                               ) : (
                                 <span className="text-[10px] px-2 py-0.5 rounded bg-success/20 text-success border border-success/30 font-mono">
-                                  Sẵn sàng
+                                  {t('listingDetail.roomAvailable')}
                                 </span>
                               )}
                               {isSelected && (
                                 <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary border border-primary/40 font-mono font-bold flex items-center gap-1">
                                   <Check className="w-3 h-3" />
-                                  Đang chọn
+                                  {t('listingDetail.roomSelected')}
                                 </span>
                               )}
                             </div>
@@ -684,7 +684,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                             <div className="flex items-center gap-4 text-xs font-mono text-text-secondary">
                               <span className="flex items-center gap-1.5 text-text-primary">
                                 <Users className="w-3.5 h-3.5 text-primary" />
-                                Tối đa {rt.maxGuests} khách
+                                {t('listingDetail.maxGuests', { count: rt.maxGuests })}
                               </span>
                             </div>
 
@@ -709,7 +709,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                             <div className="text-lg font-bold font-mono text-warning">
                               {rt.priceSats.toLocaleString()} Sats
                             </div>
-                            <span className="text-[11px] text-text-disabled font-mono block">/ đêm</span>
+                            <span className="text-[11px] text-text-disabled font-mono block">{t('listingDetail.perNight')}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {isSelected ? (
@@ -724,7 +724,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                                 className="font-mono text-xs font-bold shadow-md shadow-primary/20"
                               >
                                 <Zap className="w-3.5 h-3.5 mr-1" />
-                                Đặt phòng này
+                                {t('listingDetail.bookThisRoom')}
                               </Button>
                             ) : (
                               <Button
@@ -737,7 +737,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                                 }}
                                 className="font-mono text-xs hover:border-primary hover:text-primary transition-colors"
                               >
-                                {isAvailable ? 'Chọn loại phòng' : 'Hết phòng'}
+                                {isAvailable ? t('listingDetail.selectRoomBtn') : t('listingDetail.soldOutBtn')}
                               </Button>
                             )}
                           </div>
@@ -907,7 +907,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                       className="flex items-center gap-2 text-xs font-mono font-bold text-text-secondary hover:text-white transition-colors"
                     >
                       <History className="w-4 h-4 text-primary" />
-                      <span>Lịch Sử Chỉnh Sửa Listing (Audit Trail)</span>
+                      <span>{t('listingDetail.auditTrailTitle')}</span>
                       <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface border border-border">
                         {listing.editHistory?.length || 0}
                       </span>
@@ -923,7 +923,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                     >
                       {!listing.editHistory || listing.editHistory.length === 0 ? (
                         <div className="p-3 bg-surface/40 rounded-lg border border-border/50 text-text-disabled text-center">
-                          Chưa có lịch sử thay đổi nào được ghi nhận trên Nostr Relay.
+                          {t('listingDetail.noAuditHistory')}
                         </div>
                       ) : (
                         listing.editHistory.map((item, idx) => (
@@ -964,7 +964,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                       {roomTypes.length > 1 && (
                         <div>
                           <label className="text-xs font-mono text-text-secondary uppercase mb-2 block">
-                            Chọn loại phòng
+                            {t('listingDetail.selectRoomTypeLabel')}
                           </label>
                           <select
                             value={selectedRoomTypeId}
@@ -973,7 +973,7 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                           >
                             {roomTypes.map((rt) => (
                               <option key={rt.id} value={rt.id} disabled={rt.status === 'occupied'}>
-                                {rt.name} - {rt.priceSats.toLocaleString()} Sats (tối đa {rt.maxGuests} khách){rt.status === 'occupied' ? ' [HẾT PHÒNG]' : ''}
+                                {rt.name} - {t('listingDetail.roomOptionFormat', { sats: rt.priceSats.toLocaleString(), guests: rt.maxGuests, occupied: rt.status === 'occupied' ? t('listingDetail.occupiedSuffix') : '' })}
                               </option>
                             ))}
                           </select>
@@ -999,22 +999,22 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                         />
                       </div>
 
-                      {/* Tóm tắt loại phòng đang chọn & giá tạm tính */}
+                      {/* Selected room type summary & subtotal */}
                       {(() => {
                         const currentRoom = getRoomType(effectiveListing, selectedRoomTypeId);
                         return (
                           <div className="p-3 rounded-lg bg-black/40 border border-white/10 space-y-1.5 font-mono text-xs">
                             <div className="flex items-center justify-between text-text-secondary">
-                              <span>Loại phòng:</span>
+                              <span>{t('listingDetail.roomTypeLabel')}</span>
                               <span className="text-white font-bold truncate max-w-[150px]">{currentRoom.name}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-text-secondary">Đơn giá:</span>
-                              <span className="text-warning font-bold">{currentRoom.priceSats.toLocaleString()} Sats/đêm</span>
+                              <span className="text-text-secondary">{t('listingDetail.unitPriceLabel')}</span>
+                              <span className="text-warning font-bold">{t('listingDetail.satsPerNight', { sats: currentRoom.priceSats.toLocaleString() })}</span>
                             </div>
                             {isDateValid && (
                               <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-                                <span className="text-text-primary">Tạm tính ({effectiveNights} đêm):</span>
+                                <span className="text-text-primary">{t('listingDetail.subtotalNightsLabel', { count: effectiveNights })}</span>
                                 <span className="text-primary font-bold text-sm">{totalPriceSats.toLocaleString()} Sats</span>
                               </div>
                             )}
@@ -1173,8 +1173,8 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
                       {stayPriceCalc.hasDynamicRules && stayPriceCalc.nightlyBreakdown.length > 0 && (
                         <div className="p-2.5 bg-surface/70 border border-primary/20 rounded-lg space-y-1 text-xs font-mono">
                           <div className="flex justify-between items-center text-primary font-bold text-[10px] uppercase">
-                            <span>Chi tiết giá động từng đêm</span>
-                            <span>TB: {stayPriceCalc.averageNightlySats.toLocaleString()} Sats/đêm</span>
+                            <span>{t('listingDetail.nightlyPriceBreakdown')}</span>
+                            <span>{t('listingDetail.averageNightlyRate', { sats: stayPriceCalc.averageNightlySats.toLocaleString() })}</span>
                           </div>
                           <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
                             {stayPriceCalc.nightlyBreakdown.map((nb, i) => (

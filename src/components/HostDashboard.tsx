@@ -132,7 +132,7 @@ export default function HostDashboard({
           }`}
         >
           <CalendarIcon className="w-3.5 h-3.5" />
-          <span>Lịch & Giá (Extranet)</span>
+          <span>{t('hostDashboard.tabCalendarPricing')}</span>
         </button>
         <button
           onClick={() => setActiveSubTab('escrow_management')}

@@ -22,11 +22,12 @@ const SystemAudit = React.lazy(() => import('./components/SystemAudit'));
 const HostDashboard = React.lazy(() => import('./components/HostDashboard'));
 
 function TabLoadingFallback() {
+  const { t } = useTranslation();
   return (
     <div className="w-full min-h-[300px] flex flex-col items-center justify-center p-8 text-center font-mono">
       <div className="w-8 h-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-3" />
       <p className="text-xs text-text-secondary tracking-wider uppercase animate-pulse">
-        Đang tải mô-đun...
+        {t('common.loadingModule')}
       </p>
     </div>
   );
@@ -91,9 +92,9 @@ export default function App() {
         hasHandledRefRef.current = true;
         if (isValidNpub(refNpub)) {
           sessionStorage.setItem('cypher_referrer_npub', refNpub);
-          addLog('relay', `Đã ghi nhận mã giới thiệu Referral hợp lệ: ${refNpub.slice(0, 16)}...`);
+          addLog('relay', t('common.logValidReferral', { ref: refNpub.slice(0, 16) }));
         } else {
-          addLog('relay', `Bỏ qua mã giới thiệu URL do sai định dạng Nostr npub.`);
+          addLog('relay', t('common.logInvalidReferral'));
         }
       }
 
@@ -111,9 +112,9 @@ export default function App() {
           if (foundListing) {
             setSelectedListingForBooking(foundListing);
             setActiveTab('lodgings');
-            addLog('relay', `Đã mở chi tiết listing qua liên kết trực tiếp: ${foundListing.title} (${foundListing.id})`);
+            addLog('relay', t('common.logDirectListingOpened', { title: foundListing.title, id: foundListing.id }));
           } else {
-            addLog('relay', `Không tìm thấy listing với mã ID: ${targetId} từ liên kết trực tiếp.`);
+            addLog('relay', t('common.logDirectListingNotFound', { id: targetId }));
           }
         }
       }
@@ -150,7 +151,7 @@ export default function App() {
 
           if (approveWeight > 50) {
             status = 'passed';
-            addLog('governance', `ĐỀ XUẤT ĐÃ ĐƯỢC PHÊ DUYỆT! Trọng số đồng ý (${approveWeight}%) vượt mức 50%.`, signature);
+            addLog('governance', t('common.logProposalApproved', { weight: approveWeight }), signature);
             
             if (p.category === 'finance' && p.value) {
               const matchedSats = p.value.match(/([0-9,]+)/);
@@ -161,12 +162,12 @@ export default function App() {
                     l.id === p.listingId ? { ...l, priceSats: newPrice } : l
                   )
                 );
-                addLog('governance', `Hợp đồng tự động điều chỉnh giá phòng của [${listing.title}] thành ${newPrice.toLocaleString()} Sats/đêm`);
+                addLog('governance', t('common.logAutoPriceAdjusted', { title: listing.title, price: newPrice.toLocaleString(), unit: t('hostReg.perNight') }));
               }
             }
           } else if (rejectWeight > 50) {
             status = 'rejected';
-            addLog('governance', `ĐỀ XUẤT BỊ BÁC BỎ! Trọng số phản đối (${rejectWeight}%) vượt mức 50%.`, signature);
+            addLog('governance', t('common.logProposalRejected', { weight: rejectWeight }), signature);
           }
         }
 
@@ -250,17 +251,17 @@ export default function App() {
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="bg-red-600 text-white font-mono text-[10px] sm:text-xs uppercase px-2 py-0.5 rounded font-black tracking-wider">
-                      Cảnh Báo Bảo Mật (HTTP)
+                      {t('common.httpSecurityWarning')}
                     </span>
                     <span className="text-amber-400 font-mono text-xs font-bold">
                       NON-SECURE CONTEXT DETECTED
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm font-sans text-red-100 leading-relaxed font-medium">
-                    Bạn đang truy cập qua kết nối không an toàn (HTTP). Các tính năng ký giao dịch Nostr/Lightning sẽ không hoạt động. Vui lòng truy cập qua <a href="https://cypherguide.org" target="_blank" rel="noopener noreferrer" className="text-white underline decoration-amber-400 font-bold hover:text-amber-300">https://cypherguide.org</a> hoặc <a href="https://media.cypherguide.org" target="_blank" rel="noopener noreferrer" className="text-white underline decoration-amber-400 font-bold hover:text-amber-300">https://media.cypherguide.org</a>
+                    {t('common.httpSecurityDesc')} <a href="https://cypherguide.org" target="_blank" rel="noopener noreferrer" className="text-white underline decoration-amber-400 font-bold hover:text-amber-300">https://cypherguide.org</a> / <a href="https://media.cypherguide.org" target="_blank" rel="noopener noreferrer" className="text-white underline decoration-amber-400 font-bold hover:text-amber-300">https://media.cypherguide.org</a>
                   </p>
                   <p className="text-[11px] font-sans text-amber-200/80">
-                    Trình duyệt chặn Web Crypto API (SubtleCrypto & getRandomValues) khi kết nối không mã hóa HTTPS hoặc không phải localhost.
+                    {t('common.httpSecurityCryptoNote')}
                   </p>
                 </div>
               </div>
@@ -269,7 +270,7 @@ export default function App() {
                   href="https://media.cypherguide.org"
                   className="px-3.5 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-mono text-xs font-bold rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center gap-1.5 whitespace-nowrap border border-amber-400/40"
                 >
-                  <span>Chuyển sang HTTPS</span>
+                  <span>{t('common.switchToHttps')}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
@@ -443,7 +444,7 @@ export default function App() {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden pt-4 mt-3 border-t border-border/40"
               >
-                <React.Suspense fallback={<div className="p-4 text-xs font-mono text-text-disabled">Đang tải bảng nhật ký giao thức...</div>}>
+                <React.Suspense fallback={<div className="p-4 text-xs font-mono text-text-disabled">{t('common.loadingRelayLogs')}</div>}>
                   <RelayLogs logs={logs} identity={identity} bookings={bookings} onAddLog={addLog} />
                 </React.Suspense>
               </motion.div>

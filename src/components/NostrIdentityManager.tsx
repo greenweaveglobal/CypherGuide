@@ -195,31 +195,31 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
     e.preventDefault();
     setPinError('');
     if (pin.length < 8) {
-      setPinError('Mật khẩu bảo vệ Vault (NIP-49 Passphrase) phải có ít nhất 8 ký tự.');
+      setPinError(t('identity.vaultPassMinLength'));
       return;
     }
     if (pin !== pinConfirm) {
-      setPinError('Mật khẩu xác nhận không khớp.');
+      setPinError(t('identity.vaultPassMismatch'));
       return;
     }
 
     try {
       const privKey = identity?.privKeyHex || tempIdentity?.privKeyHex;
-      if (!privKey) throw new Error('Khóa riêng tư không tồn tại trong bộ nhớ.');
+      if (!privKey) throw new Error(t('identity.vaultNoPrivKey'));
       
       encryptAndStoreNip49Vault(privKey, pin);
       setStep('ready');
-      setStatusMsg({ message: 'Đã thiết lập Vault NIP-49 (ncryptsec/scrypt) bảo vệ khóa thành công.', type: 'success' });
+      setStatusMsg({ message: t('identity.vaultSetupSuccess'), type: 'success' });
     } catch (err: any) {
       console.error(err);
-      setPinError(err.message || 'Lỗi khi mã hoá khoá.');
+      setPinError(err.message || t('identity.vaultEncryptError'));
     }
   };
 
   const handlePinUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pinLockedUntil && Date.now() < pinLockedUntil) {
-      setPinError(`Quá nhiều lần thử sai. Thử lại sau ${Math.ceil((pinLockedUntil - Date.now()) / 1000)}s.`);
+      setPinError(t('identity.vaultTooManyAttempts', { seconds: Math.ceil((pinLockedUntil - Date.now()) / 1000) }));
       return;
     }
 
@@ -243,8 +243,8 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
         setStep('ready');
         setStatusMsg({ 
           message: result.isLegacyMigrated 
-            ? 'Đã mở khóa vault cũ. Khuyến nghị cập nhật Passphrase NIP-49 mới (≥8 ký tự).' 
-            : 'Đã mở khóa Vault NIP-49 thành công trong bộ nhớ phiên.', 
+            ? t('identity.vaultUnlockedLegacy') 
+            : t('identity.vaultUnlockedSuccess'), 
           type: 'success' 
         });
       } else {
@@ -252,13 +252,13 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
         setPinAttempts(newAttempts);
         if (newAttempts >= 5) {
           setPinLockedUntil(Date.now() + 30000);
-          setPinError('Sai mật khẩu 5 lần. Khoá tạm thời 30 giây.');
+          setPinError(t('identity.vaultLocked30s'));
         } else {
-          setPinError('Mật khẩu bảo vệ không đúng.');
+          setPinError(t('identity.vaultIncorrectPass'));
         }
       }
     } catch (err: any) {
-      setPinError('Lỗi giải mã: ' + (err.message || 'Thất bại'));
+      setPinError(t('identity.vaultDecryptError', { msg: err.message || 'Failed' }));
     }
   };
 
@@ -462,31 +462,31 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
               {step === 'pin_setup' && (
                 <div className="space-y-4">
                   <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
-                    <h3 className="text-sm font-bold text-primary mb-1">Thiết lập Vault NIP-49 (Passphrase)</h3>
+                    <h3 className="text-sm font-bold text-primary mb-1">{t('identity.vaultSetupTitle')}</h3>
                     <p className="text-xs text-text-secondary leading-relaxed">
-                      Mật khẩu bảo vệ (Passphrase) mã hóa khóa nsec theo chuẩn NIP-49 (scrypt chống brute-force). Khóa chỉ giữ trong bộ nhớ RAM khi mở phiên, không lưu thô trên trình duyệt.
+                      {t('identity.vaultSetupDesc')}
                     </p>
                   </div>
                   
                   <form onSubmit={handlePinSetup} className="space-y-3">
                     <div>
-                      <label className="text-[10px] text-gray-400 font-mono uppercase mb-1 block">Nhập Passphrase (≥8 ký tự)</label>
+                      <label className="text-[10px] text-gray-400 font-mono uppercase mb-1 block">{t('identity.vaultEnterPassLabel')}</label>
                       <input
                         type="password"
                         value={pin}
                         onChange={(e) => setPin(e.target.value)}
-                        placeholder="Mật khẩu bảo vệ an toàn"
+                        placeholder={t('identity.vaultPassPlaceholder')}
                         className="w-full bg-black/40 border border-border rounded-lg p-2.5 text-white font-mono focus:border-primary/50 focus:outline-none text-sm"
                         autoFocus
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-gray-400 font-mono uppercase mb-1 block">Xác nhận Passphrase</label>
+                      <label className="text-[10px] text-gray-400 font-mono uppercase mb-1 block">{t('identity.vaultConfirmPassLabel')}</label>
                       <input
                         type="password"
                         value={pinConfirm}
                         onChange={(e) => setPinConfirm(e.target.value)}
-                        placeholder="Nhập lại mật khẩu"
+                        placeholder={t('identity.vaultConfirmPassPlaceholder')}
                         className="w-full bg-black/40 border border-border rounded-lg p-2.5 text-white font-mono focus:border-primary/50 focus:outline-none text-sm"
                       />
                     </div>
@@ -494,7 +494,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                     {pinError && <p className="text-xs text-danger font-mono">{pinError}</p>}
                     
                     <Button fullWidth variant="primary" type="submit" className="gap-2">
-                      <Save className="w-4 h-4" /> Kích hoạt Vault NIP-49
+                      <Save className="w-4 h-4" /> {t('identity.vaultActivateBtn')}
                     </Button>
                   </form>
                 </div>
@@ -505,9 +505,9 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                   <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                     <KeyRound className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="text-sm font-bold text-white">Mở khoá Vault NIP-49</h3>
+                  <h3 className="text-sm font-bold text-white">{t('identity.vaultUnlockTitle')}</h3>
                   <p className="text-xs text-text-secondary mb-4">
-                    Khóa riêng tư của bạn được mã hóa an toàn bằng NIP-49 (hoặc PIN cũ). Hãy nhập Passphrase để mở khóa phiên làm việc hiện tại.
+                    {t('identity.vaultUnlockDesc')}
                   </p>
                   
                   <form onSubmit={handlePinUnlock} className="space-y-3 max-w-[280px] mx-auto">
@@ -515,7 +515,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                       type="password"
                       value={pin}
                       onChange={(e) => setPin(e.target.value)}
-                      placeholder="Nhập Passphrase hoặc PIN cũ"
+                      placeholder={t('identity.vaultUnlockPlaceholder')}
                       className="w-full bg-black/40 border border-border rounded-lg p-3 text-white font-mono text-center text-sm focus:border-primary/50 focus:outline-none"
                       autoFocus
                     />
@@ -523,7 +523,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                     {pinError && <p className="text-xs text-danger font-mono">{pinError}</p>}
                     
                     <Button fullWidth variant="primary" type="submit">
-                      Mở khoá phiên
+                      {t('identity.vaultUnlockSessionBtn')}
                     </Button>
                     
                     <button 
@@ -531,7 +531,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                       onClick={handleDisconnectClick}
                       className="text-[10px] text-text-secondary hover:text-danger underline mt-4 block mx-auto"
                     >
-                      Quên mật khẩu? Xoá tài khoản khỏi máy
+                      {t('identity.vaultForgotPass')}
                     </button>
                   </form>
                 </div>
@@ -606,7 +606,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
 
                   <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-2.5 text-xs text-text-secondary">
                     <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <span><strong>Khuyến nghị an toàn:</strong> Ưu tiên kết nối bằng <strong>NIP-07 Extension</strong> (Alby, nos2x) hoặc <strong>NIP-46 Remote Signer</strong> để ký giao dịch bảo mật tuyệt đối mà không cần quản lý khóa riêng tư trong trình duyệt.</span>
+                    <span><strong>{t('identity.vaultSecurityRecTitle')}</strong> {t('identity.vaultSecurityRec')} <strong>NIP-07 Extension</strong> (Alby, nos2x) / <strong>NIP-46 Remote Signer</strong> {t('identity.vaultSecurityRecRest')}</span>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -638,12 +638,12 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                         onClick={() => {
                           onIdentityChange({ ...identity, privKeyHex: '' });
                           setStep('pin_unlock');
-                          setStatusMsg({ message: 'Đã khóa phiên làm việc. Khóa riêng tư đã được xóa khỏi bộ nhớ.', type: 'success' });
+                          setStatusMsg({ message: t('identity.vaultSessionLockedMsg'), type: 'success' });
                         }}
                         variant="outline"
                         className="flex-1 gap-2 text-xs py-2.5 border-accent/40 text-accent hover:bg-accent/10"
                       >
-                        <KeyRound className="w-4 h-4 shrink-0" /> Khóa Vault
+                        <KeyRound className="w-4 h-4 shrink-0" /> {t('identity.vaultLockBtn')}
                       </Button>
                     )}
 

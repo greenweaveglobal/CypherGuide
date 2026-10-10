@@ -253,7 +253,7 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
               className={`relative w-52 h-52 sm:w-64 sm:h-64 flex items-center justify-center select-none transition-transform ${
                 ritualState === 'idle' ? 'cursor-pointer hover:scale-105 active:scale-95' : ''
               }`}
-              title={ritualState === 'idle' ? t('stillness.tapToLight', 'Chạm vào nén nhang để bắt đầu') : undefined}
+              title={ritualState === 'idle' ? t('stillness.tapToLight') : undefined}
             >
               {/* Ensō (Zen Circle) SVG */}
               <svg viewBox="0 0 200 200" className="w-full h-full -rotate-45 pointer-events-none">
@@ -370,10 +370,10 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
               {ritualState === 'idle' && (
                 <div className="space-y-0.5">
                   <p className="text-xs sm:text-sm text-gray-200 font-sans tracking-wide font-medium">
-                    {t('stillness.tapToLight', 'Chạm vào nén nhang để bắt đầu 369 giây tĩnh lặng')}
+                    {t('stillness.tapToLight')}
                   </p>
                   <p className="text-[10px] sm:text-[11px] font-mono text-gray-500">
-                    {t('stillness.symbolicSubtext', 'Ensō (0) — Vô thường · Nhang (1) — Một ý niệm')}
+                    {t('stillness.symbolicSubtext')}
                   </p>
                 </div>
               )}
@@ -384,14 +384,14 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                   animate={{ opacity: 1 }}
                   className="text-xs font-mono text-amber-400 animate-pulse font-medium"
                 >
-                  {t('stillness.bellRinging', '🔔 Tiếng chuông Keisu ngân... Bắt đầu khoảng lặng')}
+                  {t('stillness.bellRinging')}
                 </motion.div>
               )}
 
               {ritualState === 'active' && (
                 <div className="flex flex-col items-center space-y-1.5">
                   <div className="text-xs font-mono text-gray-300 italic">
-                    {t('stillness.breatheAndLetGo', 'Thở nhẹ và buông bỏ mọi suy nghĩ...')}
+                    {t('stillness.breatheAndLetGo')}
                   </div>
 
                   {/* Toggleable minimal countdown display */}
@@ -401,7 +401,7 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                     </div>
                   ) : (
                     <div className="text-[11px] font-mono text-gray-400 flex items-center gap-1.5">
-                      <span>{t('stillness.silentCountdown', '369 giây')}</span>
+                      <span>{t('stillness.silentCountdown')}</span>
                       <span className="text-amber-500/50">•</span>
                       <span>{Math.round(progressRatio * 100)}%</span>
                     </div>
@@ -413,7 +413,7 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                     className="text-[10px] font-mono text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors"
                   >
                     {showTimerNumbers ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                    <span>{showTimerNumbers ? t('stillness.hideTimer', 'Ẩn đồng hồ') : t('stillness.showTimer', 'Hiện số giây')}</span>
+                    <span>{showTimerNumbers ? t('stillness.hideTimer') : t('stillness.showTimer')}</span>
                   </button>
                 </div>
               )}
@@ -425,10 +425,10 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                   className="space-y-1.5"
                 >
                   <div className="text-amber-400 font-sans text-sm sm:text-base font-medium">
-                    {t('stillness.sessionEndedPeace', 'Khoảng lặng đã hoàn tất.')}
+                    {t('stillness.sessionEndedPeace')}
                   </div>
                   <p className="text-[11px] sm:text-xs font-mono text-gray-400 max-w-sm mx-auto leading-relaxed">
-                    {t('stillness.noAttachmentNote', 'Nhang đã tàn. Không có huy hiệu hay điểm số nào được tạo ra, đúng tinh thần buông bỏ.')}
+                    {t('stillness.noAttachmentNote')}
                   </p>
                 </motion.div>
               )}
@@ -447,7 +447,7 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                 className="rounded border-gray-700 bg-neutral-900 text-amber-500 focus:ring-amber-500/30 w-3.5 h-3.5 cursor-pointer"
               />
               <label htmlFor="optInLocal" className="text-[10px] font-mono text-gray-400 select-none cursor-pointer">
-                {t('stillness.optInLocalLabel', 'Tự đếm cá nhân (Chỉ lưu trên máy, không tạo proof)')}
+                {t('stillness.optInLocalLabel')}
                 {optInLocalCounter && personalSessionCount > 0 && (
                   <span className="ml-1.5 text-amber-400 font-bold">[{personalSessionCount}]</span>
                 )}
@@ -462,7 +462,7 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                   className="bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold text-xs py-2 px-5 rounded-xl flex items-center justify-center gap-2 w-full sm:w-auto shadow-md"
                 >
                   <Flame className="w-4 h-4 text-neutral-950 fill-neutral-950" />
-                  {t('stillness.lightIncenseBtn', 'Thắp Nhang (Start)')}
+                  {t('stillness.lightIncenseBtn')}
                 </Button>
               )}
 
@@ -473,7 +473,7 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                   className="border-white/10 text-gray-400 hover:text-white text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 w-full sm:w-auto"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  {t('stillness.stopOrReset', 'Dừng')}
+                  {t('stillness.stopOrReset')}
                 </Button>
               )}
 
@@ -483,7 +483,7 @@ export default function StillnessRitual({ isOpen, onClose, listingTitle }: Still
                   onClick={handleCloseModal}
                   className="bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold text-xs py-2 px-5 rounded-xl w-full sm:w-auto"
                 >
-                  {t('stillness.returnQuietly', 'Quay lại')}
+                  {t('stillness.returnQuietly')}
                 </Button>
               )}
             </div>

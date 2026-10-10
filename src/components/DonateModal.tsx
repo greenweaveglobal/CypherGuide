@@ -77,7 +77,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
     if (result.success) {
       setIsEditingAddress(false);
       setSuccessMsg(t('donate.saveSuccess'));
-      onAddLog('governance', `Đã lưu & đồng bộ ví quyên góp Lightning Address lên toàn mạng lưới: ${cleanAddress}`);
+      onAddLog('governance', t('donate.logAddressSynced', { address: cleanAddress }));
       setTimeout(() => setSuccessMsg(''), 4000);
     } else {
       setErrorMsg(result.error || 'Failed to save address to server');
@@ -102,7 +102,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
       setIsRealInvoice(res.isReal);
 
       if (res.isReal) {
-        onAddLog('lightning', `Đã phân giải thành công Hóa đơn Lightning thật từ ${devLnAddress} cho ${amount} Sats!`);
+        onAddLog('lightning', t('donate.logResolvedRealInvoice', { address: devLnAddress, amount }));
       } else {
         onAddLog('lightning', t('donate.logCreateInvoice', { amount }));
       }
@@ -246,7 +246,7 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                       setErrorMsg('');
                     }}
                     className="flex items-center gap-1 text-[11px] font-mono text-text-secondary hover:text-primary transition-colors"
-                    title="Chỉnh sửa ví nhận quyên góp (Dành riêng cho Dev/Admin)"
+                    title={t('donate.editWalletTitle')}
                   >
                     <Edit2 className="w-3 h-3" />
                     <span>{t('donate.editBtn')}</span>
@@ -300,10 +300,10 @@ export default function DonateModal({ onClose, onAddLog }: Props) {
                     </span>
                   </div>
                   <p className="text-[10px] text-gray-400 font-mono leading-tight pt-0.5">
-                    Lịch sử đổi ví công khai trên Nostr{configAuditNostrEventId ? (
-                      <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">link tới event ↗</a>]</>
+                    {t('donate.historyPublicNostr')}{configAuditNostrEventId ? (
+                      <> [<a href={`https://njump.me/${configAuditNostrEventId}`} target="_blank" rel="noopener noreferrer" className="text-cyber-green underline hover:text-white inline-flex items-center">{t('donate.linkToEvent')}</a>]</>
                     ) : (
-                      <> [<span className="text-gray-500 italic">audit trail trên relay</span>]</>
+                      <> [<span className="text-gray-500 italic">{t('donate.auditTrailRelay')}</span>]</>
                     )}.
                   </p>
                 </div>
