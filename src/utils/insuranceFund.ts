@@ -1,5 +1,6 @@
 import { finalizeEvent } from 'nostr-tools';
 import { hexToBytes, sha256, verifySignature } from './crypto';
+import { translate } from '../hooks/useTranslation';
 
 export interface Arbitrator {
   npub: string;
@@ -104,7 +105,7 @@ export async function createSignedArbitratorVote(
     const signedEvent = await (window as any).nostr.signEvent(template);
     signature = JSON.stringify(signedEvent);
   } else {
-    throw new Error(`Trọng tài ${arbitrator.name} cần kết nối NIP-07 Nostr extension để ký phiếu bầu bảo mật.`);
+    throw new Error(translate('insuranceFund.errArbitratorExtension', { name: arbitrator.name }));
   }
 
   return {
@@ -184,7 +185,11 @@ export async function verifyQuorumAndTally(
       hasQuorum: false,
       authorization: null,
       invalidVotesCount,
-      reason: `Chưa đủ Quorum 2/3 BFT. Trọng số hợp lệ: ${validVotesWeight}/${totalPoolWeight} (Cần tối thiểu: ${Math.ceil(requiredWeight)})`
+      reason: translate('insuranceFund.errInsufficientQuorum', {
+        valid: validVotesWeight,
+        total: totalPoolWeight,
+        min: Math.ceil(requiredWeight)
+      })
     };
   }
 

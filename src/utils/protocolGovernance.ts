@@ -5,6 +5,7 @@
 
 import { GovernanceAct } from '../types';
 import { verifyGovernanceAct } from './governanceSchema';
+import { translate } from '../hooks/useTranslation';
 
 export interface ProtocolGovernanceState {
   version: string;
@@ -51,7 +52,7 @@ export async function processConsensusAndApplyAct(
     return {
       updatedState: currentState,
       applied: false,
-      reason: 'Chữ ký Nostr của đề xuất quản trị không hợp lệ.',
+      reason: translate('protocolGov.errInvalidNostrSig'),
     };
   }
 
@@ -61,7 +62,11 @@ export async function processConsensusAndApplyAct(
     return {
       updatedState: currentState,
       applied: false,
-      reason: `Chưa đạt Quorum BFT tối thiểu! Cần ít nhất ${requiredQuorum}/${totalArbitrators} chữ ký Trọng tài (hiện có: ${validArbitratorSigsCount}).`,
+      reason: translate('protocolGov.errQuorumNotMet', {
+        required: requiredQuorum,
+        total: totalArbitrators,
+        current: validArbitratorSigsCount
+      }),
     };
   }
 
@@ -69,7 +74,7 @@ export async function processConsensusAndApplyAct(
     return {
       updatedState: currentState,
       applied: false,
-      reason: 'Hành động đề xuất chưa ở trạng thái sẵn sàng thực thi (execute).',
+      reason: translate('protocolGov.errNotReady'),
     };
   }
 
@@ -86,6 +91,10 @@ export async function processConsensusAndApplyAct(
   return {
     updatedState: updated,
     applied: true,
-    reason: `Đã thực thi thành công BFT Consensus cho đề xuất [${act.proposal_id}] (Đạt ${validArbitratorSigsCount}/${totalArbitrators} Quorum).`,
+    reason: translate('protocolGov.successExecuted', {
+      id: act.proposal_id,
+      valid: validArbitratorSigsCount,
+      total: totalArbitrators
+    }),
   };
 }

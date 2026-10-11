@@ -50,7 +50,7 @@ describe('NIP-49 Vault & Cryptographic Utilities', () => {
     const identity = await generateNostrIdentity('Charlie');
     expect(() => {
       encryptAndStoreNip49Vault(identity.privKeyHex!, '1234');
-    }).toThrow('Mật khẩu bảo vệ (Passphrase) phải có ít nhất 8 ký tự.');
+    }).toThrow(/Mật khẩu bảo vệ|Passphrase must be at least/i);
   });
 
   it('cleans up all stored keys when removeVault is called', async () => {

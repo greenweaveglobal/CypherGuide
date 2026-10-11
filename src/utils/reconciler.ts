@@ -1,6 +1,7 @@
 import { sha256 } from './crypto';
 import { GovernanceAct } from '../types';
 import { validateGovernanceAct, verifyGovernanceAct } from './governanceSchema';
+import { translate } from '../hooks/useTranslation';
 
 export interface IntegrityReport {
   timestamp: string;
@@ -38,7 +39,7 @@ export const DataReconciler = {
       // ĐOẠN BẢO MẬT BẮT BUỘC: Xác thực chữ ký cryptographic của từng act trước khi tính vào consensus
       const isSigValid = await verifyGovernanceAct(act);
       if (!isSigValid) {
-        console.warn(`[Consensus Security Alert] Loại bỏ GovernanceAct [${act.proposal_id}] do thiếu chữ ký mật mã hoặc chữ ký không hợp lệ!`);
+        console.warn(translate('reconciler.warnInvalidSig', { id: act.proposal_id }));
         continue;
       }
 
@@ -62,7 +63,7 @@ export const DataReconciler = {
     // Tìm kiếm các effect được đề xuất trong các acts được tán thành
     acts.forEach(act => {
       if (act.decision === 'approve' && act.effect) {
-        logs.push(`Thực thi ý chí: Cập nhật ${act.effect.type} thành ${act.effect.value}`);
+        logs.push(translate('reconciler.logApplyEffect', { type: act.effect.type, value: act.effect.value }));
         
         if (act.effect.type === 'security_level') {
           changes.securityLevel = Number(act.effect.value);
@@ -87,7 +88,7 @@ export const DataReconciler = {
     const logs: string[] = [];
     const healedListings = state.listings.filter(l => {
       const isValid = l.id && l.coOwners && l.coOwners.length > 0;
-      if (!isValid) logs.push(`Thanh lọc Listing lỗi: ${l.id || 'Unknown ID'}`);
+      if (!isValid) logs.push(translate('reconciler.logPruneInvalidListing', { id: l.id || 'Unknown ID' }));
       return isValid;
     });
 
@@ -95,7 +96,7 @@ export const DataReconciler = {
       // BẢO MẬT: Booking bảo bố trạng thái 'paid' nhưng thiếu paymentHash -> Đánh dấu nghi vấn/cách ly
       // KHÔNG tự chế bằng chứng giả (repaired_<uuid>)!
       if (b.status === 'paid' && !b.paymentHash) {
-        logs.push(`CẢNH BÁO THẨM THẤU: Booking ${b.id} ghi nhận 'paid' nhưng thiếu paymentHash. Chuyển sang trạng thái nghi vấn (Quarantined).`);
+        logs.push(translate('reconciler.logQuarantineBooking', { id: b.id }));
         return { ...b, status: 'pending', reconciliationStatus: 'quarantined' };
       }
       return b;
@@ -105,7 +106,7 @@ export const DataReconciler = {
       const isValid = validateGovernanceAct(act);
       if (!isValid) {
         const invalidAct = act as any;
-        logs.push(`Thanh lọc Governance Act không hợp lệ: ${invalidAct.action || 'Unknown'} [${invalidAct.proposal_id || 'N/A'}]`);
+        logs.push(translate('reconciler.logPruneInvalidAct', { action: invalidAct.action || 'Unknown', id: invalidAct.proposal_id || 'N/A' }));
       }
       return isValid;
     });
@@ -139,7 +140,7 @@ export const DataReconciler = {
     state.listings.forEach(l => {
       const totalShare = l.coOwners.reduce((sum: number, co: any) => sum + co.share, 0);
       if (Math.abs(totalShare - 100) > 0.01) {
-        errors.push(`Mâu thuẫn cổ phần tại ${l.id}: Tổng ${totalShare}% (Yêu cầu 100%)`);
+        errors.push(translate('reconciler.errShareMismatch', { id: l.id, total: totalShare }));
       }
     });
 

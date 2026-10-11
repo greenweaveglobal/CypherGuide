@@ -1483,5 +1483,153 @@
     "initialLogStateLoaded": "Khởi động State Engine: BFT Escrow 2-of-3 & Multisig Rules nạp hoàn tất.",
     "auditConflictWarning": "CẢNH BÁO: Phát hiện {count} mâu thuẫn dữ liệu trong Protocol State.",
     "auditCompleted": "Đối soát Cypher Guide hoàn tất. Trạng thái: Toàn vẹn (Immutable)."
+  },
+  "mediaServer": {
+    "warningVercelFallback": "Máy chủ cục bộ (/api/media) không khả dụng trên môi trường serverless (Vercel). Đang tự động kết nối máy chủ NIP-96: {name}{latency}.",
+    "warningTimeoutFallback": "Máy chủ chính ({primary}) không phản hồi sau 3s. Đang tự động chuyển sang máy chủ dự phòng: {name}{latency}.",
+    "errAllServersDown": "Máy chủ chính của CypherGuide và tất cả máy chủ NIP-96 dự phòng đều không khả dụng. Vui lòng kiểm tra lại kết nối mạng hoặc dán URL ảnh trực tiếp.",
+    "errNip96ErrorStatus": "Máy chủ NIP-96 trả về trạng thái lỗi.",
+    "errInvalidJsonResponse": "Phản hồi từ Media Server không phải JSON hợp lệ (HTTP {status}).",
+    "errMissingMediaUrl": "Dữ liệu phản hồi từ Media Server không chứa URL hợp lệ.",
+    "errAuthRequired": "Yêu cầu xác thực tài khoản (chữ ký NIP-98)",
+    "errEndpointNotFound": "Không tìm thấy endpoint (HTTP 404)",
+    "errNetworkConnection": "Lỗi kết nối mạng đến máy chủ ({endpoint})",
+    "errUploadTimeout": "Hết thời gian chờ (Timeout) khi tải ảnh lên {endpoint}",
+    "errUnknown": "Lỗi không xác định",
+    "summaryAuthNeeded": "Cần đăng nhập / chữ ký NIP-98",
+    "summaryNotFound": "Không tìm thấy endpoint (404)",
+    "summaryTimeout": "Hết thời gian chờ (Timeout)",
+    "summaryNetwork": "Lỗi kết nối mạng",
+    "summarySizeLimit": "Dung lượng vượt hạn mức",
+    "errNoServerAvailable": "Không có máy chủ nào khả dụng để tải ảnh lên.",
+    "errDescriptorMissing": "Tài liệu khám phá NIP-96 không khả dụng hoặc thiếu api_url",
+    "errVaultLocked": "Khóa Nostr đang bị khóa. Vui lòng mở khóa Vault (NIP-49) trong Quản lý danh tính.",
+    "errLoginRequired": "Yêu cầu đăng nhập Nostr hoặc bật NIP-07 để tạo chữ ký NIP-98.",
+    "errSignFailed": "Không thể tạo chữ ký NIP-98 cho yêu cầu tải ảnh.",
+    "uploadFailedSummary": "Tải ảnh thất bại sau khi thử {count} máy chủ:\n{summary}\n\nGợi ý: Bạn có thể dán trực tiếp URL ảnh công khai vào ô nhập liệu hoặc dùng luồng NIP-94."
+  },
+  "depositEscrow": {
+    "errAlreadyReleased": "Tiền đặt cọc đã được giải ngân trước đó.",
+    "errAlreadyRefunded": "Tiền đặt cọc đã được hoàn lại cho Khách.",
+    "reasonDisputeQuorum": "Đã đạt Quorum 2/3 chữ ký Trọng tài BFT giải quyết tranh chấp.",
+    "reasonDisputePending": "Hợp đồng đang tranh chấp. Cần ít nhất 2 chữ ký Trọng tài BFT.",
+    "reasonProofVerified": "Đã xác minh Bằng chứng Lưu trú (Proof of Stay). Đủ điều kiện giải ngân cho Chủ nhà.",
+    "reasonTimelockExpired": "Thời hạn Timelock 2-of-3 Escrow đã hết. Tự động giải ngân theo hợp đồng.",
+    "reasonNoProofNotExpired": "Chưa có Bằng chứng lưu trú và thời hạn Timelock chưa hết.",
+    "reasonInvalidStatus": "Trạng thái ký quỹ không hợp lệ.",
+    "reasonReleaseSuccess": "Giải ngân thành công {sats} Sats từ NUT-11 Escrow Mint.",
+    "reasonReleaseFailed": "Giải ngân Escrow thất bại."
+  },
+  "insurance": {
+    "errArbitratorNip07": "Trọng tài {name} cần kết nối NIP-07 Nostr extension để ký phiếu bầu bảo mật.",
+    "reasonInsufficientQuorum": "Chưa đủ Quorum 2/3 BFT. Trọng số hợp lệ: {valid}/{total} (Cần tối thiểu: {min}%)"
+  },
+  "reconciler": {
+    "logApplyEffect": "Thực thi ý chí: Cập nhật {type} thành {value}",
+    "logPruneInvalidListing": "Thanh lọc Listing lỗi: {id}",
+    "logQuarantineBooking": "CẢNH BÁO THẨM THẤU: Booking {id} ghi nhận 'paid' nhưng thiếu paymentHash. Chuyển sang trạng thái nghi vấn (Quarantined)",
+    "logPruneInvalidAct": "Thanh lọc Governance Act không hợp lệ: {action} [{id}]",
+    "errShareMismatch": "Mâu thuẫn cổ phần tại {id}: Tổng {total}% (Yêu cầu 100%)",
+    "warnInvalidSig": "[Consensus Security Alert] Loại bỏ GovernanceAct [{id}] do thiếu chữ ký mật mã hoặc chữ ký không hợp lệ!"
+  },
+  "crypto": {
+    "errPassMinLength": "Mật khẩu bảo vệ (Passphrase) phải có ít nhất 8 ký tự.",
+    "errEncryptFailed": "Lỗi mã hóa {standard}: {msg}",
+    "missingPrivKeySession": "THIẾU PRIVKEY TRONG PHIÊN: Vì lý do bảo mật, nsec không lưu trên trình duyệt sau khi tải lại trang. Vui lòng mở khóa Vault (NIP-49) trong Quản lý danh tính để kích hoạt phiên giải mã.",
+    "msgLegacySession": "[🔐 Tin nhắn được gửi từ phiên thử nghiệm cũ]",
+    "msgNip07DecryptFailed": "[🔐 Không thể giải mã tin nhắn qua NIP-07 extension]",
+    "msgDecryptError": "[🔐 Lỗi giải mã: Khóa không đúng hoặc dữ liệu bị thay đổi]",
+    "msgLockedVault": "[🔐 Tin nhắn đã mã hóa E2EE — Cần mở khóa Vault hoặc kích hoạt NIP-07 extension để giải mã]",
+    "errNoPrivKeyMemory": "Không có khóa riêng tư trong bộ nhớ. Vui lòng mở khóa Vault bằng Passphrase hoặc kết nối tiện ích NIP-07.",
+    "errCannotSignMissingKey": "Không thể ký thông điệp: Thiếu khóa riêng tư hợp lệ."
+  },
+  "pricing": {
+    "standardRoom": "Tiêu Chuẩn (Standard)",
+    "dow": {
+      "MO": "Thứ 2",
+      "TU": "Thứ 3",
+      "WE": "Thứ 4",
+      "TH": "Thứ 5",
+      "FR": "Thứ 6",
+      "SA": "Thứ 7",
+      "SU": "Chủ Nhật"
+    }
+  },
+  "nwc": {
+    "errInvalidConn": "Chuỗi kết nối NWC (NIP-47) không hợp lệ!",
+    "errTimeoutRelay": "Hết thời gian chờ phản hồi từ NWC Relay ({url})",
+    "errPreimageMismatch": "Chữ ký preimage từ ví không khớp payment_hash của invoice! Giao dịch bị từ chối do rủi ro giả mạo.",
+    "errPaymentRejected": "Ví NWC từ chối thanh toán",
+    "errMissingPreimage": "Ví NWC phản hồi nhưng thiếu bằng chứng Preimage thanh toán. Giao dịch chưa được xác nhận!",
+    "errWsRelayFailed": "Lỗi kết nối WebSocket Relay NWC ({url})",
+    "errInitFailed": "Lỗi mã hóa/khởi tạo NIP-47: {msg}"
+  },
+  "cashu": {
+    "noP2pkCondition": "Không có điều kiện khóa P2PK NUT-11.",
+    "timelockExpired": "Hợp đồng Timelock đã hết hạn, mở khóa hoàn tiền cho bên thụ hưởng.",
+    "missingP2pkSigs": "Thiếu chữ ký P2PK NUT-11! Yêu cầu ít nhất {required} chữ ký hợp lệ (hiện có: {count}).",
+    "p2pkVerified": "Xác minh thành công {valid}/{required} chữ ký P2PK Schnorr.",
+    "p2pkMismatch": "Chữ ký Schnorr P2PK không khớp với pubkey đã khóa! ({valid}/{required} chữ ký hợp lệ).",
+    "invalidToken": "Token Cashu không hợp lệ hoặc đã bị chỉnh sửa!",
+    "redemptionRejected": "Từ chối giải ngân Ecash: {reason}"
+  },
+  "referral": {
+    "errInvalidNpub": "Mã giới thiệu không phải chuỗi Nostr npub hợp lệ.",
+    "errInvalidIdentity": "Danh tính tài khoản người dùng không hợp lệ.",
+    "errSelfReferral": "Tài khoản không thể tự giới thiệu chính mình.",
+    "errFirstStayOnly": "Chương trình Referral Sats chỉ áp dụng cho lần đặt phòng đầu tiên của thành viên mới.",
+    "errAlreadyClaimed": "Phần thưởng này đã được nhận trước đó.",
+    "successTransferred": "Đã chuyển thành công {sats} Sats tới Lightning Address [{address}]"
+  },
+  "lightning": {
+    "errNoSimulatedInvoice": "Cảnh báo bảo mật: Không được phép tạo hóa đơn giả lập. Mọi hóa đơn phải được tạo từ Lightning Node hoặc LNURL thực tế.",
+    "errInvalidLnAddress": "Địa chỉ Lightning Address không hợp lệ (yêu cầu định dạng user@domain.com).",
+    "errResolveFailed": "Không thể phân giải hóa đơn từ máy chủ LNURL của địa chỉ Lightning ({address}). Vui lòng kiểm tra lại địa chỉ hoặc kết nối mạng.",
+    "errNoPreimage": "Ví WebLN không trả về bằng chứng Preimage thanh toán.",
+    "errPreimageHashMismatch": "Chữ ký preimage từ ví không khớp payment_hash của invoice!"
+  },
+  "protocolGov": {
+    "errInvalidNostrSig": "Chữ ký Nostr của đề xuất quản trị không hợp lệ.",
+    "errQuorumNotMet": "Chưa đạt Quorum BFT tối thiểu! Cần ít nhất {required}/{total} chữ ký Trọng tài (hiện có: {current}).",
+    "errNotReady": "Hành động đề xuất chưa ở trạng thái sẵn sàng thực thi (execute).",
+    "successExecuted": "Đã thực thi thành công BFT Consensus cho đề xuất [{id}] (Đạt {valid}/{total} Quorum)."
+  },
+  "kycAttestation": {
+    "errNoKey": "Không tìm thấy khóa riêng tư hoặc tiện ích NIP-07 để ký chứng nhận KYC.",
+    "errNoValidVerifier": "Danh sách Verifier của Host không chứa npub hợp lệ.",
+    "errAttestationNotFound": "Không tìm thấy chứng nhận KYC (Kind 30388) hợp lệ có chữ ký xác thực từ Verifier được chấp nhận."
+  },
+  "promoter": {
+    "postContent": "Vừa có một chỗ ở mới trên mạng lưới Cypherlodge Mesh: \"{title}\"!\n\n📍 {coords}\n💰 {price} Sats/đêm\n\nXem ngay: cypherlodge.io/l/{id}\n#cypherlodge #homestay",
+    "broadcastSuccess": "Auto-Promoter: Đã phát broadcast event Kind 1 quảng bá listing \"{title}\" (Event ID: {id}...)",
+    "broadcastError": "Auto-Promoter: Lỗi khi tạo Nostr event cho listing mới."
+  },
+  "proofOfStay": {
+    "errGuestSign": "Không thể ký Proof-of-Stay: Thiếu khóa riêng tư hoặc tiện ích NIP-07 của khách.",
+    "errHostSign": "Không thể đồng ký Proof-of-Stay: Thiếu khóa riêng tư hoặc tiện ích NIP-07 của host."
+  },
+  "infraContrib": {
+    "errNotEligible": "Chưa đủ điều kiện thưởng hạ tầng.",
+    "successPaid": "Đã trích từ Quỹ Hạ Tầng [{treasury}] thanh toán {sats} Sats thưởng Relay Node [{alias}] tới [{dest}]"
+  },
+  "infraContribution": {
+    "notEligible": "Chưa đủ điều kiện thưởng hạ tầng.",
+    "rewardPaid": "Đã trích từ Quỹ Hạ Tầng [{treasuryAddress}] thanh toán {rewardSats} Sats thưởng Relay Node [{alias}] tới [{address}]"
+  },
+  "insuranceFund": {
+    "errArbitratorExtension": "Trọng tài {name} cần kết nối NIP-07 Nostr extension để ký phiếu bầu bảo mật.",
+    "errInsufficientQuorum": "Chưa đủ Quorum 2/3 BFT. Trọng số hợp lệ: {valid}/{total} (Cần tối thiểu: {min})"
+  },
+  "days": {
+    "MO": "Thứ 2",
+    "TU": "Thứ 3",
+    "WE": "Thứ 4",
+    "TH": "Thứ 5",
+    "FR": "Thứ 6",
+    "SA": "Thứ 7",
+    "SU": "Chủ Nhật"
+  },
+  "docs": {
+    "noDocYet": "Chưa có tài liệu về việc này"
   }
 }

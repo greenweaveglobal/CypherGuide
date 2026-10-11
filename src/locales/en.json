@@ -1483,5 +1483,153 @@
     "initialLogStateLoaded": "State Engine started: BFT Escrow 2-of-3 & Multisig Rules fully loaded.",
     "auditConflictWarning": "WARNING: Detected {count} data conflicts in Protocol State.",
     "auditCompleted": "Cypher Guide reconciliation completed. Status: Immutable."
+  },
+  "mediaServer": {
+    "warningVercelFallback": "Local server (/api/media) unavailable on serverless environment (Vercel). Auto-connecting to NIP-96 server: {name}{latency}.",
+    "warningTimeoutFallback": "Primary server ({primary}) did not respond after 3s. Auto-switching to fallback server: {name}{latency}.",
+    "errAllServersDown": "CypherGuide primary server and all NIP-96 fallback servers are unavailable. Please check your network connection or paste direct image URL.",
+    "errNip96ErrorStatus": "NIP-96 server returned error status.",
+    "errInvalidJsonResponse": "Response from Media Server is not valid JSON (HTTP {status}).",
+    "errMissingMediaUrl": "Response data from Media Server does not contain a valid URL.",
+    "errAuthRequired": "Authentication required (NIP-98 signature)",
+    "errEndpointNotFound": "Endpoint not found (HTTP 404)",
+    "errNetworkConnection": "Network connection error to server ({endpoint})",
+    "errUploadTimeout": "Timeout while uploading image to {endpoint}",
+    "errUnknown": "Unknown error",
+    "summaryAuthNeeded": "Login / NIP-98 signature required",
+    "summaryNotFound": "Endpoint not found (404)",
+    "summaryTimeout": "Timeout",
+    "summaryNetwork": "Network connection error",
+    "summarySizeLimit": "File size exceeds limit",
+    "errNoServerAvailable": "No server available for upload.",
+    "errDescriptorMissing": "NIP-96 discovery document unavailable or missing api_url",
+    "errVaultLocked": "Nostr key is locked. Please unlock Vault (NIP-49) in Identity Manager.",
+    "errLoginRequired": "Please log in with Nostr or enable NIP-07 to generate NIP-98 signature.",
+    "errSignFailed": "Cannot generate NIP-98 signature for upload request.",
+    "uploadFailedSummary": "Image upload failed after trying {count} servers:\n{summary}\n\nHint: You can paste a public image URL directly into the input or use NIP-94."
+  },
+  "depositEscrow": {
+    "errAlreadyReleased": "Deposit already released previously.",
+    "errAlreadyRefunded": "Deposit already refunded to Guest.",
+    "reasonDisputeQuorum": "BFT 2/3 Arbitrator Quorum reached to resolve dispute.",
+    "reasonDisputePending": "Contract under dispute. Requires at least 2 BFT Arbitrator signatures.",
+    "reasonProofVerified": "Proof of Stay verified. Eligible for release to Host.",
+    "reasonTimelockExpired": "2-of-3 Escrow Timelock expired. Auto-releasing per contract.",
+    "reasonNoProofNotExpired": "No Proof of Stay and Timelock has not expired.",
+    "reasonInvalidStatus": "Invalid escrow status.",
+    "reasonReleaseSuccess": "Successfully released {sats} Sats from NUT-11 Escrow Mint.",
+    "reasonReleaseFailed": "Escrow release failed."
+  },
+  "insurance": {
+    "errArbitratorNip07": "Arbitrator {name} needs NIP-07 Nostr extension connected to sign ballot.",
+    "reasonInsufficientQuorum": "Insufficient 2/3 BFT Quorum. Valid weight: {valid}/{total} (Required: {min}%)"
+  },
+  "reconciler": {
+    "logApplyEffect": "Act of Will executed: Updated {type} to {value}",
+    "logPruneInvalidListing": "Pruned invalid listing: {id}",
+    "logQuarantineBooking": "OSMOTIC WARNING: Booking {id} marked 'paid' but missing paymentHash. Quarantined",
+    "logPruneInvalidAct": "Pruned invalid Governance Act: {action} [{id}]",
+    "errShareMismatch": "Share mismatch at {id}: Total {total}% (100% required)",
+    "warnInvalidSig": "[Consensus Security Alert] Discarded GovernanceAct [{id}] due to missing or invalid cryptographic signature!"
+  },
+  "crypto": {
+    "errPassMinLength": "Passphrase must be at least 8 characters.",
+    "errEncryptFailed": "Encryption error {standard}: {msg}",
+    "missingPrivKeySession": "MISSING SESSION PRIVKEY: For security, nsec is not stored in browser after reload. Please unlock Vault (NIP-49) in Identity Manager to enable decryption session.",
+    "msgLegacySession": "[🔐 Message sent from legacy test session]",
+    "msgNip07DecryptFailed": "[🔐 Could not decrypt message via NIP-07 extension]",
+    "msgDecryptError": "[🔐 Decryption error: Invalid key or tampered data]",
+    "msgLockedVault": "[🔐 E2EE encrypted message — Unlock Vault or enable NIP-07 to decrypt]",
+    "errNoPrivKeyMemory": "No private key in memory. Please unlock Vault with Passphrase or connect NIP-07.",
+    "errCannotSignMissingKey": "Cannot sign message: Missing valid private key."
+  },
+  "pricing": {
+    "standardRoom": "Standard Room",
+    "dow": {
+      "MO": "Mon",
+      "TU": "Tue",
+      "WE": "Wed",
+      "TH": "Thu",
+      "FR": "Fri",
+      "SA": "Sat",
+      "SU": "Sun"
+    }
+  },
+  "nwc": {
+    "errInvalidConn": "Invalid NWC connection string (NIP-47)!",
+    "errTimeoutRelay": "Timeout waiting for response from NWC Relay ({url})",
+    "errPreimageMismatch": "Wallet preimage does not match invoice payment_hash! Transaction rejected due to fraud risk.",
+    "errPaymentRejected": "NWC wallet rejected payment",
+    "errMissingPreimage": "NWC wallet responded without payment Preimage proof. Transaction unconfirmed!",
+    "errWsRelayFailed": "WebSocket connection error to NWC Relay ({url})",
+    "errInitFailed": "NIP-47 initialization/encryption error: {msg}"
+  },
+  "cashu": {
+    "noP2pkCondition": "No NUT-11 P2PK locking conditions.",
+    "timelockExpired": "Timelock expired, releasing refund to beneficiary.",
+    "missingP2pkSigs": "Missing NUT-11 P2PK signatures! Requires at least {required} valid signatures (current: {count}).",
+    "p2pkVerified": "Successfully verified {valid}/{required} P2PK Schnorr signatures.",
+    "p2pkMismatch": "P2PK Schnorr signature does not match locked pubkey! ({valid}/{required} valid signatures).",
+    "invalidToken": "Cashu token invalid or modified!",
+    "redemptionRejected": "Ecash redemption rejected: {reason}"
+  },
+  "referral": {
+    "errInvalidNpub": "Referral code is not a valid Nostr npub string.",
+    "errInvalidIdentity": "User account identity is invalid.",
+    "errSelfReferral": "Account cannot refer itself.",
+    "errFirstStayOnly": "Referral Sats program only applies to the first booking of a new member.",
+    "errAlreadyClaimed": "This reward has already been claimed.",
+    "successTransferred": "Successfully transferred {sats} Sats to Lightning Address [{address}]"
+  },
+  "lightning": {
+    "errNoSimulatedInvoice": "Security warning: Simulated invoices not allowed. All invoices must be generated from a real Lightning Node or LNURL.",
+    "errInvalidLnAddress": "Invalid Lightning Address (requires user@domain.com format).",
+    "errResolveFailed": "Could not resolve invoice from Lightning Address LNURL server ({address}). Please verify address or network connection.",
+    "errNoPreimage": "WebLN wallet did not return payment Preimage proof.",
+    "errPreimageHashMismatch": "Preimage from wallet does not match invoice payment_hash!"
+  },
+  "protocolGov": {
+    "errInvalidNostrSig": "Nostr signature of governance proposal is invalid.",
+    "errQuorumNotMet": "Minimum BFT Quorum not met! Requires at least {required}/{total} Arbitrator signatures (current: {current}).",
+    "errNotReady": "Proposal action is not ready for execution.",
+    "successExecuted": "Successfully executed BFT Consensus for proposal [{id}] (Achieved {valid}/{total} Quorum)."
+  },
+  "kycAttestation": {
+    "errNoKey": "Private key or NIP-07 extension not found to sign KYC attestation.",
+    "errNoValidVerifier": "Host Verifier list contains no valid npub.",
+    "errAttestationNotFound": "Valid KYC attestation (Kind 30388) with signature from accepted Verifier not found."
+  },
+  "promoter": {
+    "postContent": "A new stay has just arrived on Cypherlodge Mesh: \"{title}\"!\n\n📍 {coords}\n💰 {price} Sats/night\n\nView now: cypherlodge.io/l/{id}\n#cypherlodge #homestay",
+    "broadcastSuccess": "Auto-Promoter: Broadcasted Kind 1 event promoting listing \"{title}\" (Event ID: {id}...)",
+    "broadcastError": "Auto-Promoter: Error creating Nostr event for new listing."
+  },
+  "proofOfStay": {
+    "errGuestSign": "Cannot sign Proof-of-Stay: Missing guest private key or NIP-07 extension.",
+    "errHostSign": "Cannot co-sign Proof-of-Stay: Missing host private key or NIP-07 extension."
+  },
+  "infraContrib": {
+    "errNotEligible": "Not eligible for infrastructure incentive.",
+    "successPaid": "Disbursed {sats} Sats from Infrastructure Fund [{treasury}] to Relay Node [{alias}] at [{dest}]"
+  },
+  "infraContribution": {
+    "notEligible": "Not eligible for infrastructure reward.",
+    "rewardPaid": "Deducted from Infrastructure Treasury [{treasuryAddress}] to pay {rewardSats} Sats Relay Node [{alias}] reward to [{address}]"
+  },
+  "insuranceFund": {
+    "errArbitratorExtension": "Arbitrator {name} must connect NIP-07 Nostr extension to sign secure vote.",
+    "errInsufficientQuorum": "Insufficient 2/3 BFT Quorum. Valid weight: {valid}/{total} (Minimum required: {min})"
+  },
+  "days": {
+    "MO": "Mon",
+    "TU": "Tue",
+    "WE": "Wed",
+    "TH": "Thu",
+    "FR": "Fri",
+    "SA": "Sat",
+    "SU": "Sun"
+  },
+  "docs": {
+    "noDocYet": "There is no documentation about this yet"
   }
 }

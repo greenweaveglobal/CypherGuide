@@ -51,7 +51,7 @@ describe('KYC Attestation Module (H2 Security)', () => {
     );
 
     expect(result.valid).toBe(false);
-    expect(result.reason).toContain('Không tìm thấy chứng nhận KYC');
+    expect(result.reason).toMatch(/Không tìm thấy chứng nhận KYC|Valid KYC attestation/i);
   });
 
   it('rejects tampered or corrupted rawNostrEventJson', async () => {

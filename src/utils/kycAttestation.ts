@@ -1,6 +1,7 @@
 import { sha256, npubToHex, hexToBytes } from './crypto';
 import { NostrIdentity, KycAttestationRecord } from '../types';
 import { nip19, finalizeEvent, verifyEvent } from 'nostr-tools';
+import { translate } from '../hooks/useTranslation';
 
 // Sample valid verifier npub for demo purposes (derived from a known 64-hex pubkey)
 export const DEMO_VERIFIER_HEX_1 = '1111111111111111111111111111111111111111111111111111111111111111';
@@ -70,7 +71,7 @@ export async function createKycAttestation(
   } else {
     const nostr = typeof window !== 'undefined' ? (window as any).nostr : null;
     if (!nostr?.signEvent) {
-      throw new Error("Không tìm thấy khóa riêng tư hoặc tiện ích NIP-07 để ký chứng nhận KYC.");
+      throw new Error(translate('kycAttestation.errNoKey'));
     }
     finalizedEvent = await nostr.signEvent(eventTemplate);
   }
@@ -125,7 +126,7 @@ export async function validateKycAttestationForBooking(
     .filter((h): h is string => h !== null);
 
   if (acceptedVerifierHexes.length === 0) {
-    return { valid: false, reason: 'Danh sách Verifier của Host không chứa npub hợp lệ.' };
+    return { valid: false, reason: translate('kycAttestation.errNoValidVerifier') };
   }
 
   const guestHex = npubToHex(guestNpub);
@@ -181,6 +182,6 @@ export async function validateKycAttestationForBooking(
 
   return {
     valid: false,
-    reason: `Không tìm thấy chứng nhận KYC (Kind 30388) hợp lệ có chữ ký xác thực từ Verifier được chấp nhận.`
+    reason: translate('kycAttestation.errAttestationNotFound')
   };
 }

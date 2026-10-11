@@ -3,6 +3,8 @@
  * Ghi nhận đóng góp hạ tầng Meshnet/Relay Node và thưởng phí chia sẻ tài nguyên.
  */
 
+import { translate } from '../hooks/useTranslation';
+
 export const DEFAULT_INFRA_TREASURY_LN_ADDRESS = 'peevishtender468@walletofsatoshi.com';
 
 export interface InfraNodeMetrics {
@@ -40,7 +42,7 @@ export async function claimNodeIncentive(
       success: false, 
       rewardSats: 0, 
       txHash: '', 
-      message: 'Chưa đủ điều kiện thưởng hạ tầng.',
+      message: translate('infraContribution.notEligible'),
       treasuryAddress 
     };
   }
@@ -53,7 +55,12 @@ export async function claimNodeIncentive(
         success: true,
         rewardSats,
         txHash: mockTxHash,
-        message: `Đã trích từ Quỹ Hạ Tầng [${treasuryAddress}] thanh toán ${rewardSats} Sats thưởng Relay Node [${metrics.alias}] tới [${nodeOperatorLnAddress}]`,
+        message: translate('infraContribution.rewardPaid', {
+          treasuryAddress,
+          rewardSats,
+          alias: metrics.alias,
+          address: nodeOperatorLnAddress
+        }),
         treasuryAddress
       });
     }, 1200);

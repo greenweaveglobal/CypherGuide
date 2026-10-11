@@ -1,4 +1,5 @@
 import { Listing, PriceRule, RoomType } from '../types';
+import { translate } from '../hooks/useTranslation';
 
 /**
  * Tỷ lệ tiền cọc bảo đảm hoàn lại 10% khi đặt phòng (trả lại khi check-out thành công).
@@ -25,14 +26,27 @@ export const DAY_OF_WEEK_MAP: { [key: number]: string } = {
 };
 
 export const DAY_OF_WEEK_LABELS: { [key: string]: { vi: string; en: string } } = {
-  MO: { vi: 'Thứ 2', en: 'Mon' },
-  TU: { vi: 'Thứ 3', en: 'Tue' },
-  WE: { vi: 'Thứ 4', en: 'Wed' },
-  TH: { vi: 'Thứ 5', en: 'Thu' },
-  FR: { vi: 'Thứ 6', en: 'Fri' },
-  SA: { vi: 'Thứ 7', en: 'Sat' },
-  SU: { vi: 'Chủ Nhật', en: 'Sun' }
+  get MO() { return { vi: translate('days.MO'), en: 'Mon' }; },
+  get TU() { return { vi: translate('days.TU'), en: 'Tue' }; },
+  get WE() { return { vi: translate('days.WE'), en: 'Wed' }; },
+  get TH() { return { vi: translate('days.TH'), en: 'Thu' }; },
+  get FR() { return { vi: translate('days.FR'), en: 'Fri' }; },
+  get SA() { return { vi: translate('days.SA'), en: 'Sat' }; },
+  get SU() { return { vi: translate('days.SU'), en: 'Sun' }; }
 };
+
+export function getDayLabel(day: string): string {
+  const map: Record<string, string> = {
+    MO: translate('days.MO'),
+    TU: translate('days.TU'),
+    WE: translate('days.WE'),
+    TH: translate('days.TH'),
+    FR: translate('days.FR'),
+    SA: translate('days.SA'),
+    SU: translate('days.SU')
+  };
+  return map[day] || day;
+}
 
 /**
  * Migration helper: Guarantees every Listing has a valid roomTypes array (min 1 element),
@@ -54,7 +68,7 @@ export function migrateListingToRoomTypes(listing: Listing): Listing {
   // Fallback for legacy listings without roomTypes
   const defaultRoom: RoomType = {
     id: `rt_default_${listing.id ? listing.id.slice(0, 10) : Math.random().toString(36).substring(2, 8)}`,
-    name: listing.title || 'Tiêu Chuẩn (Standard)',
+    name: listing.title || 'Standard',
     maxGuests: listing.maxGuests || 2,
     priceSats: listing.priceSats ?? 0,
     securitySpecs: listing.securitySpecs ? [...listing.securitySpecs] : [],

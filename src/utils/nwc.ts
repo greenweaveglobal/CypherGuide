@@ -7,6 +7,7 @@
 import { finalizeEvent, nip04, getPublicKey } from 'nostr-tools';
 import { hexToBytes, bytesToHex } from './crypto';
 import { parseBolt11, verifyLightningPreimage } from './lightning';
+import { translate } from '../hooks/useTranslation';
 
 export interface NWCConnection {
   walletPubkey: string;
@@ -175,7 +176,7 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
 
   const connection = parseNWCUrl(targetUrl);
   if (!connection) {
-    return { success: false, error: 'Chuỗi kết nối NWC (NIP-47) không hợp lệ!' };
+    return { success: false, error: translate('nwc.errInvalidConn') };
   }
 
   // Real Nostr Relay NIP-47 WebSocket RPC Execution
@@ -209,7 +210,7 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
 
       timeoutId = setTimeout(() => {
         if (ws) ws.close();
-        resolve({ success: false, error: 'Hết thời gian chờ phản hồi từ NWC Relay (' + connection.relayUrl + ')' });
+        resolve({ success: false, error: translate('nwc.errTimeoutRelay', { url: connection.relayUrl }) });
       }, 10000);
 
       ws.onopen = () => {
@@ -242,19 +243,19 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
                 if (!isValidPreimage) {
                   resolve({
                     success: false,
-                    error: 'Chữ ký preimage từ ví không khớp payment_hash của invoice! Giao dịch bị từ chối do rủi ro giả mạo.'
+                    error: translate('nwc.errPreimageMismatch')
                   });
                   return;
                 }
               }
               resolve({ success: true, preimage });
             } else if (parsedResp.error) {
-              resolve({ success: false, error: parsedResp.error.message || 'Ví NWC từ chối thanh toán' });
+              resolve({ success: false, error: parsedResp.error.message || translate('nwc.errPaymentRejected') });
             } else {
               // Thiếu preimage -> KHÔNG coi là thành công!
               resolve({
                 success: false,
-                error: 'Ví NWC phản hồi nhưng thiếu bằng chứng Preimage thanh toán. Giao dịch chưa được xác nhận!'
+                error: translate('nwc.errMissingPreimage')
               });
             }
           }
@@ -265,12 +266,12 @@ export async function payInvoiceViaNWC(nwcUrl: string, invoice: string): Promise
 
       ws.onerror = () => {
         clearTimeout(timeoutId);
-        resolve({ success: false, error: 'Lỗi kết nối WebSocket Relay NWC (' + connection.relayUrl + ')' });
+        resolve({ success: false, error: translate('nwc.errWsRelayFailed', { url: connection.relayUrl }) });
       };
 
     } catch (e: any) {
       if (timeoutId) clearTimeout(timeoutId);
-      resolve({ success: false, error: 'Lỗi mã hóa/khởi tạo NIP-47: ' + (e.message || 'Unknown') });
+      resolve({ success: false, error: translate('nwc.errInitFailed', { msg: e.message || 'Unknown' }) });
     }
   });
 }

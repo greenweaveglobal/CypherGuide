@@ -4,6 +4,7 @@
  */
 
 import { sha256, npubToHex } from './crypto';
+import { translate } from '../hooks/useTranslation';
 
 export interface ReferralReward {
   id: string;
@@ -36,18 +37,18 @@ export function checkReferralEligibility(
   existingReferrals: Array<{ refereeNpub: string }>
 ): { eligible: boolean; reason?: string } {
   if (!referrerNpub || !isValidNpub(referrerNpub)) {
-    return { eligible: false, reason: 'Mã giới thiệu không phải chuỗi Nostr npub hợp lệ.' };
+    return { eligible: false, reason: translate('referral.errInvalidNpub') };
   }
   if (!refereeNpub || !isValidNpub(refereeNpub)) {
-    return { eligible: false, reason: 'Danh tính tài khoản người dùng không hợp lệ.' };
+    return { eligible: false, reason: translate('referral.errInvalidIdentity') };
   }
   if (referrerNpub === refereeNpub) {
-    return { eligible: false, reason: 'Tài khoản không thể tự giới thiệu chính mình.' };
+    return { eligible: false, reason: translate('referral.errSelfReferral') };
   }
   // Chặn farming: Chỉ áp dụng thưởng cho lượt Đặt Phòng Đầu Tiên của Referee
   const alreadyReferred = existingReferrals.some((ref) => ref.refereeNpub === refereeNpub);
   if (alreadyReferred) {
-    return { eligible: false, reason: 'Chương trình Referral Sats chỉ áp dụng cho lần đặt phòng đầu tiên của thành viên mới.' };
+    return { eligible: false, reason: translate('referral.errFirstStayOnly') };
   }
   return { eligible: true };
 }
@@ -76,7 +77,7 @@ export async function claimReferralReward(
   lnAddress: string
 ): Promise<{ success: boolean; txHash: string; message: string }> {
   if (reward.status === 'claimed') {
-    return { success: false, txHash: reward.txHash || '', message: 'Phần thưởng này đã được nhận trước đó.' };
+    return { success: false, txHash: reward.txHash || '', message: translate('referral.errAlreadyClaimed') };
   }
 
   // Giả lập giao dịch thanh toán Lightning P2P tự động tới LN Address của người dùng
@@ -87,7 +88,7 @@ export async function claimReferralReward(
       resolve({
         success: true,
         txHash: mockTxHash,
-        message: `Đã chuyển thành công ${reward.rewardSats} Sats tới Lightning Address [${lnAddress}]`
+        message: translate('referral.successTransferred', { sats: reward.rewardSats, address: lnAddress })
       });
     }, 1000);
   });

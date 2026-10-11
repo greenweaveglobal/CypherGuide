@@ -9,10 +9,10 @@ export const INITIAL_LISTINGS: Listing[] = [
     imagePrompt: 'Zen forest hermitage with bamboo trees and stone lantern',
     imageUrl: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80',
     meshCoordinates: 'mesh:11.94:108.45 (Da Lat Pine Valley)',
-    locationLabel: 'Đà Lạt, Lâm Đồng',
+    locationLabel: 'Da Lat, Lam Dong',
     cancellationPolicy: 'flexible',
-    cancellationNote: 'Hoan hỷ hủy miễn phí trước 24 giờ nhận phòng',
-    bedType: 'Đệm thiền & Giường gỗ tự nhiên',
+    cancellationNote: 'Flexible free cancellation up to 24h prior to check-in',
+    bedType: 'Meditation futon & Natural wooden frame',
     areaM2: 32,
     checkInTime: '14:00',
     checkOutTime: '11:00',
@@ -29,20 +29,20 @@ export const INITIAL_LISTINGS: Listing[] = [
     roomTypes: [
       {
         id: 'rt_zen_kuti_01',
-        name: 'Cốc Thiền Độc Lập (Private Kuti)',
+        name: 'Private Kuti (Meditation Hermitage)',
         maxGuests: 1,
         priceSats: 0,
-        securitySpecs: ['Đệm Tọa Thiền Chuyên Dụng', 'Nước Suối Nguồn Tự Nhiên', 'Không Thiết Bị Điện Tử'],
+        securitySpecs: ['Meditation Cushion & Mat', 'Natural Mountain Spring Water', 'Zero Electronic Devices'],
         images: ['https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80'],
         priceRules: [],
         status: 'available'
       },
       {
         id: 'rt_zen_cottage_02',
-        name: 'Chòi Tre Hướng Rừng Thông (Forest Hermitage)',
+        name: 'Pine Ridge Bamboo Cottage (Forest Hermitage)',
         maxGuests: 2,
         priceSats: 0,
-        securitySpecs: ['Hiên Ngắm Rừng', 'Bếp Củi Pha Trà', 'Đèn Dầu Thực Vật'],
+        securitySpecs: ['Forest View Deck', 'Wood-fired Tea Stove', 'Botanical Oil Lamp'],
         images: ['https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&w=1200&q=80'],
         priceRules: [],
         status: 'available'
@@ -75,10 +75,10 @@ export const INITIAL_LISTINGS: Listing[] = [
     imagePrompt: 'Cyberpunk concrete loft with neon accents and server rack',
     imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
     meshCoordinates: 'mesh:10.77:106.69 (Saigon District 1)',
-    locationLabel: 'Quận 1, TP. Hồ Chí Minh',
+    locationLabel: 'District 1, Ho Chi Minh City',
     cancellationPolicy: 'moderate',
-    cancellationNote: 'Hủy trước 5 ngày hoàn 100% tiền phòng',
-    bedType: '1 Giường đôi lớn (King)',
+    cancellationNote: 'Cancel 5 days before check-in for 100% accommodation refund',
+    bedType: '1 King Bed',
     areaM2: 52,
     checkInTime: '15:00',
     checkOutTime: '12:00',
@@ -96,15 +96,15 @@ export const INITIAL_LISTINGS: Listing[] = [
     roomTypes: [
       {
         id: 'rt_cypher_suite_01',
-        name: 'Faraday Shielded Suite (Phòng Suite Chống Sóng RF)',
+        name: 'Faraday Shielded Suite (RF Isolated)',
         maxGuests: 2,
         priceSats: 120000,
-        securitySpecs: ['Lồng Faraday Cách Ly RF', 'Starlink Gigabit Uplink', 'Trạm Multisig Hw-Wallet', 'Air-Gapped Workstation'],
+        securitySpecs: ['Faraday Cage RF Isolation', 'Starlink Gigabit Uplink', 'Multisig Hw-Wallet Station', 'Air-Gapped Workstation'],
         images: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'],
         priceRules: [
           {
             id: 'rule_weekend_cypher',
-            label: 'Cuối tuần (Thứ 7 & CN)',
+            label: 'Weekend (Sat & Sun)',
             type: 'day_of_week',
             daysOfWeek: ['SA', 'SU'],
             priceSats: 145000,
@@ -112,7 +112,7 @@ export const INITIAL_LISTINGS: Listing[] = [
           },
           {
             id: 'rule_autumn_hackathon',
-            label: 'Mùa Hackathon Thu 2026',
+            label: 'Autumn 2026 Hackathon Season',
             type: 'date_range',
             startDate: '2026-09-01',
             endDate: '2026-09-30',
@@ -124,15 +124,15 @@ export const INITIAL_LISTINGS: Listing[] = [
       },
       {
         id: 'rt_cypher_capsule_02',
-        name: 'Mesh Node Capsule (Khoang Ngủ Hacker)',
+        name: 'Mesh Node Capsule (Hacker Pod)',
         maxGuests: 1,
         priceSats: 65000,
-        securitySpecs: ['Dedicated Ethernet Port', 'LoRa Antennas Access', 'Bảo Mật Cửa Mã PIN Nostr'],
+        securitySpecs: ['Dedicated Ethernet Port', 'LoRa Antennas Access', 'Nostr PIN Door Security'],
         images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=80'],
         priceRules: [
           {
             id: 'rule_capsule_weekend',
-            label: 'Cuối tuần Hacker',
+            label: 'Hacker Weekend',
             type: 'day_of_week',
             daysOfWeek: ['SA', 'SU'],
             priceSats: 75000,
@@ -159,7 +159,7 @@ export const INITIAL_LISTINGS: Listing[] = [
     priceRules: [
       {
         id: 'rule_weekend_cypher',
-        label: 'Cuối tuần (Thứ 7 & CN)',
+        label: 'Weekend (Sat & Sun)',
         type: 'day_of_week',
         daysOfWeek: ['SA', 'SU'],
         priceSats: 145000,
@@ -167,7 +167,7 @@ export const INITIAL_LISTINGS: Listing[] = [
       },
       {
         id: 'rule_autumn_hackathon',
-        label: 'Mùa Hackathon Thu 2026',
+        label: 'Autumn 2026 Hackathon Season',
         type: 'date_range',
         startDate: '2026-09-01',
         endDate: '2026-09-30',

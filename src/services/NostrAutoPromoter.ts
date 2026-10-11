@@ -1,6 +1,7 @@
 import { finalizeEvent } from 'nostr-tools';
 import { useAppStore } from '../store/useAppStore';
 import { hexToBytes } from '../utils/crypto';
+import { translate } from '../hooks/useTranslation';
 
 export function setupNostrAutoPromoter() {
   let previousListingsCount = useAppStore.getState().listings.length;
@@ -21,16 +22,24 @@ export function setupNostrAutoPromoter() {
             kind: 1,
             created_at: Math.floor(Date.now() / 1000),
             tags: [['t', 'cypherlodge'], ['t', 'homestay'], ['t', 'mesh']],
-            content: `Vừa có một chỗ ở mới trên mạng lưới Cypherlodge Mesh: "${newListing.title}"!\n\n📍 ${newListing.meshCoordinates}\n💰 ${newListing.priceSats} Sats/đêm\n\nXem ngay: cypherlodge.io/l/${newListing.id}\n#cypherlodge #homestay`
+            content: translate('promoter.postContent', {
+              title: newListing.title,
+              coords: newListing.meshCoordinates,
+              price: newListing.priceSats,
+              id: newListing.id
+            })
           };
 
           const signedEvent = finalizeEvent(eventTemplate, secretKey);
           
           console.log('[NostrAutoPromoter] Generated event:', signedEvent);
-          addLog('relay', `Auto-Promoter: Đã phát broadcast event Kind 1 quảng bá listing "${newListing.title}" (Event ID: ${signedEvent.id.slice(0, 8)}...)`);
+          addLog('relay', translate('promoter.broadcastSuccess', {
+            title: newListing.title,
+            id: signedEvent.id.slice(0, 8)
+          }));
         } catch (error) {
           console.error('[NostrAutoPromoter] Error generating event:', error);
-          addLog('relay', `Auto-Promoter: Lỗi khi tạo Nostr event cho listing mới.`);
+          addLog('relay', translate('promoter.broadcastError'));
         }
       } else {
         console.warn('[NostrAutoPromoter] No identity available to sign event.');

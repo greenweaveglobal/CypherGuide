@@ -23,7 +23,7 @@ import {
   DoorOpen
 } from 'lucide-react';
 import { Listing, NostrIdentity, Booking, PriceRule, PriceRuleType, Proposal, EditHistoryEntry, RoomType } from '../types';
-import { getEffectivePrice, getEffectivePriceRule, DAY_OF_WEEK_LABELS, parseDate, migrateListingToRoomTypes } from '../utils/pricing';
+import { getEffectivePrice, getEffectivePriceRule, DAY_OF_WEEK_LABELS, getDayLabel, parseDate, migrateListingToRoomTypes } from '../utils/pricing';
 import { signMessage, sha256 } from '../utils/crypto';
 import { useTranslation } from '../hooks/useTranslation';
 import { Card, CardHeader, CardContent } from './ui/Card';
@@ -1144,7 +1144,7 @@ export default function HostCalendarPricing({
                                   : 'bg-surface text-text-secondary border-border hover:text-white'
                               }`}
                             >
-                              {DAY_OF_WEEK_LABELS[day]?.vi || day}
+                              {getDayLabel(day)}
                             </button>
                           ))}
                         </div>

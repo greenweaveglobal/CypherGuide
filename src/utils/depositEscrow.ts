@@ -5,6 +5,7 @@
 
 import { generateP2PKLockedToken, redeemP2PKLockedToken } from './cashu';
 import { sha256, npubToHex } from './crypto';
+import { translate } from '../hooks/useTranslation';
 
 export interface DepositEscrowState {
   id: string;
@@ -76,18 +77,18 @@ export function canReleaseDeposit(
   arbitratorSignaturesCount: number = 0
 ): { canRelease: boolean; reason: string } {
   if (escrow.status === 'released') {
-    return { canRelease: false, reason: 'Tiền đặt cọc đã được giải ngân trước đó.' };
+    return { canRelease: false, reason: translate('depositEscrow.errAlreadyReleased') };
   }
   if (escrow.status === 'refunded') {
-    return { canRelease: false, reason: 'Tiền đặt cọc đã được hoàn lại cho Khách.' };
+    return { canRelease: false, reason: translate('depositEscrow.errAlreadyRefunded') };
   }
 
   // Nếu đang tranh chấp, yêu cầu Quorum Trọng tài BFT (≥ 2 chữ ký)
   if (escrow.status === 'disputed') {
     if (arbitratorSignaturesCount >= 2) {
-      return { canRelease: true, reason: 'Đã đạt Quorum 2/3 chữ ký Trọng tài BFT giải quyết tranh chấp.' };
+      return { canRelease: true, reason: translate('depositEscrow.reasonDisputeQuorum') };
     }
-    return { canRelease: false, reason: 'Hợp đồng đang tranh chấp. Cần ít nhất 2 chữ ký Trọng tài BFT.' };
+    return { canRelease: false, reason: translate('depositEscrow.reasonDisputePending') };
   }
 
   // Kiểm tra thời hạn Timelock
@@ -95,15 +96,15 @@ export function canReleaseDeposit(
 
   if (escrow.status === 'locked') {
     if (hasProofOfStay) {
-      return { canRelease: true, reason: 'Đã xác minh Bằng chứng Lưu trú (Proof of Stay). Đủ điều kiện giải ngân cho Chủ nhà.' };
+      return { canRelease: true, reason: translate('depositEscrow.reasonProofVerified') };
     }
     if (isTimelockExpired) {
-      return { canRelease: true, reason: 'Thời hạn Timelock 2-of-3 Escrow đã hết. Tự động giải ngân theo hợp đồng.' };
+      return { canRelease: true, reason: translate('depositEscrow.reasonTimelockExpired') };
     }
-    return { canRelease: false, reason: 'Chưa có Bằng chứng lưu trú và thời hạn Timelock chưa hết.' };
+    return { canRelease: false, reason: translate('depositEscrow.reasonNoProofNotExpired') };
   }
 
-  return { canRelease: false, reason: 'Trạng thái ký quỹ không hợp lệ.' };
+  return { canRelease: false, reason: translate('depositEscrow.reasonInvalidStatus') };
 }
 
 /**
@@ -119,12 +120,12 @@ export async function executeDepositRelease(
     return {
       success: true,
       releasedSats: result.totalSats,
-      reason: `Giải ngân thành công ${result.totalSats} Sats từ NUT-11 Escrow Mint.`
+      reason: translate('depositEscrow.reasonReleaseSuccess', { sats: result.totalSats })
     };
   }
   return {
     success: false,
     releasedSats: 0,
-    reason: result.error || 'Giải ngân Escrow thất bại.'
+    reason: result.error || translate('depositEscrow.reasonReleaseFailed')
   };
 }

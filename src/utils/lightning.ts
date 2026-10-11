@@ -1,5 +1,6 @@
 import { toBech32, verifyLightningPreimage } from './crypto';
 import bolt11 from 'light-bolt11-decoder';
+import { translate } from '../hooks/useTranslation';
 
 export { verifyLightningPreimage };
 
@@ -31,7 +32,7 @@ export function satsToLightningMultiplier(sats: number): string {
 
 // Generate an authentic-looking BOLT11 invoice for testing
 export function generateBolt11(_amountSats: number, _memo: string): string {
-  throw new Error('Cảnh báo bảo mật: Không được phép tạo hóa đơn giả lập. Mọi hóa đơn phải được tạo từ Lightning Node hoặc LNURL thực tế của Host.');
+  throw new Error(translate('lightning.errNoSimulatedInvoice'));
 }
 
 /**
@@ -103,7 +104,7 @@ export async function resolveLightningAddressToInvoice(
     return {
       invoice: '',
       isReal: false,
-      error: 'Địa chỉ Lightning Address không hợp lệ (yêu cầu định dạng user@domain.com).'
+      error: translate('lightning.errInvalidLnAddress')
     };
   }
 
@@ -164,7 +165,7 @@ export async function resolveLightningAddressToInvoice(
   return {
     invoice: '',
     isReal: false,
-    error: `Không thể phân giải hóa đơn từ máy chủ LNURL của địa chỉ Lightning (${cleanAddress}). Vui lòng kiểm tra lại địa chỉ hoặc kết nối node.`
+    error: translate('lightning.errResolveFailed', { address: cleanAddress })
   };
 }
 
@@ -178,14 +179,14 @@ export async function payViaWebLN(invoice: string): Promise<{ success: boolean; 
     await window.webln!.enable();
     const result = await window.webln!.sendPayment(invoice);
     if (!result || !result.preimage) {
-      return { success: false, error: 'Ví WebLN không trả về bằng chứng Preimage thanh toán.' };
+      return { success: false, error: translate('lightning.errNoPreimage') };
     }
 
     const parsedInv = parseBolt11(invoice);
     if (parsedInv && parsedInv.paymentHash) {
       const isValid = await verifyLightningPreimage(result.preimage, parsedInv.paymentHash);
       if (!isValid) {
-        return { success: false, error: 'Chữ ký preimage từ ví không khớp payment_hash của invoice!' };
+        return { success: false, error: translate('lightning.errPreimageHashMismatch') };
       }
     }
 

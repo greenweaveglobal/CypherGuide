@@ -2,6 +2,7 @@ import { generateSecretKey, getPublicKey, nip19, finalizeEvent, verifyEvent, get
 import * as nip49 from 'nostr-tools/nip49';
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { NostrIdentity } from '../types';
+import { translate } from '../hooks/useTranslation';
 
 /**
  * NIP-49 Encrypted Vault using scrypt key derivation.
@@ -9,7 +10,7 @@ import { NostrIdentity } from '../types';
  */
 export function encryptAndStoreNip49Vault(privKeyHex: string, passphrase: string): string {
   if (!passphrase || passphrase.length < 8) {
-    throw new Error('Mật khẩu bảo vệ (Passphrase) phải có ít nhất 8 ký tự.');
+    throw new Error(translate('crypto.errPassMinLength'));
   }
 
   const sk = hexToBytes(privKeyHex);
@@ -268,13 +269,13 @@ export async function encryptNostrMessage(
         return nip44.v2.encrypt(content, conversationKey);
       }
     } catch (e: any) {
-      throw new Error(`Lỗi mã hóa ${standard}: ` + (e.message || 'Mã hóa thất bại'));
+      throw new Error(translate('crypto.errEncryptFailed', { standard, msg: e.message || 'Failed' }));
     }
   }
 
   // Strict Cypherpunk refusal: Do not silently fallback to unencrypted or public-key-derived keys!
   throw new Error(
-    "THIẾU PRIVKEY TRONG PHIÊN: Vì lý do bảo mật, nsec không lưu trên trình duyệt sau khi tải lại trang. Vui lòng mở khóa Vault bằng Passphrase hoặc bật NIP-07 Extension để gửi tin nhắn mã hóa E2EE."
+    translate('crypto.missingPrivKeySession')
   );
 }
 
@@ -289,7 +290,7 @@ export async function decryptNostrMessage(
 ): Promise<string> {
   // If ciphertext was created in legacy session mock
   if (ciphertext.startsWith('enc:')) {
-    return '[🔐 Tin nhắn được gửi từ phiên thử nghiệm cũ]';
+    return translate('crypto.msgLegacySession');
   }
 
   const privKeyHex = identity.privKeyHex;
@@ -305,7 +306,7 @@ export async function decryptNostrMessage(
         return await nostr.nip44.decrypt(peerPubKeyHex, ciphertext);
       }
     } catch (e) {
-      return '[🔐 Không thể giải mã tin nhắn qua NIP-07 extension]';
+      return translate('crypto.msgNip07DecryptFailed');
     }
   }
 
@@ -320,12 +321,12 @@ export async function decryptNostrMessage(
         return nip44.v2.decrypt(ciphertext, conversationKey);
       }
     } catch (e) {
-      return '[🔐 Lỗi giải mã: Khóa không đúng hoặc dữ liệu bị thay đổi]';
+      return translate('crypto.msgDecryptError');
     }
   }
 
   // Clear notice that private key is needed to decrypt
-  return '[🔐 Tin nhắn đã mã hóa E2EE — Cần mở khóa Vault hoặc kích hoạt NIP-07 extension để giải mã]';
+  return translate('crypto.msgLockedVault');
 }
 
 export async function signMessage(message: string, identity: NostrIdentity): Promise<string> {
@@ -341,7 +342,7 @@ export async function signMessage(message: string, identity: NostrIdentity): Pro
   if (!identity.nsec && !privKeyHex) {
     const nostr = (window as any).nostr;
     if (!nostr) {
-      throw new Error("Không có khóa riêng tư trong bộ nhớ. Vui lòng mở khóa Vault bằng Passphrase hoặc kết nối extension NIP-07.");
+      throw new Error(translate('crypto.errNoPrivKeyMemory'));
     }
     const signedEvent = await nostr.signEvent(eventTemplate);
     return JSON.stringify(signedEvent);
@@ -350,7 +351,7 @@ export async function signMessage(message: string, identity: NostrIdentity): Pro
     const signedEvent = finalizeEvent(eventTemplate, sk);
     return JSON.stringify(signedEvent);
   } else {
-    throw new Error("Không thể ký thông điệp: Thiếu khóa riêng tư hợp lệ.");
+    throw new Error(translate('crypto.errCannotSignMissingKey'));
   }
 }
 

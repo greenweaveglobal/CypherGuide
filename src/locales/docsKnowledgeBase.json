@@ -1,0 +1,212 @@
+{
+  "donation": {
+    "vi": "Theo tÃ i liá»u ká»¹ thuáº­t Cypher Guide (RFC-0005 & ARCHITECTURE.md), dá»± Ã¡n chá» cÃ³ duy nháº¥t Má»T Äá»a chá» quyÃªn gÃ³p chÃ­nh thá»©c ÄÆ°á»£c xÃ¡c thá»±c:\n\n`npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qa...`\n\nLÆ°u Ã½: Má»i tÃ i khoáº£n hay Äá»a chá» npub khÃ¡c tá»± xÆ°ng lÃ  Äá»a chá» quyÃªn gÃ³p chÃ­nh thá»©c cá»§a Cypher Guide Äá»u lÃ  giáº£ máº¡o.",
+    "en": "According to the official Cypher Guide documentation (RFC-0005 & ARCHITECTURE.md), Cypher Guide has exactly ONE verified official donation address:\n\n`npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qa...`\n\nNote: Any other npub claiming to be the donation address is impersonation.",
+    "keywords": [
+      "donation",
+      "quyên góp",
+      "địa chỉ",
+      "address",
+      "donate"
+    ]
+  },
+  "fee": {
+    "vi": "Theo **RFC-0002 (Curves PhÃ­ Chiáº¿t Kháº¥u Dá»±a TrÃªn Uy TÃ­n)**, phÃ­ ná»n táº£ng Äá»ng ÄÆ°á»£c tÃ­nh toÃ¡n dá»±a trÃªn ÄÆ°á»ng cong chiáº¿t kháº¥u logarit. PhÃ­ sáº½ giáº£m dáº§n khi Äiá»m uy tÃ­n (Reputation Score) cá»§a ngÆ°á»i dÃ¹ng tÄng lÃªn (ÄÆ°á»£c tÃ­nh tá»« Proof of Stay), vá»i giá»i háº¡n phÃ­ cÆ¡ sá» vÃ  má»©c phÃ­ tá»i thiá»u (floor fee).",
+    "en": "Based on **RFC-0002 (Reputation-Based Fee Discount Curve)**, the dynamic platform fee is calculated using a logarithmic discount curve that decreases as a user's reputation score (derived from Proof-of-Stay) increases, bounded by a base fee and a minimum floor.",
+    "keywords": [
+      "fee",
+      "phí",
+      "rfc-0002",
+      "discount"
+    ]
+  },
+  "guardian": {
+    "vi": "Theo **RFC-0001 (Quy TrÃ¬nh Chá»n Há»i Äá»ng Báº£o Vá» - Guardian Council)**, cÃ¡c thÃ nh viÃªn Há»i Äá»ng ÄÆ°á»£c Äá» xuáº¥t vÃ  bÃ¬nh chá»n dá»±a trÃªn thá»i gian váº­n hÃ nh node liÃªn tá»¥c (Proof of Stay), ÄÃ³ng gÃ³p uy tÃ­n cho máº¡ng lÆ°á»i vÃ  cÆ¡ cháº¿ Äá»ng thuáº­n khÃ´ng cáº¥p phÃ©p.",
+    "en": "According to **RFC-0001 (Guardian Council Selection Process)**, council members are nominated and selected based on continuous node operation longevity (Proof of Stay), reputation contributions, and permissionless consensus mechanisms.",
+    "keywords": [
+      "guardian",
+      "bảo vệ",
+      "council",
+      "hội đồng",
+      "rfc-0001"
+    ]
+  },
+  "stay": {
+    "vi": "Theo **RFC-0003 (Báº±ng Chá»©ng LÆ°u TrÃº - Proof of Stay)**, cÆ¡ cháº¿ nÃ y xÃ¡c thá»±c sá»± hiá»n diá»n vÃ  duy trÃ¬ hoáº¡t Äá»ng lÃ¢u dÃ i cá»§a cÃ¡c nÃºt (nodes) trong máº¡ng lÆ°á»i Cypher Guide mÃ  khÃ´ng phá»¥ thuá»c vÃ o Staking vá»n. Äiá»m Proof of Stay ÄÆ°á»£c tÃ­ch lÅ©y theo thá»i gian Uptime vÃ  dÃ¹ng Äá» tÃ­nh toÃ¡n Äiá»m uy tÃ­n kháº£ di chuyá»n (Portable Reputation).",
+    "en": "According to **RFC-0003 (Proof of Stay)**, this mechanism verifies the long-term presence and operation of nodes in the Cypher Guide network without relying on capital staking. Proof of Stay points accumulate over uptime and are used to calculate portable reputation.",
+    "keywords": [
+      "stay",
+      "lưu trú",
+      "rfc-0003",
+      "proof of stay"
+    ]
+  },
+  "i18n": {
+    "vi": "Theo **RFC-0004 (Äa NgÃ´n Ngá»¯ & Báº£n Äá»a HÃ³a - i18n)**, Cypher Guide há» trá»£ giao diá»n Äa ngÃ´n ngá»¯ linh hoáº¡t (máº·c Äá»nh lÃ  Tiáº¿ng Viá»t vÃ  Tiáº¿ng Anh) vá»i cáº¥u trÃºc tá»p JSON báº£n Äá»a hÃ³a tÄ©nh.",
+    "en": "According to **RFC-0004 (Internationalization - i18n)**, Cypher Guide supports dynamic multi-language interface (defaulting to Vietnamese and English) with static JSON localization files.",
+    "keywords": [
+      "i18n",
+      "ngôn ngữ",
+      "language",
+      "rfc-0004"
+    ]
+  },
+  "dana": {
+    "vi": "Theo **RFC-0008 (LÆ°u TrÃº Dá»±a TrÃªn TÃ¹y TÃ¢m - Dana-Based Stay)**, cÃ¡c homestay hoáº·c thiá»n viá»n cÃ³ thá» ÄÄng kÃ½ mÃ´ hÃ¬nh `priceModel: 'dana'`, khÃ´ng thu phÃ­ cá» Äá»nh ban Äáº§u vÃ  cho phÃ©p khÃ¡ch lÆ°u trÃº gá»­i cÃºng dÆ°á»ng tá»± nguyá»n sau ká»³ nghá».",
+    "en": "According to **RFC-0008 (Dana-Based Stay)**, retreats and monasteries can operate under `priceModel: 'dana'` without upfront fixed pricing, enabling voluntary Lightning offerings after the stay.",
+    "keywords": [
+      "dana",
+      "tùy tâm",
+      "rfc-0008"
+    ]
+  },
+  "edgeAI": {
+    "vi": "Theo **RFC-0009 (AI Phi Táº­p Trung Cháº¡y TrÃªn Thiáº¿t Bá» Ngoáº¡i BiÃªn)**, ÄÃ¢y lÃ  táº§m nhÃ¬n tÃ¡ch biá»t node LoRa (chá» truyá»n táº£i dá»¯ liá»u) vÃ  thiáº¿t bá» biÃªn máº¡nh hÆ¡n (SBC/Raspberry Pi/Äiá»n thoáº¡i) Äá» cháº¡y mÃ´ hÃ¬nh ngÃ´n ngá»¯ nhá» (SLM) hoÃ n toÃ n cá»¥c bá» khÃ´ng cáº§n internet.",
+    "en": "According to **RFC-0009 (Decentralized AI on Edge Devices)**, this visionary spec separates LoRa transport nodes from compute-capable edge devices (SBCs/phones) running small quantized language models locally without cloud APIs.",
+    "keywords": [
+      "edge",
+      "ngoại biên",
+      "rfc-0009"
+    ]
+  },
+  "stillness": {
+    "vi": "Theo **RFC-0010 (Nghi Thá»©c TÄ©nh TÃ¢m - Zen Stillness Ritual)**, nghi thá»©c 369 giÃ¢y cÃ¹ng vÃ²ng trÃ²n EnsÅ (0), nÃ©n nhang (1) vÃ  chuÃ´ng Keisu Äá»ng thau ÄÆ°á»£c thiáº¿t káº¿ thuáº§n tÃºy client-side, chá»§ Äá»ng tá»« chá»i phÃ¡t hÃ nh Proof-of-Stillness hay gamification Äá» giá»¯ trá»n tinh tháº§n buÃ´ng bá» vÃ´ ngÃ£.",
+    "en": "According to **RFC-0010 (Zen Stillness Ritual)**, the 369-second ritual with EnsÅ (0), incense (1), and Keisu bronze bell is strictly client-side and deliberately refuses proof generation or gamification to honor non-attachment.",
+    "keywords": [
+      "stillness",
+      "tĩnh tâm",
+      "enso",
+      "nhang",
+      "rfc-0010"
+    ]
+  },
+  "boundary": {
+    "vi": "Theo **RFC-0011 (Ranh Giá»i TÃ i ChÃ­nh HÃ³a - Financialization Boundary Principle)**, má»i hÃ nh vi trÆ°á»c khi sinh proof/uy tÃ­n/phÃ­ pháº£i vÆ°á»£t qua 3 bÃ i kiá»m tra: 1. Kháº£ nÄng xÃ¡c minh khÃ¡ch quan (Verifiability), 2. Phá»¥c vá»¥ tÃ­nh toÃ n váº¹n giao thá»©c (Protocol-purpose), 3. TÆ°Æ¡ng thÃ­ch Ã½ nghÄ©a gá»c phi giao dá»ch (Original-meaning).",
+    "en": "According to **RFC-0011 (Financialization Boundary Principle)**, any behavior must pass 3 tests before generating proofs, reputation, or fee effects: 1. Verifiability Test, 2. Protocol-Purpose Test, and 3. Original-Meaning Test.",
+    "keywords": [
+      "boundary",
+      "financialization",
+      "tài chính hóa",
+      "rfc-0011"
+    ]
+  },
+  "sovereignty": {
+    "vi": "Theo **RFC-0012 (Ranh Giá»i Chá»§ Quyá»n - Sovereignty Boundary Principle)** vÃ  tÃ i liá»u `HOST_LEGAL_REALITY.md`: Thanh toÃ¡n báº±ng Lightning/Cashu chá» giáº£i quyáº¿t táº§ng cÃ´ng nghá»/thÃ´ng tin, hoÃ n toÃ n KHÃNG miá»n trá»« host khá»i nghÄ©a vá»¥ khai bÃ¡o táº¡m trÃº, thuáº¿, giáº¥y phÃ©p an ninh tráº­t tá»± hay PCCC theo chá»§ quyá»n phÃ¡p lÃ½ nÆ°á»c sá» táº¡i. Giao thá»©c khÃ´ng ÄÃ³ng vai trÃ² xÃ¡c minh phÃ¡p lÃ½ mÃ  cung cáº¥p tÃ i liá»u chia sáº» kinh nghiá»m thá»±c táº¿ do cá»ng Äá»ng ÄÃ³ng gÃ³p.",
+    "en": "According to **RFC-0012 (Sovereignty Boundary Principle)** and `HOST_LEGAL_REALITY.md`: Paying through Lightning/Cashu operates strictly at the digital network layer and does NOT exempt hosts from residency declaration, tax, public order, or fire safety obligations under local national sovereignty. The protocol does not act as a compliance intermediary; rather, it maintains a non-authoritative, community-contributed legal reality reference.",
+    "keywords": [
+      "sovereignty",
+      "chủ quyền",
+      "pháp lý",
+      "legal",
+      "tạm trú",
+      "thuế",
+      "282",
+      "rfc-0012"
+    ]
+  },
+  "nip46": {
+    "vi": "Theo **RFC-0003 Phá»¥ lá»¥c (Addendum 2026-08-26 & Cáº­p nháº­t 2026-08-28)**: TrÃ¬nh duyá»t di Äá»ng há» thá»ng (Chrome/Safari) thiáº¿u NIP-07 extension, nhÆ°ng **trÃ¬nh duyá»t tÃ­ch há»£p trong cÃ¡c app vÃ­ Nostr (nhÆ° Amethyst)** ÄÃ£ tá»± Äá»ng tiÃªm `window.nostr` cho phÃ©p dÃ¹ng NIP-07 trá»±c tiáº¿p trÃªn di Äá»ng khÃ´ng cáº§n dÃ¡n NSEC. Äá»i vá»i trÃ¬nh duyá»t thÃ´ng thÆ°á»ng, hÆ°á»ng Äi dÃ i háº¡n váº«n lÃ  há» trá»£ NIP-46 (remote signer / bunker nhÆ° Amber, nsec.app).",
+    "en": "According to **RFC-0003 Addendum (2026-08-26 & 2026-08-28 Update)**: Standard mobile browsers lack NIP-07, but **built-in in-app browsers inside mobile Nostr wallets (like Amethyst)** inject `window.nostr`, allowing full NIP-07 signing directly on mobile without raw NSEC. For standard browsers, the long-term roadmap remains NIP-46 (remote signers / bunkers like Amber, nsec.app).",
+    "keywords": [
+      "nip-46",
+      "nip46",
+      "bunker",
+      "remote signer",
+      "amber",
+      "mobile signing"
+    ]
+  },
+  "agentReady": {
+    "vi": "Theo **RFC-0013 (LÆ°u TrÃº Sáºµn SÃ ng Cho Agent - Agent-Ready Stay)** (thay tháº¿ hoÃ n toÃ n báº£n nhÃ¡p Compute-as-a-Stay cÅ©): CypherGuide kháº³ng Äá»nh **khÃ¡ch luÃ´n luÃ´n lÃ  con ngÆ°á»i**, AI agent chá» lÃ  háº¡ táº§ng/hÃ nh lÃ½ há» mang theo. Giao thá»©c khÃ´ng trá» thÃ nh chá»£ compute Äá»i Äáº§u vá»i Akash hay io.net vÃ  khÃ´ng táº¡o danh tÃ­nh/uy tÃ­n riÃªng cho bot. Thay vÃ o ÄÃ³, RFC-0013 chuáº©n hÃ³a tag tiá»n nghi **`AGENT-READY`** dÃ nh cho homestay ÄÃ¡p á»©ng Äá»§ 3 tiÃªu chÃ­ ká»¹ thuáº­t: 1. CÃ³ compute node riÃªng (SBC/mini-PC) khÃ´ng chia sáº» chung trong ká»³ lÆ°u trÃº; 2. CÃ³ Nostr relay riÃªng do host tá»± váº­n hÃ nh; 3. Cam káº¿t sÃ n bÄng thÃ´ng tá»i thiá»u (Mbps) rÃµ rÃ ng. XÃ¡c minh thÃ´ng qua Äo lÆ°á»ng mÃ¡y mÃ³c khÃ¡ch quan (uptime, ping) tÆ°Æ¡ng tá»± `VERIFIED_NODE`.",
+    "en": "According to **RFC-0013 (Agent-Ready Stay â An Amenity for the Cypher/Personal Business Crowd)** (fully replacing the earlier Compute-as-a-Stay draft): CypherGuide affirms that **the guest is always human**, while the AI agent is merely infrastructure/luggage brought along. The protocol avoids turning into a compute marketplace competing with Akash or io.net and creates no separate identity/reputation for bots. Instead, RFC-0013 defines a standardized **`AGENT-READY`** amenity tag requiring 3 mandatory criteria: 1. Dedicated, unshared compute node (SBC/mini-PC); 2. Host's own private Nostr relay; 3. Guaranteed sustained bandwidth floor (Mbps). Verified through objective machine metrics (uptime, ping) similar to `VERIFIED_NODE`.",
+    "keywords": [
+      "agent-ready",
+      "agent ready",
+      "agentready",
+      "agent",
+      "compute",
+      "rfc-0013",
+      "rfc0013",
+      "moltbook",
+      "astra",
+      "băng thông sàn",
+      "bandwidth floor"
+    ]
+  },
+  "positioning": {
+    "vi": "Theo **Báº£n Äá»nh Vá» AI Cá»¥c Bá» (POSITIONING.md)**: CypherGuide khÃ´ng tham gia cuá»c Äua AI táº­p trung hÃ³a nghÃ¬n tá»· ÄÃ´. Dá»± Ã¡n thá»­ nghiá»m cÃ¢u há»i: liá»u má»t mÃ´ hÃ¬nh nhá» (SLM nhÆ° Qwen2.5 1.5B cháº¡y trÃªn Raspberry Pi - RFC-0009) cÃ³ thá» tráº£ lá»i Äá»§ tá»t cho ÄÃºng nhu cáº§u háº¹p cá»§a ngÆ°á»i dÃ¹ng mÃ  khÃ´ng cáº§n ÄÃ¡m mÃ¢y trung gian. NhÆ° TS. Pháº¡m Hy Hiáº¿u (Head of AI Transformation táº¡i Techcombank, cá»±u Google Brain/OpenAI/xAI) nháº­n Äá»nh, compute lÃ  'bÃ i toÃ¡n táº§m quá»c gia' â do ÄÃ³ CypherGuide khÃ´ng cá» xÃ¢y chá»£ compute phi táº­p trung mÃ  táº­p trung giÃºp cÃ¡ nhÃ¢n lÃ m chá»§ pháº§n cá»©ng nhá» cá»§a chÃ­nh há» (RFC-0009, RFC-0013), kiá»m chá»©ng báº±ng thá»­ nghiá»m cÃ´ng khai.",
+    "en": "According to the **Local AI Positioning Statement (POSITIONING.md)**: CypherGuide is not entering the trillion-dollar centralized AI race. Instead, it tests whether small language models (like Qwen2.5 1.5B on Raspberry Pi - RFC-0009) running on cheap user-owned hardware can answer well enough for narrow purposes without clouds. As independently noted by Dr. Pháº¡m Hy Hiáº¿u (Head of AI Transformation at Techcombank, ex-Google Brain/OpenAI/xAI), large-scale compute is a 'national-scale problem' â thus CypherGuide avoids building a compute marketplace and instead focuses on personal sovereignty over edge hardware, proven via public experiments.",
+    "keywords": [
+      "positioning",
+      "định vị",
+      "grant",
+      "tài trợ",
+      "phạm hy hiếu",
+      "hạ tầng ai",
+      "local ai",
+      "ai cục bộ",
+      "tiếng nói nhỏ"
+    ]
+  },
+  "nodeIncentive": {
+    "vi": "Theo **RFC-0016 (Khuyáº¿n KhÃ­ch NÃºt Háº¡ Táº§ng - Infrastructure Node Incentive)**: CÆ¡ cháº¿ thÆ°á»ng cho relay/mesh node chuyá»n tá»« mÃ´ phá»ng sang thá»±c táº¿ báº±ng cÃ¡ch giáº£i quyáº¿t 2 bÃ i toÃ¡n:\n1. **Oracle Äo lÆ°á»ng chá»ng gian láº­n**: Káº¿t há»£p Proof-of-Usage (D - client tháº­t ghi nháº­n vÃ  kÃ½ bÃ¡o cÃ¡o báº±ng Nostr) trong giai Äoáº¡n Äáº§u vÃ  Witness Network (C - thÃ¡ch thá»©c ngáº«u nhiÃªn Äa bÃªn) khi máº¡ng lá»n hÆ¡n. Loáº¡i bá» PoW vÃ¬ sai báº£n cháº¥t.\n2. **DÃ²ng cháº£y thanh khoáº£n Lightning**: ThÆ°á»ng Sats ÄÆ°á»£c phÃ¢n phá»i láº¡i tá»« quá»¹ treasury (trÃ­ch % phÃ­ booking theo RFC-0002) qua LNURL-pay / NWC, tÃ­ch há»£p circuit breaker ngáº¯t nÃºt claim khi quá»¹ khÃ´ng Äá»§.\n3. **Cáº£nh bÃ¡o táº­p trung hÃ³a kinh táº¿**: Giá»ng bÃ i há»c Helium/Filecoin, káº» cÃ³ vá»n cÃ³ thá» láº­p trang tráº¡i node Äá» Äá»c chiáº¿m thÆ°á»ng; RFC Äá» xuáº¥t nghiÃªn cá»©u hÃ m giáº£m biÃªn táº¿ (declining marginal returns) cho cluster node cÃ¹ng chá»§.\n4. **Rá»§i ro riÃªng tÆ° qua phÃ¢n tÃ­ch Äá» thá» thanh toÃ¡n (Payment Graph Analysis)**: DÃ¹ng Äá»a chá» treasury tÄ©nh láº·p láº¡i lÃ m lá» nhá»p Äá» vÃ  quy mÃ´ máº¡ng lÆ°á»i; RFC-0016 Äá» xuáº¥t hÆ°á»ng xoay vÃ²ng LNURL / BOLT12 offer theo chu ká»³ vÃ  thanh toÃ¡n theo lÃ´ (batch payouts).",
+    "en": "According to **RFC-0016 (Infrastructure Node Incentive â Proof-of-Relay + Lightning Payout Flow)**: The node incentive mechanism transitions from simulation to production by solving two distinct problems:\n1. **Fraud-Resistant Oracle**: Combines crowdsourced Proof-of-Usage (D - real clients logging and signing with Nostr keys) initially with Witness Networks (C - random challenges with quorum) as the network grows. Bitcoin-style PoW is rejected as a mismatch.\n2. **Lightning Payout Liquidity**: Sats rewards are redistributed from a dedicated treasury funded by a % of booking fees (RFC-0002) via LNURL-pay / NWC, with mandatory circuit breakers disabling claims when treasury funds are low.\n3. **Economic Centralization Risk**: Learning from Helium/Filecoin farming, well-capitalized actors could capture the reward pool; RFC proposes researching declining marginal returns per node cluster.\n4. **Payment Graph Analysis Privacy Risk**: Reusing a static treasury address leaks network activity maps and transaction cadence; RFC-0016 proposes rotating LNURL / BOLT12 offers per cycle and batch payouts.",
+    "keywords": [
+      "rfc-0016",
+      "rfc0016",
+      "incentive",
+      "khuyến khích",
+      "proof-of-relay",
+      "proof of relay",
+      "proof-of-usage",
+      "proof of usage",
+      "witness network",
+      "node reward",
+      "thưởng node",
+      "tập trung hóa kinh tế",
+      "economic centralization",
+      "payment graph",
+      "đồ thị thanh toán",
+      "bolt12 offer"
+    ]
+  },
+  "stayAssistant": {
+    "vi": "Theo **RFC-0017 (Agent Há» Trá»£ LÆ°u TrÃº â Giai Äoáº¡n 1: KhÃ´ng Giá»¯ Tiá»n, Cáº­p nháº­t 2026-10-12)**: CypherGuide Äá» xuáº¥t mÃ´ hÃ¬nh AI agent phi lÆ°u kÃ½ (Non-Custodial) hoáº¡t Äá»ng Äá»c láº­p trÃªn Nostr vÃ  Lightning, gá»m 3 module Äá»c láº­p:\n1. **Module 1 - Concierge (Há»i ÄÃ¡p lÆ°u trÃº)**: Má» rá»ng RFC-0005, giáº£i ÄÃ¡p tá»« tÃ i liá»u CypherGuide vÃ  listing cÃ´ng khai, tuyá»t Äá»i KHÃNG náº¯m giá»¯ mÃ£ cá»­a, Wi-Fi hay thÃ´ng tin truy cáº­p (host gá»­i trá»±c tiáº¿p cho khÃ¡ch sau khi Äáº·t).\n2. **Module 2 - Äiá»m tÃ­n nhiá»m WoT xÃ¡c Äá»nh & Chá»ng thÃ´ng Äá»ng (Collusion Resistance)**: Thuáº­t toÃ¡n cÃ´ng khai tÃ­nh báº±ng mÃ£ (khÃ´ng dÃ¹ng LLM) Æ°u tiÃªn Proof-of-Stay Äá»ng kÃ½ 2 bÃªn (RFC-0003); háº¡ trá»ng sá» cá»¥m npub khÃ©p kÃ­n (dÃ¹ng trá»ng sá» liÃªn tá»¥c, khÃ´ng ngÆ°á»¡ng cá»©ng) kÃ¨m tráº§n uy tÃ­n tá»± sinh; 2 bÃ i test há»i quy báº¯t buá»c: mÃ´ phá»ng táº¥n cÃ´ng khÃ³a giáº£ vÃ  Äo tá»· lá» pháº¡t nháº§m cá»¥m tháº­t (benign clusters); Äiá»m chá» lÃ  gá»£i Ã½, khÃ´ng tá»± Äá»ng cháº·n/cáº¥m ai; báº£o Äáº£m quyá»n riÃªng tÆ° khÃ´ng lÆ°u váº¿t truy váº¥n; tÃ¹y chá»n báº£n ghi Äáº§u vÃ o cÃ³ kÃ½ & timestamp.\n3. **Module 3 - Gá»£i Ã½ phÃ²ng qua NIP-90**: Láº¯ng nghe yÃªu cáº§u tÃ¬m phÃ²ng, Äá»i chiáº¿u listing cÃ´ng khai vÃ  tráº£ vá» liÃªn káº¿t; KHÃNG táº¡o invoice, KHÃNG giá»¯ cá»c, KHÃNG Äáº¡i diá»n thanh toÃ¡n. YÃªu cáº§u tÃ¬m phÃ²ng máº·c Äá»nh ÄÆ°á»£c mÃ£ hÃ³a (NIP-44/NIP-17) hoáº·c lÃ m má» thÃ´ng tin Äá» báº£o vá» quyá»n riÃªng tÆ° hÃ nh trÃ¬nh cá»§a khÃ¡ch.\n- **Giá»i háº¡n an toÃ n cá»t lÃµi**: Agent dÃ¹ng cáº·p khÃ³a Nostr riÃªng (khÃ´ng dÃ¹ng khÃ³a chÃ­nh thá»©c cá»§a dá»± Ã¡n), cháº¡y trÃªn VPS cÃ¡ch ly, khÃ´ng cÃ³ quyá»n shell/ghi file/sá»­a mÃ£, cÃ³ policy engine chá»ng prompt injection, cÃ´ng khai lÃ  AI, marketing cÃ³ ngÆ°á»i duyá»t, tráº§n chi phÃ­ suy luáº­n vÃ  cÃ´ng táº¯c ngáº¯t kháº©n cáº¥p. PhÃ­ giao thá»©c giá»¯ nguyÃªn á» táº§ng giao thá»©c (RFC-0002), khÃ´ng Äi qua vÃ­ agent.",
+    "en": "According to **RFC-0017 (Stay Assistant Agents â Phase 1: Non-Custodial, Updated 2026-10-12)**: CypherGuide adopts a non-custodial autonomous AI agent architecture operating independently over Nostr and Lightning across 3 modular capabilities:\n1. **Module 1 - Concierge (Stay Q&A)**: Extends RFC-0005 using documentation and public listings; strictly NEVER handles door codes, Wi-Fi passwords, or access credentials (hosts transfer these directly post-booking).\n2. **Module 2 - Deterministic WoT Trust Score & Collusion Resistance**: Public code-based formula (zero LLM hallucination) prioritizing dual-signed Proof-of-Stay (RFC-0003); down-weights closed clusters using continuous weighting (no arbitrary hard cutoffs) with reputation caps; requires dual regression tests: attack simulation and benign cluster false-positive calibration; displayed as hint only; zero lookup tracking; optional signed timestamped inputs.\n3. **Module 3 - Room Suggestions via NIP-90**: Matches room search requests against public listings and returns links; NO invoice creation, NO deposit custody, and NO payment on anyone's behalf. Search requests are encrypted by default (NIP-44/NIP-17) or blurred for privacy.\n- **Core Safety Limits**: Dedicated agent keypair (never the project's official npub), infrastructure isolation on separate VPS, zero shell/file write/code edit tools, prompt-injection defense with tool-call policy engine, disclosed as AI, human-approved proactive posts, daily inference cost cap, and one-command kill switch. Protocol fees stay at the protocol layer (RFC-0002) without flowing through agent wallets.",
+    "keywords": [
+      "rfc-0017",
+      "rfc0017",
+      "stay assistant",
+      "trợ lý lưu trú",
+      "concierge",
+      "wot",
+      "automaton",
+      "nip-90",
+      "nip90",
+      "không giữ tiền",
+      "non-custodial agent",
+      "collusion",
+      "thông đồng",
+      "halhermes",
+      "remora",
+      "blindoracle"
+    ]
+  },
+  "accommodationSchema": {
+    "vi": "Theo **RFC-0018 (Chuáº©n HÃ³a LÆ°á»£c Äá» Listing & SiÃªu Dá»¯ Liá»u Báº£o Vá» Quyá»n RiÃªng TÆ°)**: CypherGuide thiáº¿t káº¿ láº¡i tháº» phÃ²ng vÃ  lÆ°á»£c Äá» listing tham chiáº¿u Booking.com nhÆ°ng báº£o vá» chá»§ quyá»n vÃ  quyá»n riÃªng tÆ°:\n1. **4 Cáº¥p Äá» há»§y phÃ²ng chuáº©n hÃ³a**: `flexible` (há»§y miá»n phÃ­ trÆ°á»c 24h), `moderate` (há»§y miá»n phÃ­ trÆ°á»c 5 ngÃ y), `strict` (há»§y miá»n phÃ­ trÆ°á»c 14 ngÃ y), `nonrefundable` (khÃ´ng hoÃ n tiá»n phÃ²ng). Tiá»n cá»c hoÃ n láº¡i 10% LUÃN ÄÆ°á»£c hoÃ n 100% cho khÃ¡ch náº¿u há»§y trÆ°á»c giá» nháº­n phÃ²ng.\n2. **Vá» trÃ­ thÃ´ báº£o vá» quyá»n riÃªng tÆ°**: Chá» cÃ´ng khai tÃªn khu vá»±c cáº¥p thÃ nh phá»/quáº­n (`locationLabel`); Äá»a chá» chÃ­nh xÃ¡c vÃ  mÃ£ cá»­a chá» gá»­i qua tin nháº¯n mÃ£ hÃ³a E2EE sau khi thanh toÃ¡n.\n3. **ThÃ´ng sá» phÃ²ng rÃµ rÃ ng**: Bá» sung `bedType` (loáº¡i giÆ°á»ng), `areaM2` (diá»n tÃ­ch), `checkInTime`/`checkOutTime` (giá» nháº­n/tráº£ phÃ²ng).\n4. **Minh báº¡ch tÃ i chÃ­nh & Chá»ng Ã¡p lá»±c giáº£ táº¡o (Anti-Dark-Patterns)**: Tháº» hiá»n thá» rÃµ giÃ¡ gá»c kÃ¨m dÃ²ng phá»¥ 'ChÆ°a gá»m phÃ­ protocol vÃ  cá»c hoÃ n láº¡i 10% khi Äáº·t phÃ²ng'. NghiÃªm cáº¥m cÃ¡c chiÃªu trÃ² khan hiáº¿m giáº£ (nhÆ° 'chá» cÃ²n 1 phÃ²ng') hay Äá»ng há» Äáº¿m ngÆ°á»£c.",
+    "en": "According to **RFC-0018 (Standardized Accommodation Schema & Privacy-Preserving Listing Metadata)**: CypherGuide standardizes listing cards and accommodation schemas referencing Booking.com clarity while upholding sovereign privacy:\n1. **4 Standardized Cancellation Tiers**: `flexible` (free cancellation up to 24h prior), `moderate` (up to 5 days prior), `strict` (up to 14 days prior), `nonrefundable` (room rate non-refundable). The 10% refundable security deposit is ALWAYS 100% refunded to guests on pre-check-in cancellations.\n2. **Coarse Privacy-Preserving Location**: Only coarse regional descriptors (`locationLabel`, City/District) are published publicly; exact physical addresses and access codes are dispatched strictly via E2EE messaging post-booking.\n3. **Clear Physical Metrics**: Extends schema with `bedType`, `areaM2`, and standard `checkInTime`/`checkOutTime`.\n4. **Financial Transparency & Anti-Dark-Patterns**: Displays baseline nightly rates with upfront notices of the protocol fee and 10% refundable deposit. Prohibits artificial scarcity tags ('only 1 left') and countdown pressure clocks.",
+    "keywords": [
+      "rfc-0018",
+      "rfc0018",
+      "thẻ phòng",
+      "listing card",
+      "chính sách hủy",
+      "cancellation policy",
+      "booking.com",
+      "vị trí thô",
+      "coarse location",
+      "quy đổi tiền",
+      "fiat estimation"
+    ]
+  }
+}

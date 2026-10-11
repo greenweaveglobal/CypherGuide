@@ -401,7 +401,7 @@ describe('Media Server Resilience & NIP-96 / NIP-98 Suite (Round 5 & 6)', () => 
           preferredServerUrl: 'https://nostr.build',
           privKeyHex
         })
-      ).rejects.toThrow(/Tải ảnh thất bại sau khi thử/);
+      ).rejects.toThrow(/Tải ảnh thất bại sau khi thử|Image upload failed after trying/);
     });
   });
 

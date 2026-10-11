@@ -6,6 +6,7 @@
 import { sha256, npubToHex, hexToBytes } from './crypto';
 import { NostrIdentity } from '../types';
 import { finalizeEvent, verifyEvent } from 'nostr-tools';
+import { translate } from '../hooks/useTranslation';
 
 export interface ProofOfStayRecord {
   id: string;
@@ -77,7 +78,7 @@ export async function createGuestClaimEvent(
     return await nostr.signEvent(eventTemplate);
   }
 
-  throw new Error("Không thể ký Proof-of-Stay: Thiếu khóa riêng tư hoặc tiện ích NIP-07 của khách.");
+  throw new Error(translate('proofOfStay.errGuestSign'));
 }
 
 /**
@@ -121,7 +122,7 @@ export async function createHostEndorsementEvent(
     return await nostr.signEvent(endorsementTemplate);
   }
 
-  throw new Error("Không thể đồng ký Proof-of-Stay: Thiếu khóa riêng tư hoặc tiện ích NIP-07 của host.");
+  throw new Error(translate('proofOfStay.errHostSign'));
 }
 
 /**

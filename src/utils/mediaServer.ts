@@ -7,6 +7,7 @@
 import { createNip98AuthHeader } from './nip98Auth';
 import { useAppStore } from '../store/useAppStore';
 import { hasVault } from './crypto';
+import { translate } from '../hooks/useTranslation';
 
 export interface MediaServerItem {
   id: string;
@@ -339,9 +340,10 @@ export async function selectBestMediaServer(): Promise<SelectedServerResult> {
 
   if (onlineFallbacks.length > 0) {
     const chosen = onlineFallbacks[0];
+    const latencyStr = chosen.latency ? ` (${chosen.latency}ms)` : '';
     const warning = isPrimaryLocal
-      ? `Máy chủ cục bộ (/api/media) không khả dụng trên môi trường serverless (Vercel). Đang tự động kết nối máy chủ NIP-96: ${chosen.name} (${chosen.latency}ms).`
-      : `Máy chủ chính (${primaryItem.name}) không phản hồi sau 3s. Đang tự động chuyển sang máy chủ dự phòng: ${chosen.name} (${chosen.latency}ms).`;
+      ? translate('mediaServer.warningVercelFallback', { name: chosen.name, latency: latencyStr })
+      : translate('mediaServer.warningTimeoutFallback', { primary: primaryItem.name, name: chosen.name, latency: latencyStr });
 
     return {
       server: chosen,
@@ -351,7 +353,7 @@ export async function selectBestMediaServer(): Promise<SelectedServerResult> {
     };
   }
 
-  throw new Error('Máy chủ chính của CypherGuide và tất cả máy chủ NIP-96 dự phòng đều không khả dụng. Vui lòng kiểm tra lại kết nối mạng hoặc dán URL ảnh trực tiếp.');
+  throw new Error(translate('mediaServer.errAllServersDown'));
 }
 
 /**
@@ -397,13 +399,13 @@ export function uploadFileXHR(
 
       // Check for NIP-96 error status inside HTTP response
       if (data && data.status === 'error') {
-        reject(new Error(data.message || data.error || 'Máy chủ NIP-96 trả về trạng thái lỗi.'));
+        reject(new Error(data.message || data.error || translate('mediaServer.errNip96ErrorStatus')));
         return;
       }
 
       if (xhr.status >= 200 && xhr.status < 300) {
         if (!data) {
-          reject(new Error(`Phản hồi từ Media Server không phải JSON hợp lệ (HTTP ${xhr.status}).`));
+          reject(new Error(translate('mediaServer.errInvalidJsonResponse', { status: xhr.status })));
           return;
         }
 
@@ -427,14 +429,14 @@ export function uploadFileXHR(
         if (url) {
           resolve({ url, hash });
         } else {
-          reject(new Error(data.error || data.message || 'Dữ liệu phản hồi từ Media Server không chứa URL hợp lệ.'));
+          reject(new Error(data.error || data.message || translate('mediaServer.errMissingMediaUrl')));
         }
       } else {
         let errDetail = `HTTP ${xhr.status}`;
         if (xhr.status === 401) {
-          errDetail = 'Yêu cầu xác thực tài khoản (chữ ký NIP-98)';
+          errDetail = translate('mediaServer.errAuthRequired');
         } else if (xhr.status === 404) {
-          errDetail = 'Không tìm thấy endpoint (HTTP 404)';
+          errDetail = translate('mediaServer.errEndpointNotFound');
         } else if (data?.error || data?.message) {
           errDetail = data.error || data.message;
         } else if (xhr.statusText) {
@@ -445,11 +447,11 @@ export function uploadFileXHR(
     };
 
     xhr.onerror = () => {
-      reject(new Error(`Lỗi kết nối mạng đến máy chủ (${targetEndpoint})`));
+      reject(new Error(translate('mediaServer.errNetworkConnection', { endpoint: targetEndpoint })));
     };
 
     xhr.ontimeout = () => {
-      reject(new Error(`Hết thời gian chờ (Timeout) khi tải ảnh lên ${targetEndpoint}`));
+      reject(new Error(translate('mediaServer.errUploadTimeout', { endpoint: targetEndpoint })));
     };
 
     // 60-second timeout for upload
@@ -465,29 +467,30 @@ export function uploadFileXHR(
  * Concise error summarizer for Task 4
  */
 export function summarizeError(errMsg: string): string {
-  if (!errMsg) return 'Lỗi không xác định';
+  if (!errMsg) return translate('mediaServer.errUnknown');
   const lower = errMsg.toLowerCase();
   if (
     lower.includes('nip-98') ||
     lower.includes('unauthorized') ||
     lower.includes('401') ||
-    lower.includes('xác thực') ||
-    lower.includes('chưa đăng nhập') ||
-    lower.includes('bị khóa')
+    lower.includes('auth') ||
+    lower.includes('login') ||
+    lower.includes('signer') ||
+    lower.includes('locked')
   ) {
-    return 'Cần đăng nhập / chữ ký NIP-98';
+    return translate('mediaServer.summaryAuthNeeded');
   }
-  if (lower.includes('404') || lower.includes('not found') || lower.includes('không tìm thấy')) {
-    return 'Không tìm thấy endpoint (404)';
+  if (lower.includes('404') || lower.includes('not found')) {
+    return translate('mediaServer.summaryNotFound');
   }
-  if (lower.includes('timeout') || lower.includes('hết thời gian')) {
-    return 'Hết thời gian chờ (Timeout)';
+  if (lower.includes('timeout')) {
+    return translate('mediaServer.summaryTimeout');
   }
-  if (lower.includes('network') || lower.includes('kết nối') || lower.includes('abort')) {
-    return 'Lỗi kết nối mạng';
+  if (lower.includes('network') || lower.includes('connection') || lower.includes('abort') || lower.includes('fetch')) {
+    return translate('mediaServer.summaryNetwork');
   }
-  if (lower.includes('dung lượng') || lower.includes('size') || lower.includes('413')) {
-    return 'Dung lượng vượt hạn mức';
+  if (lower.includes('size') || lower.includes('413') || lower.includes('payload') || lower.includes('limit')) {
+    return translate('mediaServer.summarySizeLimit');
   }
   return errMsg.length > 45 ? `${errMsg.slice(0, 42)}...` : errMsg;
 }
@@ -556,7 +559,7 @@ export async function uploadFileWithFallback(
   }
 
   if (allServers.length === 0) {
-    throw new Error('Không có máy chủ nào khả dụng để tải ảnh lên.');
+    throw new Error(translate('mediaServer.errNoServerAvailable'));
   }
 
   const attemptedLog: { name: string; url: string; error: string }[] = [];
@@ -576,7 +579,7 @@ export async function uploadFileWithFallback(
       // External NIP-96: Discover api_url via /.well-known/nostr/nip96.json
       const descriptor = await fetchNip96Descriptor(candidate.url, 4000);
       if (!descriptor || !descriptor.apiUrl) {
-        const descErr = 'Tài liệu khám phá NIP-96 không khả dụng hoặc thiếu api_url';
+        const descErr = translate('mediaServer.errDescriptorMissing');
         attemptedLog.push({ name: candidate.name, url: candidate.url, error: descErr });
         console.warn(`[MediaServer] Discovery failed on ${candidate.name} (${candidate.url}): ${descErr}`);
         continue; // Task 1 & 3: Skip server without guessing or sending upload
@@ -595,8 +598,8 @@ export async function uploadFileWithFallback(
       if (descriptor.isNip98Required || true) {
         if (!hasSigner) {
           const authErr = hasVault()
-            ? 'Khóa Nostr đang bị khóa. Vui lòng mở khóa Vault (NIP-49) trong Quản lý danh tính.'
-            : 'Yêu cầu đăng nhập Nostr hoặc bật NIP-07 để tạo chữ ký NIP-98.';
+            ? translate('mediaServer.errVaultLocked')
+            : translate('mediaServer.errLoginRequired');
           attemptedLog.push({ name: candidate.name, url: candidate.url, error: authErr });
           console.warn(`[MediaServer] Missing signer on ${candidate.name}: ${authErr}`);
           continue;
@@ -609,7 +612,7 @@ export async function uploadFileWithFallback(
         }
 
         if (!authHeader) {
-          const signFailErr = 'Không thể tạo chữ ký NIP-98 cho yêu cầu tải ảnh.';
+          const signFailErr = translate('mediaServer.errSignFailed');
           attemptedLog.push({ name: candidate.name, url: candidate.url, error: signFailErr });
           continue;
         }
@@ -634,7 +637,7 @@ export async function uploadFileWithFallback(
         serverName: candidate.name
       };
     } catch (err: any) {
-      const errMsg = err?.message || 'Lỗi không xác định';
+      const errMsg = err?.message || translate('mediaServer.errUnknown');
       // If local self-hosted endpoint returned 404, mark local backend as down
       if (isSelfHostedUrl(candidate.url) && errMsg.includes('404')) {
         _isLocalBackendAvailable = false;
@@ -659,6 +662,9 @@ export async function uploadFileWithFallback(
     .join('\n');
 
   throw new Error(
-    `Tải ảnh thất bại sau khi thử ${attemptedLog.length} máy chủ:\n${summaryLines}\n\nGợi ý: Bạn có thể dán trực tiếp URL ảnh công khai vào ô nhập liệu hoặc dùng luồng NIP-94.`
+    translate('mediaServer.uploadFailedSummary', {
+      count: attemptedLog.length,
+      summary: summaryLines
+    })
   );
 }

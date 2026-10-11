@@ -4,6 +4,7 @@
  */
 
 import { verifyRawSchnorr } from './crypto';
+import { translate } from '../hooks/useTranslation';
 
 export interface CashuProof {
   id: string;
@@ -186,7 +187,7 @@ export async function verifyP2PKWitnessLocally(
 ): Promise<{ valid: boolean; reason: string }> {
   const { isP2PK, condition } = parseP2PKSecret(proof.secret);
   if (!isP2PK || !condition) {
-    return { valid: true, reason: 'Không có điều kiện khóa P2PK NUT-11.' };
+    return { valid: true, reason: translate('cashu.noP2pkCondition') };
   }
 
   // Check Locktime
@@ -198,7 +199,7 @@ export async function verifyP2PKWitnessLocally(
     if (nowSec >= expirySec) {
       const refundTag = tags.find((t) => t[0] === 'refund');
       if (refundTag && refundTag[1] && userPubkeyHex && userPubkeyHex.toLowerCase() === refundTag[1].toLowerCase()) {
-        return { valid: true, reason: 'Hợp đồng Timelock đã hết hạn, mở khóa hoàn tiền cho bên thụ hưởng.' };
+        return { valid: true, reason: translate('cashu.timelockExpired') };
       }
     }
   }
@@ -225,7 +226,10 @@ export async function verifyP2PKWitnessLocally(
   if (signaturesToVerify.length < requiredSigsCount) {
     return {
       valid: false,
-      reason: `Thiếu chữ ký P2PK NUT-11! Yêu cầu ít nhất ${requiredSigsCount} chữ ký hợp lệ (hiện có: ${signaturesToVerify.length}).`
+      reason: translate('cashu.missingP2pkSigs', {
+        required: requiredSigsCount,
+        count: signaturesToVerify.length
+      })
     };
   }
 
@@ -245,12 +249,21 @@ export async function verifyP2PKWitnessLocally(
   }
 
   if (validCount >= requiredSigsCount) {
-    return { valid: true, reason: `Xác minh thành công ${validCount}/${requiredSigsCount} chữ ký P2PK Schnorr.` };
+    return {
+      valid: true,
+      reason: translate('cashu.p2pkVerified', {
+        valid: validCount,
+        required: requiredSigsCount
+      })
+    };
   }
 
   return {
     valid: false,
-    reason: `Chữ ký Schnorr P2PK không khớp với pubkey đã khóa! (${validCount}/${requiredSigsCount} chữ ký hợp lệ).`
+    reason: translate('cashu.p2pkMismatch', {
+      valid: validCount,
+      required: requiredSigsCount
+    })
   };
 }
 
@@ -264,7 +277,7 @@ export async function redeemCashuToken(
 ): Promise<{ success: boolean; totalSats: number; mint?: string; error?: string }> {
   const decoded = decodeCashuToken(tokenString);
   if (!decoded || !decoded.proofs || decoded.proofs.length === 0) {
-    return { success: false, totalSats: 0, error: 'Token Cashu không hợp lệ hoặc đã bị chỉnh sửa!' };
+    return { success: false, totalSats: 0, error: translate('cashu.invalidToken') };
   }
 
   // Enforce P2PK verification for every locked proof
@@ -274,7 +287,7 @@ export async function redeemCashuToken(
       return {
         success: false,
         totalSats: 0,
-        error: `Từ chối giải ngân Ecash: ${checkResult.reason}`
+        error: translate('cashu.redemptionRejected', { reason: checkResult.reason })
       };
     }
   }
