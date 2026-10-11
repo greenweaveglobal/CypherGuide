@@ -342,7 +342,7 @@ export default function DirectMessages({ identity, listings, bookings, messages,
                         {textPart && <p className="text-sm whitespace-pre-wrap">{textPart}</p>}
                         {imgPart && (
                           <div className="mt-2 rounded-xl overflow-hidden border border-white/20 max-w-xs">
-                            <img src={imgPart} alt="Attachment" className="w-full max-h-60 object-cover" />
+                            <img src={imgPart} alt={t('dm.attachmentAlt')} className="w-full max-h-60 object-cover" />
                           </div>
                         )}
                         <div className="mt-2 pt-1.5 border-t border-white/10 text-[9px] font-mono text-gray-400 break-all select-all">
@@ -382,7 +382,7 @@ export default function DirectMessages({ identity, listings, bookings, messages,
               )}
               {pendingImage && (
                 <div className="relative inline-block border border-primary/40 rounded-xl overflow-hidden bg-black/50 p-1">
-                  <img src={pendingImage} alt="Attachment Preview" className="h-20 w-auto rounded-lg object-cover" />
+                  <img src={pendingImage} alt={t('dm.attachmentPreviewAlt')} className="h-20 w-auto rounded-lg object-cover" />
                   <button
                     type="button"
                     onClick={() => setPendingImage(null)}

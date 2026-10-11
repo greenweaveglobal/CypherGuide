@@ -908,7 +908,8 @@
     "vaultSecurityRecTitle": "Khuyến nghị an toàn:",
     "vaultSecurityRecRest": "(như Alby, nos2x) để ký giao dịch và đặt cọc BFT an toàn tuyệt đối mà không cần nhập hay lưu khóa nsec.",
     "vaultSessionLockedMsg": "Đã khóa phiên làm việc. Khóa riêng tư đã được xóa khỏi bộ nhớ.",
-    "vaultLockBtn": "Khóa Vault"
+    "vaultLockBtn": "Khóa Vault",
+    "profilePicAlt": "Ảnh đại diện"
   },
   "qrScanner": {
     "title": "Quét Mã QR Lightning Invoice",
@@ -1071,7 +1072,10 @@
     "summaryPolicyStrict": "Hủy trước 14 ngày: 100%",
     "summaryPolicyNonrefundable": "Không hoàn tiền",
     "uploadingImagesBtn": "Đang tải ảnh...",
-    "perNight": "đêm"
+    "perNight": "đêm",
+    "phPropertyName": "Vd: Cypherpunk Bunker #42",
+    "deleteCoOwner": "Xóa đồng sở hữu",
+    "phCoOwnerName": "CypherPunk"
   },
   "booking": {
     "title": "Đặt chỗ Cypherpunk (Lightning)",
@@ -1271,7 +1275,9 @@
     "rfc0016CryptoStandardNote": "⚠️ TIÊU CHUẨN MẬT MÃ: Cả hai hóa đơn đều phải được xác nhận bằng Preimage SHA-256 mới kích hoạt booking.",
     "rfc0016StatusWaitingPart1": "Trạng thái: 0/2 Hoàn tất. Đang chờ thanh toán Khoản 1...",
     "rfc0016InitTwoInvoicesLog": "Khởi tạo thanh toán 2 invoice: Host ({hostSats} Sats) + Treasury ({treasurySats} Sats)",
-    "rfc0016TreasuryLogShare": "  ├─ RFC-0016 Treasury: {sats} Sats -> Ví Quỹ Thưởng Hạ Tầng: {address}"
+    "rfc0016TreasuryLogShare": "  ├─ RFC-0016 Treasury: {sats} Sats -> Ví Quỹ Thưởng Hạ Tầng: {address}",
+    "cashuTokenMemo": "Thanh toán phòng: {title}",
+    "invoiceQrAlt": "Mã QR hóa đơn Lightning"
   },
   "docsAssistant": {
     "title": "Trợ Lý Tra Cứu Tài Liệu",
@@ -1631,5 +1637,18 @@
   },
   "docs": {
     "noDocYet": "Chưa có tài liệu về việc này"
+  },
+  "dm": {
+    "attachmentAlt": "Tệp đính kèm",
+    "attachmentPreviewAlt": "Xem trước tệp đính kèm"
+  },
+  "daysShort": {
+    "SU": "CN",
+    "MO": "T2",
+    "TU": "T3",
+    "WE": "T4",
+    "TH": "T5",
+    "FR": "T6",
+    "SA": "T7"
   }
 }

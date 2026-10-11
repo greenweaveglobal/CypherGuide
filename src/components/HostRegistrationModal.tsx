@@ -586,7 +586,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Vd: Cypherpunk Bunker #42"
+                  placeholder={t('hostReg.phPropertyName')}
                   className="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyber-green/50"
                 />
               </div>
@@ -730,7 +730,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
 
                 {imageUrl && (
                   <div className="relative mt-2 rounded-xl overflow-hidden border border-primary/30 h-32 bg-black/60 group">
-                    <img src={imageUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+                    <img src={imageUrl} alt={t('hostReg.previewCover')} className="w-full h-full object-cover" />
                     <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] font-mono text-primary border border-primary/40 flex items-center gap-1">
                       <ImageIcon className="w-3 h-3" /> {t('hostReg.previewCover')}
                     </div>
@@ -1318,7 +1318,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                               type="button"
                               onClick={() => removeCoOwner(idx)}
                               className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
-                              title="Delete Co-Owner"
+                              title={t('hostReg.deleteCoOwner')}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1339,7 +1339,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
                             type="text"
                             value={owner.name}
                             onChange={e => handleCoOwnerChange(idx, 'name', e.target.value)}
-                            placeholder="CypherPunk"
+                            placeholder={t('hostReg.phCoOwnerName')}
                             className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyber-blue/60 focus:ring-1 focus:ring-cyber-blue/30 placeholder:text-gray-600 transition-all"
                           />
                           <p className="text-[9px] text-gray-500 font-mono">

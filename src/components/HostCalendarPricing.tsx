@@ -979,13 +979,13 @@ export default function HostCalendarPricing({
             <CardContent className="pt-4 space-y-4">
               {/* Day of Week Headers */}
               <div className="grid grid-cols-7 gap-1 text-center font-mono text-[10px] uppercase font-bold text-text-secondary pb-1 border-b border-border/40">
-                <span>CN</span>
-                <span>T2</span>
-                <span>T3</span>
-                <span>T4</span>
-                <span>T5</span>
-                <span>T6</span>
-                <span>T7</span>
+                <span>{t('daysShort.SU')}</span>
+                <span>{t('daysShort.MO')}</span>
+                <span>{t('daysShort.TU')}</span>
+                <span>{t('daysShort.WE')}</span>
+                <span>{t('daysShort.TH')}</span>
+                <span>{t('daysShort.FR')}</span>
+                <span>{t('daysShort.SA')}</span>
               </div>
 
               {/* Day Cells */}

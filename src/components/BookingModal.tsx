@@ -260,7 +260,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     setExternalPreimage('');
 
     const totalWithFee = totalPriceSats + protocolFeeSats;
-    const generatedCashu = generateCashuToken(totalWithFee, 'https://mint.cashu.space', `Thanh toan phong: ${listing.title}${roomSuffix}`);
+    const generatedCashu = generateCashuToken(totalWithFee, 'https://mint.cashu.space', t('booking.cashuTokenMemo', { title: `${listing.title}${roomSuffix}` }));
     setCashuToken(generatedCashu);
     setStep('payment');
 
@@ -1282,7 +1282,7 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                         <div className="p-2 bg-cyber-black rounded-lg border border-cyber-green/30 glow-border-green">
                           <img
                             src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(currentInv)}&size=160x160&color=00ff66&bgcolor=0a0a0c`}
-                            alt="Lightning Invoice QR"
+                            alt={t('booking.invoiceQrAlt')}
                             referrerPolicy="no-referrer"
                             className="w-36 h-36 object-contain"
                           />

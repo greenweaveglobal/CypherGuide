@@ -230,7 +230,7 @@ export default function OnboardingTourModal({ isOpen, onClose, activeTab, setAct
             <button
               onClick={handleComplete}
               className="p-1.5 text-text-secondary hover:text-white rounded-lg bg-surface-hover hover:bg-white/10 transition-colors shrink-0"
-              aria-label="Close"
+              aria-label={t('common.close')}
             >
               <X className="w-5 h-5" />
             </button>

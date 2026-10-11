@@ -908,7 +908,8 @@
     "vaultSecurityRecTitle": "Security Recommendation:",
     "vaultSecurityRecRest": "(such as Alby, nos2x) to sign transactions and BFT escrow with zero nsec exposure.",
     "vaultSessionLockedMsg": "Session locked. Private key cleared from memory.",
-    "vaultLockBtn": "Lock Vault"
+    "vaultLockBtn": "Lock Vault",
+    "profilePicAlt": "Profile Picture"
   },
   "qrScanner": {
     "title": "Scan Lightning Invoice QR Code",
@@ -1071,7 +1072,10 @@
     "summaryPolicyStrict": "Cancel > 14 days: 100%",
     "summaryPolicyNonrefundable": "Non-refundable",
     "uploadingImagesBtn": "Uploading images...",
-    "perNight": "night"
+    "perNight": "night",
+    "phPropertyName": "E.g.: Cypherpunk Bunker #42",
+    "deleteCoOwner": "Delete Co-Owner",
+    "phCoOwnerName": "CypherPunk"
   },
   "booking": {
     "title": "Cypherpunk Booking (Lightning)",
@@ -1271,7 +1275,9 @@
     "rfc0016CryptoStandardNote": "⚠️ CRYPTOGRAPHIC REQUIREMENT: Both invoices must be verified via SHA-256 Preimage before activating booking.",
     "rfc0016StatusWaitingPart1": "Status: 0/2 Complete. Awaiting Part 1 payment...",
     "rfc0016InitTwoInvoicesLog": "Initialized 2-invoice settlement: Host ({hostSats} Sats) + Treasury ({treasurySats} Sats)",
-    "rfc0016TreasuryLogShare": "  ├─ RFC-0016 Treasury: {sats} Sats -> Infrastructure Treasury: {address}"
+    "rfc0016TreasuryLogShare": "  ├─ RFC-0016 Treasury: {sats} Sats -> Infrastructure Treasury: {address}",
+    "cashuTokenMemo": "Room payment: {title}",
+    "invoiceQrAlt": "Lightning Invoice QR"
   },
   "docsAssistant": {
     "title": "Documentation Lookup Assistant",
@@ -1631,5 +1637,18 @@
   },
   "docs": {
     "noDocYet": "There is no documentation about this yet"
+  },
+  "dm": {
+    "attachmentAlt": "Attachment",
+    "attachmentPreviewAlt": "Attachment Preview"
+  },
+  "daysShort": {
+    "SU": "Sun",
+    "MO": "Mon",
+    "TU": "Tue",
+    "WE": "Wed",
+    "TH": "Thu",
+    "FR": "Fri",
+    "SA": "Sat"
   }
 }

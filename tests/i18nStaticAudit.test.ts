@@ -102,4 +102,40 @@ describe('i18n Static Audit: 100% Key Parity & Zero Missing Keys', () => {
       `Static t() keys called in code but missing from vi.json:\n${missingInVi.join('\n')}`
     ).toEqual([]);
   });
+
+  it('3. en.json values do not contain non-diacritic Vietnamese stopwords', () => {
+    const flattenedEn = flattenDictionary(enRaw);
+    const vnStopwords = [
+      'khong',
+      'cua',
+      'chu nha',
+      'dat phong',
+      'thanh toan',
+      'vui long',
+      'nguoi dung'
+    ];
+
+    // Valid allowed exceptions documented here (none needed currently)
+    const allowedExceptions = new Set<string>();
+
+    const violations: { key: string; word: string; text: string }[] = [];
+
+    for (const [key, value] of Object.entries(flattenedEn)) {
+      if (typeof value !== 'string') continue;
+      if (allowedExceptions.has(key)) continue;
+
+      const lower = value.toLowerCase();
+      for (const word of vnStopwords) {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        if (regex.test(lower)) {
+          violations.push({ key, word, text: value });
+        }
+      }
+    }
+
+    expect(
+      violations,
+      `Found non-diacritic Vietnamese stopwords in en.json:\n${violations.map(v => `${v.key}: matched "${v.word}" in "${v.text}"`).join('\n')}`
+    ).toEqual([]);
+  });
 });

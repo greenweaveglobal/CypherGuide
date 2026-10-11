@@ -547,7 +547,7 @@ export default function NostrIdentityManager({ identity, onIdentityChange, onAdd
                         <span className="text-[10px] font-mono text-primary block mb-1">{t('identity.activeAlias')}</span>
                         <div className="flex items-center gap-3 sm:gap-4 mb-3">
                           {identity.picture ? (
-                            <img src={identity.picture} alt="Profile" className="w-11 h-11 sm:w-14 sm:h-14 rounded-full border-2 border-primary/20 object-cover shrink-0" />
+                            <img src={identity.picture} alt={t('identity.profilePicAlt')} className="w-11 h-11 sm:w-14 sm:h-14 rounded-full border-2 border-primary/20 object-cover shrink-0" />
                           ) : (
                             <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-surface-active border-2 border-primary/20 flex items-center justify-center shrink-0">
                               <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-text-secondary" />
