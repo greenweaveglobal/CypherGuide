@@ -11,6 +11,7 @@ import { safeRandomUUID } from '../utils/uuid';
 import { finalizeEvent } from 'nostr-tools';
 import { hexToBytes, nsecToHex } from '../utils/crypto';
 import { createNip98AuthHeader } from '../utils/nip98Auth';
+import { EarlyHostEnrollment } from '../utils/dynamicFee';
 
 const idbStorage = {
   getItem: async (name: string): Promise<string | null> => {
@@ -91,6 +92,8 @@ interface AppState {
   infraIncentiveTreasuryLightningAddress: string;
   setInfraIncentiveTreasuryLightningAddress: (address: string) => void;
   baseFeeRatePcm: number;
+  earlyHostFeeRatePcm: number;
+  earlyHosts: EarlyHostEnrollment[];
   feeUpdatedAt: number;
   feeUpdatedBy: string;
   feeAuditNostrEventId: string;
@@ -104,6 +107,8 @@ interface AppState {
   updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
   updateInfraIncentiveTreasuryLightningAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
   updateProtocolFee: (newPcm: number, reason?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
+  enrollEarlyHost: (npub: string, notes?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
+  removeEarlyHost: (npub: string, reason?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
 
   customRelays: RelayNode[];
   addCustomRelay: (relay: RelayNode) => void;
@@ -152,7 +157,9 @@ export const useAppStore = create<AppState>()(
       infraIncentiveTreasuryLightningAddress: 'peevishtender468@walletofsatoshi.com',
       setInfraIncentiveTreasuryLightningAddress: (address) => set({ infraIncentiveTreasuryLightningAddress: address }),
 
-      baseFeeRatePcm: 20,
+      baseFeeRatePcm: 200,
+      earlyHostFeeRatePcm: 100,
+      earlyHosts: [],
       feeUpdatedAt: 1787826600000,
       feeUpdatedBy: 'npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh',
       feeAuditNostrEventId: '',
@@ -182,6 +189,12 @@ export const useAppStore = create<AppState>()(
             if (data.configAuditNostrEventId && typeof data.configAuditNostrEventId === 'string') {
               set({ configAuditNostrEventId: data.configAuditNostrEventId });
             }
+            if (Array.isArray(data.earlyHosts)) {
+              set({ earlyHosts: data.earlyHosts });
+            }
+            if (typeof data.earlyHostFeeRatePcm === 'number') {
+              set({ earlyHostFeeRatePcm: data.earlyHostFeeRatePcm });
+            }
             if (typeof data.baseFeeRatePcm === 'number') {
               const pcm = data.baseFeeRatePcm;
               set((state) => ({
@@ -204,7 +217,7 @@ export const useAppStore = create<AppState>()(
       updateProtocolFee: async (newPcm: number, reason?: string) => {
         try {
           const state = get();
-          const oldPcm = state.baseFeeRatePcm || 20;
+          const oldPcm = state.baseFeeRatePcm || 200;
           const oldPercent = (oldPcm / 100).toFixed(2);
           const newPercent = (newPcm / 100).toFixed(2);
           const identity = state.identity;
@@ -287,6 +300,165 @@ export const useAppStore = create<AppState>()(
           }
         } catch (e: any) {
           return { success: false, error: e.message || translate('store.errFeeNetworkFailed') };
+        }
+      },
+
+      enrollEarlyHost: async (targetNpub: string, notes?: string) => {
+        try {
+          const state = get();
+          const identity = state.identity;
+          const adminNpub = identity?.npub || 'admin';
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const timeIso = new Date().toISOString();
+
+          let privKeyHex = '';
+          if (identity?.nsec) {
+            privKeyHex = nsecToHex(identity.nsec) || '';
+          }
+
+          const auditContent = `Host ${targetNpub} enrolled in Early Host Incentive Program (1.0% fee for 12 months) by ${adminNpub} at ${timeIso}${notes ? ` (${notes})` : ''}`;
+
+          const auditTemplate = {
+            kind: 1,
+            created_at: nowSeconds,
+            tags: [
+              ['t', 'protocol-governance'],
+              ['t', 'cypherguide-early-host'],
+              ['action', 'enroll_early_host'],
+              ['host_npub', targetNpub]
+            ],
+            content: auditContent
+          };
+
+          let auditEvent: any = null;
+          if (privKeyHex) {
+            auditEvent = finalizeEvent(auditTemplate, hexToBytes(privKeyHex));
+          } else if (typeof window !== 'undefined' && (window as any).nostr) {
+            try {
+              auditEvent = await (window as any).nostr.signEvent(auditTemplate);
+            } catch (err) {
+              console.warn('[Audit] Failed to sign audit event via NIP-07:', err);
+            }
+          }
+
+          const bodyString = JSON.stringify({
+            npub: targetNpub,
+            auditEvent,
+            notes
+          });
+
+          const authHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'POST', privKeyHex, bodyString);
+          if (!authHeader) {
+            return {
+              success: false,
+              error: translate('store.errNoNip98Admin')
+            };
+          }
+
+          const res = await fetch('/api/protocol/early-hosts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': authHeader
+            },
+            body: bodyString,
+            signal: AbortSignal.timeout(8000)
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            if (Array.isArray(data.earlyHosts)) {
+              set({ earlyHosts: data.earlyHosts });
+            }
+            return { success: true, eventId: data.enrollment?.auditEventId || auditEvent?.id };
+          } else {
+            return {
+              success: false,
+              error: data.error || translate('governance.earlyHostEnrollError')
+            };
+          }
+        } catch (e: any) {
+          return { success: false, error: e.message || translate('governance.earlyHostEnrollError') };
+        }
+      },
+
+      removeEarlyHost: async (targetNpub: string, reason?: string) => {
+        try {
+          const state = get();
+          const identity = state.identity;
+          const adminNpub = identity?.npub || 'admin';
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const timeIso = new Date().toISOString();
+
+          let privKeyHex = '';
+          if (identity?.nsec) {
+            privKeyHex = nsecToHex(identity.nsec) || '';
+          }
+
+          const auditContent = `Host ${targetNpub} removed from Early Host Incentive Program by ${adminNpub} at ${timeIso}${reason ? ` (${reason})` : ''}`;
+
+          const auditTemplate = {
+            kind: 1,
+            created_at: nowSeconds,
+            tags: [
+              ['t', 'protocol-governance'],
+              ['t', 'cypherguide-early-host'],
+              ['action', 'remove_early_host'],
+              ['host_npub', targetNpub]
+            ],
+            content: auditContent
+          };
+
+          let auditEvent: any = null;
+          if (privKeyHex) {
+            auditEvent = finalizeEvent(auditTemplate, hexToBytes(privKeyHex));
+          } else if (typeof window !== 'undefined' && (window as any).nostr) {
+            try {
+              auditEvent = await (window as any).nostr.signEvent(auditTemplate);
+            } catch (err) {
+              console.warn('[Audit] Failed to sign audit event via NIP-07:', err);
+            }
+          }
+
+          const bodyString = JSON.stringify({
+            npub: targetNpub,
+            auditEvent
+          });
+
+          const authHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'DELETE', privKeyHex, bodyString);
+          if (!authHeader) {
+            return {
+              success: false,
+              error: translate('store.errNoNip98Admin')
+            };
+          }
+
+          const res = await fetch('/api/protocol/early-hosts', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': authHeader
+            },
+            body: bodyString,
+            signal: AbortSignal.timeout(8000)
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            if (Array.isArray(data.earlyHosts)) {
+              set({ earlyHosts: data.earlyHosts });
+            }
+            return { success: true, eventId: auditEvent?.id };
+          } else {
+            return {
+              success: false,
+              error: data.error || translate('governance.earlyHostRemoveError')
+            };
+          }
+        } catch (e: any) {
+          return { success: false, error: e.message || translate('governance.earlyHostRemoveError') };
         }
       },
 
@@ -576,7 +748,7 @@ export const useAppStore = create<AppState>()(
 
       protocolSettings: {
         securityLevel: 1,
-        feeStructure: 0.002,
+        feeStructure: 0.02,
         consensusThreshold: 90,
       },
       updateProtocolSettings: (settings) => set((state) => ({ 
@@ -668,10 +840,12 @@ export const useAppStore = create<AppState>()(
           evolutionLog: [],
           protocolSettings: {
             securityLevel: 1,
-            feeStructure: 0.002,
+            feeStructure: 0.02,
             consensusThreshold: 90,
           },
-          baseFeeRatePcm: 20,
+          baseFeeRatePcm: 200,
+          earlyHostFeeRatePcm: 100,
+          earlyHosts: [],
           feeUpdatedAt: 1787826600000,
           feeUpdatedBy: 'npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh',
           feeAuditNostrEventId: '',
@@ -705,11 +879,17 @@ export const useAppStore = create<AppState>()(
           if (state && !state.infraIncentiveTreasuryLightningAddress) {
             state.infraIncentiveTreasuryLightningAddress = 'peevishtender468@walletofsatoshi.com';
           }
-          if (state && typeof state.baseFeeRatePcm !== 'number') {
-            state.baseFeeRatePcm = 20;
+          if (state && (typeof state.baseFeeRatePcm !== 'number' || state.baseFeeRatePcm === 20 || state.baseFeeRatePcm === 25)) {
+            state.baseFeeRatePcm = 200;
           }
-          if (state && state.protocolSettings && state.protocolSettings.feeStructure === 0.05) {
-            state.protocolSettings.feeStructure = (state.baseFeeRatePcm || 20) / 10000;
+          if (state && (typeof state.earlyHostFeeRatePcm !== 'number' || !state.earlyHostFeeRatePcm)) {
+            state.earlyHostFeeRatePcm = 100;
+          }
+          if (state && !Array.isArray(state.earlyHosts)) {
+            state.earlyHosts = [];
+          }
+          if (state && state.protocolSettings) {
+            state.protocolSettings.feeStructure = (state.baseFeeRatePcm || 200) / 10000;
           }
           if (state && state.customRelays) {
             state.customRelays = state.customRelays.map((r) => ({

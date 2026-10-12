@@ -15,7 +15,7 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | # | Tiêu đề | Trạng thái | Module |
 |---|---|---|---|
 | 0001 | Cách chọn Guardian Council cho Quỹ Bảo Hiểm | Draft | `utils/insuranceFund.ts` |
-| 0002 | Đường cong giảm phí theo uy tín | Draft | `utils/dynamicFee.ts` |
+| 0002 | Cấu trúc phí giao thức (mức cơ sở 2%, ưu đãi host tiên phong 1%) | Draft | `utils/dynamicFee.ts`, `lib/configStore.ts`, `api/protocol/` |
 | 0003 | Identity & Portable Reputation | Draft | `utils/proofOfStay.ts` |
 | 0004 | Internationalization (i18n) cho giao diện | Draft | `src/components/*.tsx`, `src/locales/` |
 | 0005 | Trợ Lý Tra Cứu Dựa Trên Tài Liệu (Grounded Docs Assistant) | Draft | `src/components/DocsAssistant.tsx` |

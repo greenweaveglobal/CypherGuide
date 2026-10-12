@@ -55,6 +55,31 @@ describe("Vercel Serverless ESM Module Resolution & Smoke Test (Round 4)", () =>
     expect(typeof mod.default).toBe("function");
   });
 
+  it("loads api/protocol/early-hosts.js in native Node ESM without ERR_MODULE_NOT_FOUND and GET returns 200", async () => {
+    const earlyHostsPath = path.join(outDir, "api/protocol/early-hosts.js");
+    const mod = await import(earlyHostsPath);
+    expect(typeof mod.default).toBe("function");
+
+    let statusCode = 0;
+    let responseData: any = null;
+    const req = { method: "GET", headers: {} };
+    const res = {
+      status(code: number) {
+        statusCode = code;
+        return this;
+      },
+      json(data: any) {
+        responseData = data;
+        return this;
+      },
+      setHeader() {}
+    };
+
+    await mod.default(req, res);
+    expect(statusCode).toBe(200);
+    expect(responseData).toHaveProperty("earlyHosts");
+  });
+
   it("loads api/docs-assistant/query.js in native Node ESM and handles empty body with 400", async () => {
     const queryPath = path.join(outDir, "api/docs-assistant/query.js");
     const mod = await import(queryPath);

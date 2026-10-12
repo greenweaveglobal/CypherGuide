@@ -9,7 +9,7 @@ Each document has a parallel `.en.md` version (e.g. `0003-....md` + `0003-....en
 | # | Title | Status | Module |
 |---|---|---|---|
 | 0001 | Guardian Council Selection for Insurance Fund | Draft | `utils/insuranceFund.ts` |
-| 0002 | Reputation-Based Dynamic Fee Curve | Draft | `utils/dynamicFee.ts` |
+| 0002 | Protocol Fee Structure (2% Base Rate, 1% Early Host Incentive) | Draft | `utils/dynamicFee.ts`, `lib/configStore.ts`, `api/protocol/` |
 | 0003 | Identity & Portable Reputation | Draft | `utils/proofOfStay.ts` |
 | 0004 | Internationalization (i18n) for User Interface | Draft | `src/components/*.tsx`, `src/locales/` |
 | 0005 | Grounded Docs Assistant | Draft | `src/components/DocsAssistant.tsx` |

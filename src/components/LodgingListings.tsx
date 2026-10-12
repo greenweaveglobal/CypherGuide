@@ -27,7 +27,7 @@ import {
   migrateListingToRoomTypes, 
   REFUNDABLE_CHECKOUT_DEPOSIT_PERCENT 
 } from '../utils/pricing';
-import { calculateDynamicFee, createFeeStructureFromPcm } from '../utils/dynamicFee';
+import { calculateDynamicFee, createFeeStructureFromPcm, getPrimaryHostNpub, isEarlyHostEligible } from '../utils/dynamicFee';
 import { fetchBtcFiatRates, formatSatsToEstimatedFiat, BtcFiatRates } from '../services/fiatRateService';
 import { useAppStore } from '../store/useAppStore';
 import { Card, CardContent } from './ui/Card';
@@ -57,6 +57,8 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
   const setShowFiatEstimation = useAppStore(state => state.setShowFiatEstimation);
   const fiatCurrency = useAppStore(state => state.fiatCurrency);
   const baseFeeRatePcm = useAppStore(state => state.baseFeeRatePcm);
+  const earlyHostFeeRatePcm = useAppStore(state => state.earlyHostFeeRatePcm);
+  const earlyHosts = useAppStore(state => state.earlyHosts);
 
   // Fetch fiat rates on-demand only when user opts in
   useEffect(() => {
@@ -372,65 +374,87 @@ export default function LodgingListings({ listings, identity, onSelectListing, o
                     </div>
 
                     {/* Price & Booking Notice Section */}
-                    <div className="mt-4 pt-4 border-t border-border/40 space-y-2">
-                      <div className="flex items-baseline justify-between flex-wrap gap-2">
-                        {listing.priceModel === 'dana' ? (
-                          <div className="flex items-center gap-1.5 text-amber-400">
-                            <Sparkles className="w-4 h-4 text-amber-400" />
-                            <span className="text-lg font-bold font-mono">
-                              DANA / {t('lodging.danaVoluntary')}
-                            </span>
+                    {(() => {
+                      const primaryHostNpub = getPrimaryHostNpub(listing);
+                      const isEarlyHost = isEarlyHostEligible(primaryHostNpub, earlyHosts);
+                      const effectiveFeePercent = isEarlyHost
+                        ? ((earlyHostFeeRatePcm || 100) / 100).toFixed(1)
+                        : protocolFeeRatePercent;
+
+                      return (
+                        <div className="mt-4 pt-4 border-t border-border/40 space-y-2">
+                          <div className="flex items-baseline justify-between flex-wrap gap-2">
+                            {listing.priceModel === 'dana' ? (
+                              <div className="flex items-center gap-1.5 text-amber-400">
+                                <Sparkles className="w-4 h-4 text-amber-400" />
+                                <span className="text-lg font-bold font-mono">
+                                  DANA / {t('lodging.danaVoluntary')}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-baseline gap-1.5 flex-wrap">
+                                {roomTypes.length > 1 && (
+                                  <span className="text-xs text-text-secondary">{t('lodging.fromPrice')}</span>
+                                )}
+                                <span className="text-lg sm:text-xl font-bold font-mono text-white tracking-tight flex items-center gap-1">
+                                  <Zap className="w-4 h-4 text-warning shrink-0" />
+                                  {effectivePriceToday.toLocaleString()}
+                                  <span className="text-xs text-warning/80 font-normal">SATS</span>
+                                </span>
+                                <span className="text-xs text-text-secondary">{t('lodging.perNight')}</span>
+
+                                {/* Dynamic Price Rule Badge */}
+                                {activeRule && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-mono ml-1">
+                                    {activeRule.label}
+                                  </span>
+                                )}
+
+                                {/* Early Host Badge */}
+                                {isEarlyHost && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono ml-1 font-semibold">
+                                    {t('lodging.earlyHostBadge')}
+                                  </span>
+                                )}
+
+                                {/* Optional Fiat Estimation Display */}
+                                {estimatedFiat && (
+                                  <span 
+                                    className="text-xs font-mono text-text-secondary bg-white/5 border border-white/10 px-1.5 py-0.5 rounded ml-1"
+                                    title={t('lodging.fiatEstimationDisclaimer')}
+                                  >
+                                    {estimatedFiat}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex items-center text-xs font-bold text-primary group-hover:translate-x-1 transition-transform">
+                              <span>{t('lodging.viewDetails')}</span>
+                              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                            </div>
                           </div>
-                        ) : (
-                          <div className="flex items-baseline gap-1.5 flex-wrap">
-                            {roomTypes.length > 1 && (
-                              <span className="text-xs text-text-secondary">{t('lodging.fromPrice')}</span>
-                            )}
-                            <span className="text-lg sm:text-xl font-bold font-mono text-white tracking-tight flex items-center gap-1">
-                              <Zap className="w-4 h-4 text-warning shrink-0" />
-                              {effectivePriceToday.toLocaleString()}
-                              <span className="text-xs text-warning/80 font-normal">SATS</span>
-                            </span>
-                            <span className="text-xs text-text-secondary">{t('lodging.perNight')}</span>
 
-                            {/* Dynamic Price Rule Badge */}
-                            {activeRule && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-mono ml-1">
-                                {activeRule.label}
+                          {/* Sub-price Upfront Financial Transparency Notice */}
+                          {listing.priceModel !== 'dana' && (
+                            <div className="text-xs text-text-secondary leading-snug flex items-center gap-1">
+                              <Info className="w-3.5 h-3.5 text-text-disabled shrink-0" />
+                              <span>
+                                {isEarlyHost
+                                  ? t('lodging.earlyHostSubPriceNotice', {
+                                      feePercent: effectiveFeePercent,
+                                      depositPercent: REFUNDABLE_CHECKOUT_DEPOSIT_PERCENT
+                                    })
+                                  : t('lodging.subPriceNotice', {
+                                      feePercent: protocolFeeRatePercent,
+                                      depositPercent: REFUNDABLE_CHECKOUT_DEPOSIT_PERCENT
+                                    })}
                               </span>
-                            )}
-
-                            {/* Optional Fiat Estimation Display */}
-                            {estimatedFiat && (
-                              <span 
-                                className="text-xs font-mono text-text-secondary bg-white/5 border border-white/10 px-1.5 py-0.5 rounded ml-1"
-                                title={t('lodging.fiatEstimationDisclaimer')}
-                              >
-                                {estimatedFiat}
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="flex items-center text-xs font-bold text-primary group-hover:translate-x-1 transition-transform">
-                          <span>{t('lodging.viewDetails')}</span>
-                          <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                            </div>
+                          )}
                         </div>
-                      </div>
-
-                      {/* Sub-price Upfront Financial Transparency Notice */}
-                      {listing.priceModel !== 'dana' && (
-                        <div className="text-xs text-text-secondary leading-snug flex items-center gap-1">
-                          <Info className="w-3.5 h-3.5 text-text-disabled shrink-0" />
-                          <span>
-                            {t('lodging.subPriceNotice', {
-                              feePercent: protocolFeeRatePercent,
-                              depositPercent: REFUNDABLE_CHECKOUT_DEPOSIT_PERCENT
-                            })}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </motion.div>

@@ -90,7 +90,7 @@ Hold Invoice và quản lý tiền cọc, trọng tài tự động, điều ch�
 - **Nếu agent bị thao túng:** hậu quả bị giới hạn ở đăng sai nội dung hoặc gợi ý sai, vì agent không có quyền chuyển tiền, đọc khóa hay sửa mã. Đây là lý do cốt lõi của việc giữ giai đoạn 1 không giữ tiền.
 - **Nếu VPS agent bị xâm nhập:** kẻ tấn công có được khóa Nostr của agent (có thể mạo danh agent) nhưng không chạm tới relay, khóa chính thức hay quỹ. Khóa agent phải thay thế được nhanh và hồ sơ công khai cần cách thông báo thu hồi.
 - **Điểm WoT:** thuật toán công khai thì kẻ gian cũng đọc được cách lách. Vì thế điểm chỉ là gợi ý, ưu tiên tín hiệu cần hai bên đồng ký, và không dùng làm cơ chế chặn tự động.
-- **Thông đồng và chi phí giả mạo:** phí protocol làm mỗi lần lưu trú giả tốn thêm một khoản nhỏ (với mức hiện hành 0,25%, tạm thời, một đêm giá 150.000 sats tốn khoảng 375 sats phí), nhưng khoản này không đủ ngăn một cụm quyết tâm vì tiền phòng quay về chính họ. Phòng thủ chính phải là cấu trúc (giảm trọng số cụm khép kín, đặt trần, ưu tiên tín hiệu ngoài cụm), không dựa vào chi phí.
+- **Thông đồng và chi phí giả mạo:** phí protocol làm mỗi lần lưu trú giả tốn thêm một khoản nhỏ (với mức cơ sở 2% theo RFC-0002, một đêm giá 150.000 sats tốn khoảng 3.000 sats phí), nhưng khoản này không đủ ngăn một cụm quyết tâm vì tiền phòng quay về chính họ. Phòng thủ chính phải là cấu trúc (giảm trọng số cụm khép kín, đặt trần, ưu tiên tín hiệu ngoài cụm), không dựa vào chi phí.
 - **Tập trung hóa:** một agent do dự án vận hành là một điểm tập trung mềm. Giảm bằng cách công khai thuật toán và dữ liệu, và cho phép bất kỳ ai chạy lại module WoT và dựng agent tương thích.
 
 ## Chỉ số thành công (đo trong 4 đến 8 tuần đầu)

@@ -78,7 +78,9 @@ export default async function handler(req: any, res: any) {
     const configData = await getProtocolConfig();
     return res.status(200).json({
       ...configData,
-      baseFeeRatePcm: typeof configData.baseFeeRatePcm === "number" ? configData.baseFeeRatePcm : 20
+      baseFeeRatePcm: typeof configData.baseFeeRatePcm === "number" ? configData.baseFeeRatePcm : 200,
+      earlyHostFeeRatePcm: typeof configData.earlyHostFeeRatePcm === "number" ? configData.earlyHostFeeRatePcm : 100,
+      earlyHosts: Array.isArray(configData.earlyHosts) ? configData.earlyHosts : []
     });
   }
 

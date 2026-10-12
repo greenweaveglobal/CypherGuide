@@ -13,7 +13,7 @@ import {
 import { generateCashuToken, redeemCashuToken } from '../utils/cashu';
 import { payInvoiceViaNWC, getNWCConnectionString, saveNWCConnectionString, parseNWCUrl } from '../utils/nwc';
 import { sha256 } from '../utils/crypto';
-import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE } from '../utils/dynamicFee';
+import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE, getPrimaryHostNpub, isEarlyHostEligible } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress } from '../utils/depositEscrow';
 import { useAppStore } from '../store/useAppStore';
 import { calculateReferralBonus, checkReferralEligibility } from '../utils/referral';
@@ -35,15 +35,24 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
   const roomTypes = effectiveListing?.roomTypes || [];
   const infraIncentiveTreasuryLightningAddress = useAppStore((state) => state.infraIncentiveTreasuryLightningAddress);
   const baseFeeRatePcm = useAppStore((state) => state.baseFeeRatePcm);
+  const earlyHostFeeRatePcm = useAppStore((state) => state.earlyHostFeeRatePcm);
+  const earlyHosts = useAppStore((state) => state.earlyHosts);
   const fetchProtocolConfig = useAppStore((state) => state.fetchProtocolConfig);
 
   useEffect(() => {
     fetchProtocolConfig();
   }, [fetchProtocolConfig]);
 
+  const primaryHostNpub = useMemo(() => getPrimaryHostNpub(effectiveListing), [effectiveListing]);
+  const isEarlyHost = useMemo(() => isEarlyHostEligible(primaryHostNpub, earlyHosts), [primaryHostNpub, earlyHosts]);
+
   const activeFeeStructure = useMemo(() => {
-    return createFeeStructureFromPcm(typeof baseFeeRatePcm === 'number' ? baseFeeRatePcm : DEFAULT_FEE_STRUCTURE.baseFeeRatePcm);
-  }, [baseFeeRatePcm]);
+    return createFeeStructureFromPcm(
+      typeof baseFeeRatePcm === 'number' ? baseFeeRatePcm : DEFAULT_FEE_STRUCTURE.baseFeeRatePcm,
+      typeof earlyHostFeeRatePcm === 'number' ? earlyHostFeeRatePcm : 100,
+      earlyHosts
+    );
+  }, [baseFeeRatePcm, earlyHostFeeRatePcm, earlyHosts]);
 
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string | undefined>(() => {
     if (preselectedRoomTypeId && roomTypes.some(rt => rt.id === preselectedRoomTypeId)) {
@@ -137,11 +146,11 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
     setNights(calc.nights);
     setTotalPriceSats(calc.totalSats);
     if (calc.totalSats > 0) {
-      const initialFee = calculateDynamicFee(calc.totalSats, activeFeeStructure, 1.0, 'strict');
+      const initialFee = calculateDynamicFee(calc.totalSats, activeFeeStructure, 1.0, 'strict', { isEarlyHost });
       setProtocolFeeSats(initialFee.protocolFeeSats);
       setLnRoutingFeeSats(initialFee.routingFeeSats);
     }
-  }, [startDate, endDate, effectiveListing, selectedRoomTypeId, activeFeeStructure]);
+  }, [startDate, endDate, effectiveListing, selectedRoomTypeId, activeFeeStructure, isEarlyHost]);
 
   // Fetch Network Congestion & Dynamic Fees
   useEffect(() => {
@@ -153,14 +162,14 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
         setNetworkCongestion(level);
         
         const congestionScore = level === 'low' ? 0.8 : level === 'medium' ? 1.0 : 1.5;
-        const feeResult = calculateDynamicFee(totalPriceSats, activeFeeStructure, congestionScore, 'strict');
+        const feeResult = calculateDynamicFee(totalPriceSats, activeFeeStructure, congestionScore, 'strict', { isEarlyHost });
         setProtocolFeeSats(feeResult.protocolFeeSats);
         setLnRoutingFeeSats(feeResult.routingFeeSats);
         setIsFetchingFees(false);
       }, 1200);
       return () => clearTimeout(timer);
     }
-  }, [step, totalPriceSats, activeFeeStructure]);
+  }, [step, totalPriceSats, activeFeeStructure, isEarlyHost]);
 
   if (!listing) return null;
 
@@ -980,21 +989,29 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
                   <span className="font-bold text-white text-sm">{totalPriceSats.toLocaleString()} Sats</span>
                 </div>
 
-                {/* 1. Reputation-Based Fee Reduction */}
+                {/* 1. Protocol Fee & Early Host Incentive */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-gray-300 font-mono">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Sparkles className="w-3.5 h-3.5 text-cyber-green shrink-0" />
                     <span>{t('booking.protocolFee')}</span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyber-green/20 text-cyber-green font-bold shrink-0">
-                      {t('booking.cypherLegendBadge')}
-                    </span>
+                    {isEarlyHost ? (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold shrink-0 border border-emerald-500/30">
+                        {t('booking.earlyHostBadgeInBooking')}
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyber-green/20 text-cyber-green font-bold shrink-0">
+                        {((activeFeeStructure.baseFeeRatePcm || 200) / 100).toFixed(1)}%
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 sm:text-right shrink-0">
-                    <span className="line-through text-gray-500 text-[11px]">
-                      {Math.floor(totalPriceSats * 0.015).toLocaleString()} Sats
-                    </span>
+                    {isEarlyHost && totalPriceSats > 0 && (
+                      <span className="line-through text-gray-500 text-[11px]">
+                        {Math.round(totalPriceSats * ((activeFeeStructure.baseFeeRatePcm || 200) / 10000)).toLocaleString()} Sats
+                      </span>
+                    )}
                     <span className="text-cyber-green font-bold text-xs">
-                      {Math.floor(totalPriceSats * 0.002).toLocaleString()} Sats
+                      {protocolFeeSats.toLocaleString()} Sats
                     </span>
                   </div>
                 </div>

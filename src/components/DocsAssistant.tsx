@@ -215,3 +215,5 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
     </div>
   );
 };
+
+export default DocsAssistant;

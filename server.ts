@@ -11,7 +11,13 @@ import { resolveLightningInvoice } from "./lib/lnurlResolver";
 import { corsMiddleware } from "./lib/cors";
 import { docsRateLimiter, uploadRateLimiter, lnurlRateLimiter } from "./lib/rateLimit";
 import { verifyNip98Auth, validateNip98Auth } from "./lib/adminAuth";
-import { getProtocolConfig, saveProtocolConfig, validateBaseFeeRatePcm } from "./lib/configStore";
+import {
+  getProtocolConfig,
+  saveProtocolConfig,
+  validateBaseFeeRatePcm,
+  validateEarlyHostEnrollment,
+  type EarlyHostEnrollment
+} from "./lib/configStore";
 
 const PROTOCOL_RELAYS = [
   "wss://relay.snort.social",
@@ -108,10 +114,13 @@ async function startServer() {
   // Trust proxy for reverse proxy IP extraction (Rate limiters & audit logs)
   app.set('trust proxy', 1);
 
-  // Security Headers via Helmet (relaxed CSP for Vite SPA client)
+  // Security Headers via Helmet (relaxed CSP and cross-origin policies for Vite SPA client in AI Studio iFrame)
   app.use(helmet({
     contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+    crossOriginOpenerPolicy: false,
+    frameguard: false
   }));
 
   app.use(express.json({
@@ -157,8 +166,169 @@ async function startServer() {
     const config = await getProtocolConfig();
     res.json({
       ...config,
-      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 20,
+      baseFeeRatePcm: typeof config.baseFeeRatePcm === "number" ? config.baseFeeRatePcm : 200,
+      earlyHostFeeRatePcm: typeof config.earlyHostFeeRatePcm === "number" ? config.earlyHostFeeRatePcm : 100,
+      earlyHosts: Array.isArray(config.earlyHosts) ? config.earlyHosts : [],
       configAuditNostrEventId: config.configAuditNostrEventId || ""
+    });
+  });
+
+  // API: Get Early Hosts (RFC-0002)
+  app.get("/api/protocol/early-hosts", async (_req, res) => {
+    const config = await getProtocolConfig();
+    res.json({
+      success: true,
+      earlyHosts: Array.isArray(config.earlyHosts) ? config.earlyHosts : [],
+      earlyHostFeeRatePcm: typeof config.earlyHostFeeRatePcm === "number" ? config.earlyHostFeeRatePcm : 100,
+      maxEarlyHosts: 20
+    });
+  });
+
+  // API: Enroll Early Host (RFC-0002) - Guarded by NIP-98
+  app.post("/api/protocol/early-hosts", async (req, res) => {
+    try {
+      const auth = await verifyNip98Auth(req, "/api/protocol/early-hosts", "POST", (req as any).rawBody);
+      if (!auth.authorized) {
+        return res.status(auth.status).json({ success: false, error: auth.error });
+      }
+
+      const { npub, auditEvent, notes } = req.body || {};
+      const currentConfig = await getProtocolConfig();
+      const currentHosts = Array.isArray(currentConfig.earlyHosts) ? currentConfig.earlyHosts : [];
+
+      const validation = validateEarlyHostEnrollment(npub, currentHosts);
+      if (!validation.valid) {
+        return res.status(400).json({ success: false, error: validation.error });
+      }
+
+      let auditEventId = "";
+      if (auditEvent && typeof auditEvent === "object") {
+        try {
+          const isValidAuditSig = verifyEvent(auditEvent);
+          if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
+            auditEventId = auditEvent.id;
+            const pool = new SimplePool();
+            try {
+              const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
+              Promise.allSettled(pubPromises).then(() => {
+                pool.close(PROTOCOL_RELAYS);
+              }).catch(() => {});
+            } catch (pErr) {
+              console.warn("Failed to broadcast audit event to relays:", pErr);
+            }
+          }
+        } catch (vErr) {
+          console.warn("Failed to verify audit event:", vErr);
+        }
+      }
+
+      const newEnrollment: EarlyHostEnrollment = {
+        npub: validation.cleanNpub!,
+        enrolledAt: Date.now(),
+        enrolledBy: auth.pubkey || "admin",
+        auditEventId: auditEventId || "",
+        notes: typeof notes === "string" ? notes.slice(0, 200) : undefined
+      };
+
+      const updatedHosts = [...currentHosts, newEnrollment];
+      const now = Date.now();
+      const updatedConfig = {
+        ...currentConfig,
+        earlyHosts: updatedHosts,
+        updatedAt: now,
+        updatedBy: auth.pubkey || "admin"
+      };
+
+      const saved = await saveProtocolConfig(updatedConfig);
+      if (!saved) {
+        return res.status(500).json({ success: false, error: "Failed to persist early host enrollment." });
+      }
+
+      return res.json({
+        success: true,
+        enrollment: newEnrollment,
+        earlyHosts: updatedHosts
+      });
+    } catch (e: any) {
+      console.error("Error enrolling early host:", e);
+      return res.status(500).json({ success: false, error: e.message || "Internal server error" });
+    }
+  });
+
+  // API: Remove Early Host (RFC-0002) - Guarded by NIP-98
+  app.delete("/api/protocol/early-hosts", async (req, res) => {
+    try {
+      const auth = await verifyNip98Auth(req, "/api/protocol/early-hosts", "DELETE", (req as any).rawBody);
+      if (!auth.authorized) {
+        return res.status(auth.status).json({ success: false, error: auth.error });
+      }
+
+      const { npub, auditEvent } = req.body || {};
+      if (!npub || typeof npub !== "string") {
+        return res.status(400).json({ success: false, error: "Host npub is required for removal." });
+      }
+
+      const currentConfig = await getProtocolConfig();
+      const currentHosts = Array.isArray(currentConfig.earlyHosts) ? currentConfig.earlyHosts : [];
+      const trimmedNpub = npub.trim();
+
+      const exists = currentHosts.some(h => h.npub === trimmedNpub);
+      if (!exists) {
+        return res.status(404).json({ success: false, error: "Early host not found in enrolled list." });
+      }
+
+      if (auditEvent && typeof auditEvent === "object") {
+        try {
+          const isValidAuditSig = verifyEvent(auditEvent);
+          if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
+            const pool = new SimplePool();
+            try {
+              const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
+              Promise.allSettled(pubPromises).then(() => {
+                pool.close(PROTOCOL_RELAYS);
+              }).catch(() => {});
+            } catch (pErr) {
+              console.warn("Failed to broadcast audit event to relays:", pErr);
+            }
+          }
+        } catch (vErr) {
+          console.warn("Failed to verify audit event:", vErr);
+        }
+      }
+
+      const updatedHosts = currentHosts.filter(h => h.npub !== trimmedNpub);
+      const now = Date.now();
+      const updatedConfig = {
+        ...currentConfig,
+        earlyHosts: updatedHosts,
+        updatedAt: now,
+        updatedBy: auth.pubkey || "admin"
+      };
+
+      const saved = await saveProtocolConfig(updatedConfig);
+      if (!saved) {
+        return res.status(500).json({ success: false, error: "Failed to persist early host removal." });
+      }
+
+      return res.json({
+        success: true,
+        removedNpub: trimmedNpub,
+        earlyHosts: updatedHosts
+      });
+    } catch (e: any) {
+      console.error("Error removing early host:", e);
+      return res.status(500).json({ success: false, error: e.message || "Internal server error" });
+    }
+  });
+
+  // API: Get protocol dynamic fee configuration (RFC-0002)
+  app.get("/api/protocol/fee", async (_req, res) => {
+    const configData = await getProtocolConfig();
+    res.json({
+      ...configData,
+      baseFeeRatePcm: typeof configData.baseFeeRatePcm === "number" ? configData.baseFeeRatePcm : 200,
+      earlyHostFeeRatePcm: typeof configData.earlyHostFeeRatePcm === "number" ? configData.earlyHostFeeRatePcm : 100,
+      earlyHosts: Array.isArray(configData.earlyHosts) ? configData.earlyHosts : []
     });
   });
 
@@ -185,7 +355,7 @@ async function startServer() {
       }
 
       const current = await getProtocolConfig();
-      const oldFeeRatePcm = typeof current.baseFeeRatePcm === "number" ? current.baseFeeRatePcm : 20;
+      const oldFeeRatePcm = typeof current.baseFeeRatePcm === "number" ? current.baseFeeRatePcm : 200;
       const now = Date.now();
       const feeUpdatedBy = auth.pubkey || "";
 

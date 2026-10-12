@@ -50,6 +50,8 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     evolutionLog, 
     setListings,
     baseFeeRatePcm,
+    earlyHostFeeRatePcm,
+    earlyHosts,
     feeUpdatedAt,
     feeUpdatedBy,
     feeAuditNostrEventId,
@@ -57,6 +59,8 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     devLnAddress,
     infraIncentiveTreasuryLightningAddress,
     updateProtocolFee,
+    enrollEarlyHost,
+    removeEarlyHost,
     fetchProtocolConfig
   } = useAppStore();
   const [selectedListingId, setSelectedListingId] = useState<string>(listings[0]?.id || '');
@@ -69,17 +73,23 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
 
   // Admin Fee Control State
   const [showAdminFeeModal, setShowAdminFeeModal] = useState(false);
-  const [adminFeeInput, setAdminFeeInput] = useState<string>('20');
+  const [adminFeeInput, setAdminFeeInput] = useState<string>('200');
   const [adminFeeReason, setAdminFeeReason] = useState<string>('');
   const [isUpdatingFee, setIsUpdatingFee] = useState(false);
   const [feeUpdateResult, setFeeUpdateResult] = useState<{ success: boolean; msg: string } | null>(null);
+
+  // Early Host Incentive State (RFC-0002)
+  const [newEarlyHostNpub, setNewEarlyHostNpub] = useState('');
+  const [newEarlyHostNotes, setNewEarlyHostNotes] = useState('');
+  const [isEnrollingHost, setIsEnrollingHost] = useState(false);
+  const [earlyHostActionMsg, setEarlyHostActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchProtocolConfig();
   }, [fetchProtocolConfig]);
 
   const isAdminUser = Boolean(identity?.pubKeyHex && (AUTHORIZED_ADMIN_PUBKEYS as readonly string[]).includes(identity.pubKeyHex));
-  const currentFeePcm = typeof baseFeeRatePcm === 'number' ? baseFeeRatePcm : Math.round((protocolSettings.feeStructure || 0.002) * 10000);
+  const currentFeePcm = typeof baseFeeRatePcm === 'number' ? baseFeeRatePcm : Math.round((protocolSettings.feeStructure || 0.02) * 10000);
   const currentFeePercent = (currentFeePcm / 100).toFixed(2);
   const shortAdmin = feeUpdatedBy ? (feeUpdatedBy.length > 18 ? `${feeUpdatedBy.slice(0, 10)}...${feeUpdatedBy.slice(-4)}` : feeUpdatedBy) : 'Admin';
 
@@ -101,6 +111,42 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
       }, 2000);
     } else {
       setFeeUpdateResult({ success: false, msg: res.error || t('governance.feeRateUpdateFailed') });
+    }
+  };
+
+  const handleEnrollHost = async () => {
+    const trimmed = newEarlyHostNpub.trim();
+    if (!trimmed.startsWith('npub1') || trimmed.length < 58) {
+      setEarlyHostActionMsg({ type: 'error', text: t('governance.earlyHostInvalidNpub') });
+      return;
+    }
+    if (earlyHosts.length >= 20) {
+      setEarlyHostActionMsg({ type: 'error', text: t('governance.earlyHostLimitReached') });
+      return;
+    }
+    if (earlyHosts.some(h => h.npub === trimmed)) {
+      setEarlyHostActionMsg({ type: 'error', text: t('governance.earlyHostAlreadyEnrolled') });
+      return;
+    }
+    setIsEnrollingHost(true);
+    setEarlyHostActionMsg(null);
+    const res = await enrollEarlyHost(trimmed, newEarlyHostNotes.trim());
+    setIsEnrollingHost(false);
+    if (res.success) {
+      setEarlyHostActionMsg({ type: 'success', text: t('governance.earlyHostEnrollSuccess', { npub: `${trimmed.slice(0, 12)}...` }) });
+      setNewEarlyHostNpub('');
+      setNewEarlyHostNotes('');
+    } else {
+      setEarlyHostActionMsg({ type: 'error', text: res.error || t('governance.earlyHostEnrollError') });
+    }
+  };
+
+  const handleRemoveHost = async (targetNpub: string) => {
+    const res = await removeEarlyHost(targetNpub);
+    if (res.success) {
+      setEarlyHostActionMsg({ type: 'success', text: t('governance.earlyHostRemoveSuccess', { npub: `${targetNpub.slice(0, 12)}...` }) });
+    } else {
+      setEarlyHostActionMsg({ type: 'error', text: res.error || t('governance.earlyHostRemoveError') });
     }
   };
 
@@ -949,6 +995,106 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                       <> [<span className="text-gray-500 italic">{t('governance.auditTrailRelay')}</span>]</>
                     )}.
                   </p>
+                </div>
+
+                {/* Early Host Incentive Program (RFC-0002) */}
+                <div className="space-y-2 p-2.5 rounded-lg bg-black/30 border border-white/5 font-mono">
+                  <div className="flex justify-between items-center text-[10px] uppercase text-gray-400">
+                    <span className="text-gray-300 font-semibold flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-emerald-400" />
+                      {t('governance.earlyHostTitle')}
+                    </span>
+                    <span className="text-emerald-400 font-bold text-xs">
+                      {earlyHosts.length}/20
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-tight">
+                    {t('governance.earlyHostDesc')}
+                  </p>
+
+                  {/* Enrolled Hosts List */}
+                  <div className="space-y-1 pt-1 max-h-40 overflow-y-auto">
+                    {earlyHosts.length === 0 ? (
+                      <div className="text-[10px] text-gray-500 italic p-1.5 bg-black/20 rounded">
+                        {t('governance.earlyHostEmpty')}
+                      </div>
+                    ) : (
+                      earlyHosts.map((host) => {
+                        const now = Date.now();
+                        const elapsedMs = now - host.enrolledAt;
+                        const isExpired = elapsedMs > 365 * 24 * 60 * 60 * 1000;
+                        const remainingDays = Math.max(0, Math.ceil((365 * 24 * 60 * 60 * 1000 - elapsedMs) / (24 * 60 * 60 * 1000)));
+
+                        return (
+                          <div 
+                            key={host.npub} 
+                            className="flex items-center justify-between text-[10px] p-1.5 rounded bg-white/5 border border-white/5 gap-2"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <span className="text-emerald-400 font-bold truncate select-all" title={host.npub}>
+                                  {host.npub.slice(0, 10)}...{host.npub.slice(-4)}
+                                </span>
+                                <span className={`text-[8px] px-1 py-0.2 rounded font-semibold ${isExpired ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                  {isExpired ? t('governance.earlyHostExpired') : t('governance.earlyHostActive')}
+                                </span>
+                              </div>
+                              <div className="text-[9px] text-gray-500 flex items-center gap-2 mt-0.5">
+                                <span>{new Date(host.enrolledAt).toLocaleDateString()}</span>
+                                {!isExpired && (
+                                  <span className="text-gray-400">({t('governance.earlyHostRemainingDays', { days: remainingDays })})</span>
+                                )}
+                              </div>
+                            </div>
+                            {isAdminUser && (
+                              <button
+                                onClick={() => handleRemoveHost(host.npub)}
+                                className="text-[9px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500/10 shrink-0"
+                              >
+                                {t('governance.earlyHostRemoveBtn')}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Admin Enrollment Form */}
+                  {isAdminUser && earlyHosts.length < 20 && (
+                    <div className="pt-2 border-t border-white/5 space-y-1.5">
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={newEarlyHostNpub}
+                          onChange={(e) => setNewEarlyHostNpub(e.target.value)}
+                          placeholder={t('governance.earlyHostNpubPlaceholder')}
+                          className="flex-1 bg-black/60 border border-white/10 rounded px-2 py-1 text-white text-[10px] focus:outline-none focus:border-emerald-500"
+                        />
+                        <button
+                          onClick={handleEnrollHost}
+                          disabled={isEnrollingHost}
+                          className="px-2 py-1 text-[9px] font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded flex items-center gap-1 disabled:opacity-50 shrink-0"
+                        >
+                          <Plus className="w-3 h-3" />
+                          {t('governance.earlyHostEnrollBtn')}
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={newEarlyHostNotes}
+                        onChange={(e) => setNewEarlyHostNotes(e.target.value)}
+                        placeholder={t('governance.earlyHostNotesPlaceholder')}
+                        className="w-full bg-black/60 border border-white/10 rounded px-2 py-1 text-white text-[10px] focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  )}
+
+                  {earlyHostActionMsg && (
+                    <div className={`text-[10px] p-1.5 rounded ${earlyHostActionMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                      {earlyHostActionMsg.text}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">

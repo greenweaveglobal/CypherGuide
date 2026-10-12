@@ -6,6 +6,7 @@ import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE }
 import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, nip19 } from 'nostr-tools';
 import { bytesToHex } from '../src/utils/crypto';
 import { createNip98AuthHeader } from '../src/utils/nip98Auth';
+import earlyHostsHandler from '../api/protocol/early-hosts';
 
 describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', () => {
   let tempDir: string;
@@ -36,10 +37,15 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
   it('calculates dynamic fee based on dynamic baseFeeRatePcm instead of hardcoded defaults', () => {
     const amountSats = 100000;
 
-    // Default rate: 20 pcm (0.2%)
-    const defaultStructure = createFeeStructureFromPcm(20);
-    const fee20 = calculateDynamicFee(amountSats, defaultStructure, 1.0, 'strict');
-    expect(fee20.protocolFeeSats).toBe(200); // 100,000 * 20 / 10000 = 200 sats
+    // Default rate: 200 pcm (2.0%)
+    const defaultStructure = createFeeStructureFromPcm(200);
+    const fee200 = calculateDynamicFee(amountSats, defaultStructure, 1.0, 'strict');
+    expect(fee200.protocolFeeSats).toBe(2000); // 100,000 * 200 / 10000 = 2000 sats
+
+    // Early host rate: 100 pcm (1.0%)
+    const earlyHostStructure = createFeeStructureFromPcm(200, 100);
+    const feeEarly = calculateDynamicFee(amountSats, earlyHostStructure, 1.0, 'strict', { isEarlyHost: true });
+    expect(feeEarly.protocolFeeSats).toBe(1000); // 100,000 * 100 / 10000 = 1000 sats
 
     // Updated rate: 50 pcm (0.5%)
     const updatedStructure = createFeeStructureFromPcm(50);
@@ -756,6 +762,104 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     expect(expiredRes.data.error).toContain('outside +/- 60s tolerance');
 
     // Clean up
+    delete process.env.TEST_ADMIN_PUBKEY;
+  });
+
+  it('manages early host enrollment via /api/protocol/early-hosts with NIP-98 auth (RFC-0002)', async () => {
+    const createMockRes = () => {
+      const res = {
+        statusCode: 200,
+        data: null as any,
+        headers: {} as Record<string, string>,
+        status(code: number) {
+          this.statusCode = code;
+          return this;
+        },
+        json(data: any) {
+          this.data = data;
+          return this;
+        },
+        setHeader(name: string, val: string) {
+          this.headers[name] = val;
+          return this;
+        }
+      };
+      return res;
+    };
+
+    // 1. GET returns current early hosts list
+    const getReq = { method: 'GET', headers: {} };
+    const getRes = createMockRes();
+    await earlyHostsHandler(getReq, getRes);
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.data.success).toBe(true);
+    expect(Array.isArray(getRes.data.earlyHosts)).toBe(true);
+    expect(getRes.data.earlyHostFeeRatePcm).toBe(100);
+    expect(getRes.data.maxEarlyHosts).toBe(20);
+
+    // 2. POST without auth returns 401
+    const unauthPostReq = { method: 'POST', headers: {}, body: { npub: 'npub1test' } };
+    const unauthPostRes = createMockRes();
+    await earlyHostsHandler(unauthPostReq, unauthPostRes);
+    expect(unauthPostRes.statusCode).toBe(401);
+
+    // 3. Authorized POST enrolls host
+    const testAdminSk = generateSecretKey();
+    const testAdminPk = getPublicKey(testAdminSk);
+    process.env.TEST_ADMIN_PUBKEY = testAdminPk;
+    const testAdminSkHex = bytesToHex(testAdminSk);
+
+    const targetNpub = 'npub10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
+    const postBody = { npub: targetNpub, notes: 'Early pioneer host 1' };
+    const postBodyStr = JSON.stringify(postBody);
+    const authHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'POST', testAdminSkHex, postBodyStr);
+
+    const validPostReq = {
+      method: 'POST',
+      headers: { authorization: authHeader },
+      rawBody: postBodyStr,
+      body: postBody
+    };
+    const validPostRes = createMockRes();
+    await earlyHostsHandler(validPostReq, validPostRes);
+    expect(validPostRes.statusCode).toBe(200);
+    expect(validPostRes.data.success).toBe(true);
+    expect(validPostRes.data.enrollment.npub).toBe(targetNpub);
+    expect(validPostRes.data.earlyHosts.some((h: any) => h.npub === targetNpub)).toBe(true);
+
+    // 4. Duplicate POST rejected with 400
+    // Wait >1s so NIP-98 event created_at advances and generates a fresh event id (avoiding anti-replay 401)
+    await new Promise(r => setTimeout(r, 1050));
+    const dupAuthHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'POST', testAdminSkHex, postBodyStr);
+    const dupPostReq = {
+      method: 'POST',
+      headers: { authorization: dupAuthHeader },
+      rawBody: postBodyStr,
+      body: postBody
+    };
+    const dupPostRes = createMockRes();
+    await earlyHostsHandler(dupPostReq, dupPostRes);
+    expect(dupPostRes.statusCode).toBe(400);
+    expect(dupPostRes.data.error).toContain('already enrolled');
+
+    // 5. Authorized DELETE removes host
+    const deleteBody = { npub: targetNpub };
+    const deleteBodyStr = JSON.stringify(deleteBody);
+    const deleteAuthHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'DELETE', testAdminSkHex, deleteBodyStr);
+
+    const validDeleteReq = {
+      method: 'DELETE',
+      headers: { authorization: deleteAuthHeader },
+      rawBody: deleteBodyStr,
+      body: deleteBody
+    };
+    const validDeleteRes = createMockRes();
+    await earlyHostsHandler(validDeleteReq, validDeleteRes);
+    expect(validDeleteRes.statusCode).toBe(200);
+    expect(validDeleteRes.data.success).toBe(true);
+    expect(validDeleteRes.data.removedNpub).toBe(targetNpub);
+    expect(validDeleteRes.data.earlyHosts.some((h: any) => h.npub === targetNpub)).toBe(false);
+
     delete process.env.TEST_ADMIN_PUBKEY;
   });
 });

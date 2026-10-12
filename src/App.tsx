@@ -8,18 +8,19 @@ import AppLayout from './components/AppLayout';
 import { useAppStore } from './store/useAppStore';
 import { isValidNpub } from './utils/referral';
 import { useTranslation } from './hooks/useTranslation';
+import { safeLazy } from './utils/safeLazy';
 
-// Code-splitting heavy tabs and panels to optimize initial bundle size
-const NostrIdentityManager = React.lazy(() => import('./components/NostrIdentityManager'));
-const RelayLogs = React.lazy(() => import('./components/RelayLogs'));
-const ListingDetail = React.lazy(() => import('./components/ListingDetail'));
-const GovernancePanel = React.lazy(() => import('./components/GovernancePanel'));
-const MyTrips = React.lazy(() => import('./components/MyTrips'));
-const DirectMessages = React.lazy(() => import('./components/DirectMessages'));
-const MeshNeighborhood = React.lazy(() => import('./components/MeshNeighborhood'));
-const Guide = React.lazy(() => import('./components/Guide'));
-const SystemAudit = React.lazy(() => import('./components/SystemAudit'));
-const HostDashboard = React.lazy(() => import('./components/HostDashboard'));
+// Code-splitting heavy tabs and panels to optimize initial bundle size with resilient retry
+const NostrIdentityManager = safeLazy(() => import('./components/NostrIdentityManager'));
+const RelayLogs = safeLazy(() => import('./components/RelayLogs'));
+const ListingDetail = safeLazy(() => import('./components/ListingDetail'));
+const GovernancePanel = safeLazy(() => import('./components/GovernancePanel'));
+const MyTrips = safeLazy(() => import('./components/MyTrips'));
+const DirectMessages = safeLazy(() => import('./components/DirectMessages'));
+const MeshNeighborhood = safeLazy(() => import('./components/MeshNeighborhood'));
+const Guide = safeLazy(() => import('./components/Guide'));
+const SystemAudit = safeLazy(() => import('./components/SystemAudit'));
+const HostDashboard = safeLazy(() => import('./components/HostDashboard'));
 
 function TabLoadingFallback() {
   const { t } = useTranslation();

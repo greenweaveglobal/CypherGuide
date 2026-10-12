@@ -5,9 +5,9 @@ import { NostrIdentity } from '../types';
 import { CypherGuideIcon } from './CypherGuideIcon';
 import { useTranslation } from '../hooks/useTranslation';
 
-const DonateModal = React.lazy(() => import('./DonateModal'));
-const OnboardingTourModal = React.lazy(() => import('./OnboardingTourModal'));
-const DocsAssistant = React.lazy(() => import('./DocsAssistant').then(m => ({ default: m.DocsAssistant })));
+import DonateModal from './DonateModal';
+import OnboardingTourModal from './OnboardingTourModal';
+import DocsAssistant from './DocsAssistant';
 
 interface AppLayoutProps {
   children: React.ReactNode;
