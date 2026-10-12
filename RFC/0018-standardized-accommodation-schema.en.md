@@ -3,6 +3,7 @@
 - **Status**: Draft
 - **Authors**: Project owner + AI-assisted drafting, community input needed
 - **Created**: 2026-10-08
+- **Updated**: 2026-10 (project owner approved the cancellation table in section 2)
 - **Inherits & Adheres To**: [RFC-0003](./0003-identity-portable-reputation.en.md), [RFC-0008](./0008-dana-based-stay.en.md), [RFC-0011](./0011-financialization-boundary-principle.en.md), [RFC-0012](./0012-sovereignty-boundary-principle.en.md), [RFC-0013](./0013-agent-ready-stay.en.md)
 
 ---
@@ -27,11 +28,11 @@ The project owner has finalized **4 standardized tier names** for cancellation p
 - `strict`
 - `nonrefundable`
 
-### Proposed Timelines & Penalty Rates (Pending Owner Approval, Not In Effect)
+### Timelines & Penalty Rates (Approved by the Project Owner, 2026-10; Not Yet Enforced by the System)
 
-The table below is a proposal for community discussion, currently **pending project owner approval and not in effect**:
+The project owner has **approved** the table below as the standard commitment a host makes when choosing the corresponding tier. Because the system does **not yet enforce refunds** (see section 6), this is a host's commitment to the guest, not an automatic mechanism. Any later change to these timelines requires updating this RFC:
 
-| Policy Tier (`cancellationPolicy`) | Free Cancellation Window (Proposed) | Full Refund Condition on Timely Cancel (Proposed) | Late Cancellation Rule (Proposed) |
+| Policy Tier (`cancellationPolicy`) | Free Cancellation Window | Full Refund Condition on Timely Cancel | Late Cancellation Rule |
 | :--- | :--- | :--- | :--- |
 | `flexible` | Prior to **24 hours** before check-in (`checkInTime`) | Refund **100%** of room price | Charge 50% room price of first night; refund remainder |
 | `moderate` | Prior to **5 days** before check-in date | Refund **100%** of room price | Charge 100% of first night; refund remaining nights |
@@ -127,7 +128,7 @@ The tag mapping below represents a **directional future design** for when public
 
 ## 7. Open Questions
 
-1. **Specific timelines and penalty percentages**: Are the proposed milestones (24 hours, 5 days, 14 days) and first-night penalty rates aligned with practical P2P homestay operations or should they be adjustable by season/room type? Pending formal project owner approval.
+1. **Seasonal or room-type variants**: The milestones (24 hours, 5 days, 14 days) and first-night penalty rates are **approved by the project owner** (2026-10). Remaining question: whether peak-season or room-type variants are needed, and what operating data should drive any adjustment.
 2. **Dispute resolution handling upon cancellation**: When disputes arise regarding cancellation notification timestamps or room fee refunds between guest and host, what is the procedure for submitting evidence and arbitrating via the Arbitrator Council (RFC-0001)?
 3. **Technical enforcement mechanism**: Which cryptographic primitive (Hold Invoices LND/CLN, Discreet Log Contracts DLC, or Cashu NUT-11 multisig escrow) should be adopted to automate room fee refunds in a fully non-custodial manner?
 

@@ -3,6 +3,7 @@
 - **Trạng thái**: Draft
 - **Tác giả**: Chủ dự án + AI hỗ trợ soạn thảo, cần cộng đồng bổ sung
 - **Ngày tạo**: 2026-10-08
+- **Cập nhật**: 2026-10 (chủ dự án đã duyệt bảng mốc hủy ở mục 2)
 - **Kế thừa & Tuân thủ**: [RFC-0003](./0003-identity-portable-reputation.md), [RFC-0008](./0008-dana-based-stay.md), [RFC-0011](./0011-financialization-boundary-principle.md), [RFC-0012](./0012-sovereignty-boundary-principle.md), [RFC-0013](./0013-agent-ready-stay.md)
 
 ---
@@ -27,11 +28,11 @@ Chủ dự án đã chốt **4 tên mức** chính sách hủy phòng chuẩn h�
 - `strict` (Nghiêm ngặt)
 - `nonrefundable` (Không hoàn tiền phòng)
 
-### Đề xuất mốc thời gian & tỷ lệ phạt (Chờ chủ dự án duyệt, chưa có hiệu lực)
+### Mốc thời gian & tỷ lệ phạt (Đã được chủ dự án duyệt, 2026-10; hệ thống chưa tự thực thi)
 
-Bảng dưới đây là phương án đề xuất để thảo luận cộng đồng, hiện **chưa được chủ dự án phê duyệt và chưa có hiệu lực thi hành**:
+Chủ dự án đã **duyệt** bảng dưới đây làm cam kết chuẩn mà chủ nhà áp dụng khi chọn mức tương ứng. Vì hệ thống **chưa tự thực thi hoàn tiền** (xem mục 6), đây là cam kết của chủ nhà đối với khách, chưa phải cơ chế tự động. Mọi thay đổi các mốc về sau cần cập nhật RFC này:
 
-| Mức Chính Sách (`cancellationPolicy`) | Mốc Thời Gian Hủy Miễn Phí (Đề xuất) | Tỷ Lệ Hoàn Tiền Phòng Khi Hủy Đúng Hạn (Đề xuất) | Quy Tắc Khi Hủy Muộn (Đề xuất) |
+| Mức Chính Sách (`cancellationPolicy`) | Mốc Thời Gian Hủy Miễn Phí | Tỷ Lệ Hoàn Tiền Phòng Khi Hủy Đúng Hạn | Quy Tắc Khi Hủy Muộn |
 | :--- | :--- | :--- | :--- |
 | `flexible` (Linh hoạt) | Trước **24 giờ** so với giờ nhận phòng (`checkInTime`) | Hoàn lại **100%** tiền phòng | Tính phí 50% tiền phòng của đêm đầu tiên; hoàn lại phần còn lại |
 | `moderate` (Vừa phải) | Trước **5 ngày** so với ngày nhận phòng | Hoàn lại **100%** tiền phòng | Tính phí 100% đêm đầu tiên; hoàn lại các đêm tiếp theo |
@@ -127,7 +128,7 @@ export interface Listing {
 
 ## 7. Câu Hỏi Mở (Open Questions)
 
-1. **Mốc thời gian và tỷ lệ cụ thể**: Các mốc thời gian (24 giờ, 5 ngày, 14 ngày) và tỷ lệ phạt đêm đầu có phù hợp với thực tế vận hành homestay/khách sạn P2P hay cần điều chỉnh theo mùa/loại phòng? Cần chủ dự án phê duyệt chính thức.
+1. **Điều chỉnh theo mùa hoặc loại phòng**: Các mốc (24 giờ, 5 ngày, 14 ngày) và tỷ lệ phạt đêm đầu **đã được chủ dự án duyệt** (2026-10). Câu hỏi còn lại: có cần biến thể theo mùa cao điểm hoặc loại phòng không, và dựa trên dữ liệu vận hành nào để điều chỉnh.
 2. **Cách xử lý tranh chấp khi hủy**: Khi phát sinh tranh chấp về thời điểm thông báo hủy hoặc hoàn tiền phòng giữa khách và host, quy trình nộp bằng chứng và phân xử qua Hội đồng Trọng tài (RFC-0001) sẽ diễn ra như thế nào?
 3. **Cơ chế thực thi kỹ thuật**: Cần áp dụng cơ chế mật mã nào (Hold Invoices LND/CLN, Discreet Log Contracts DLC, hay Cashu NUT-11 multisig escrow) để tự động hóa hoàn trả tiền phòng mà không giữ tiền tập trung (non-custodial)?
 
