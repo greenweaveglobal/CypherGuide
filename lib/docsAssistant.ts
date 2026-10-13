@@ -65,6 +65,7 @@ export function loadProjectDocs(): string {
 export interface DocsQueryResult {
   answer: string;
   success: boolean;
+  source?: "gemini" | "local-index";
   error?: string;
 }
 
@@ -80,11 +81,30 @@ export async function queryDocsAssistant(question: string, rawLocale?: string): 
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
+    // Seamless offline fallback to built-in RFC knowledge base if GEMINI_API_KEY is not configured
+    try {
+      const kbPath = path.join(process.cwd(), "src", "locales", "docsKnowledgeBase.json");
+      if (fs.existsSync(kbPath)) {
+        const kb = JSON.parse(fs.readFileSync(kbPath, "utf-8"));
+        const qLower = question.toLowerCase();
+        for (const topic of Object.values(kb) as any[]) {
+          if (topic.keywords && topic.keywords.some((kw: string) => qLower.includes(kw))) {
+            return {
+              answer: userLocale === 'en' ? topic.en : topic.vi,
+              success: true,
+              source: "local-index"
+            };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[DocsAssistant] Local knowledge base read error:", err);
+    }
+
     return {
-      answer: userLocale === 'en'
-        ? "Error: GEMINI_API_KEY environment variable is not set on server."
-        : "Lỗi: GEMINI_API_KEY chưa được thiết lập trong biến môi trường của máy chủ.",
-      success: false
+      answer: fallbackPhrase,
+      success: true,
+      source: "local-index"
     };
   }
 
@@ -127,18 +147,36 @@ ${docsContent}`;
     const trimmed = rawOutput.trim();
 
     if (!trimmed) {
-      return { answer: fallbackPhrase, success: true };
+      return { answer: fallbackPhrase, success: true, source: "gemini" };
     }
 
-    return { answer: trimmed, success: true };
+    return { answer: trimmed, success: true, source: "gemini" };
   } catch (err: any) {
-    console.error("[DocsAssistant] Gemini query error:", err);
+    console.error("[DocsAssistant] Gemini query error, falling back to built-in RFC index:", err);
+    // Graceful offline fallback to built-in RFC knowledge base if Gemini service fails
+    try {
+      const kbPath = path.join(process.cwd(), "src", "locales", "docsKnowledgeBase.json");
+      if (fs.existsSync(kbPath)) {
+        const kb = JSON.parse(fs.readFileSync(kbPath, "utf-8"));
+        const qLower = question.toLowerCase();
+        for (const topic of Object.values(kb) as any[]) {
+          if (topic.keywords && topic.keywords.some((kw: string) => qLower.includes(kw))) {
+            return {
+              answer: userLocale === 'en' ? topic.en : topic.vi,
+              success: true,
+              source: "local-index"
+            };
+          }
+        }
+      }
+    } catch (fallbackErr) {
+      console.warn("[DocsAssistant] Fallback KB error:", fallbackErr);
+    }
+
     return {
-      answer: userLocale === 'en' 
-        ? "Failed to query documentation assistant due to an upstream API error." 
-        : "Không thể tra cứu tài liệu do lỗi kết nối dịch vụ AI.",
-      success: false,
-      error: err.message
+      answer: fallbackPhrase,
+      success: true,
+      source: "local-index"
     };
   }
 }

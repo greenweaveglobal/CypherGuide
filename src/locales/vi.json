@@ -1322,6 +1322,7 @@
     "errorTitle": "Lỗi tra cứu tài liệu:",
     "resultTitle": "Kết quả tra cứu RFC / Code:",
     "modelBadge": "Gemini 3.6 Flash Khóa Ngữ Cảnh",
+    "localIndexBadge": "Chỉ mục RFC Nội bộ (Offline)",
     "referenceIndex": "Mục Lục Tham Chiếu RFC-0005",
     "scopeLabel": "Phạm vi: RFC/*.md + ARCHITECTURE.md + MATURITY.md + POSITIONING.md"
   },

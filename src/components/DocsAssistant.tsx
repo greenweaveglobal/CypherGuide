@@ -14,6 +14,7 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isGemini, setIsGemini] = useState(false);
 
   if (!isOpen) return null;
 
@@ -49,11 +50,9 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
 
         if (res.ok) {
           const data = await res.json();
-          if (data.answer) {
+          if (data.success && data.answer) {
             setResponse(data.answer);
-            isSuccess = true;
-          } else if (data.error) {
-            setError(data.error);
+            setIsGemini(data.source === 'gemini');
             isSuccess = true;
           }
         }
@@ -63,6 +62,7 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
 
       if (!isSuccess) {
         // Fallback to client-side RFC search
+        setIsGemini(false);
         const fallbackResult = await clientDocsLookup(q, locale);
         if (fallbackResult.answer) {
           setResponse(fallbackResult.answer);
@@ -196,7 +196,7 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
                   <span>{t('docsAssistant.resultTitle')}</span>
                 </div>
                 <span className="text-[10px] font-mono text-zinc-500 uppercase">
-                  {t('docsAssistant.modelBadge')}
+                  {isGemini ? t('docsAssistant.modelBadge') : t('docsAssistant.localIndexBadge')}
                 </span>
               </div>
               <div className="text-xs sm:text-sm font-mono text-zinc-200 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] selection:bg-primary selection:text-black min-w-0 max-w-full overflow-x-auto">

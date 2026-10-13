@@ -1322,6 +1322,7 @@
     "errorTitle": "Document lookup error:",
     "resultTitle": "RFC / Code Lookup Result:",
     "modelBadge": "Gemini 3.6 Flash Context-Locked",
+    "localIndexBadge": "Built-in RFC Knowledge Index (Offline)",
     "referenceIndex": "RFC-0005 Reference Index",
     "scopeLabel": "Scope: RFC/*.md + ARCHITECTURE.md + MATURITY.md + POSITIONING.md"
   },
