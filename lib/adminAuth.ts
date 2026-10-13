@@ -210,9 +210,9 @@ export async function verifyNip98Auth(
   }
 
   const upperMethod = targetMethod.toUpperCase();
-  const isBodyMethod = upperMethod === "POST" || upperMethod === "PATCH";
+  const isBodyMethod = upperMethod === "POST" || upperMethod === "PATCH" || upperMethod === "DELETE" || upperMethod === "PUT";
 
-  // Requirement (Task 1): With method POST or PATCH, payload tag is MANDATORY. Missing payload tag returns 401. GET does not require it.
+  // Requirement: With methods with payload (POST, PATCH, DELETE, PUT), payload tag is MANDATORY. Missing payload tag returns 401. GET/HEAD/OPTIONS do not require it.
   if (isBodyMethod && !payloadTag) {
     return {
       authorized: false,

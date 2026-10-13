@@ -16,6 +16,9 @@ import {
   saveProtocolConfig,
   validateBaseFeeRatePcm,
   validateEarlyHostEnrollment,
+  validateEarlyHostParameters,
+  normalizePubkeyToHex,
+  hexToNpub,
   type EarlyHostEnrollment
 } from "./lib/configStore";
 
@@ -173,15 +176,62 @@ async function startServer() {
     });
   });
 
-  // API: Get Early Hosts (RFC-0002)
+  // API: Get Early Hosts (RFC-0002 / Round 13)
   app.get("/api/protocol/early-hosts", async (_req, res) => {
     const config = await getProtocolConfig();
+    const rawHosts = Array.isArray(config.earlyHosts) ? config.earlyHosts : [];
+    const formattedHosts = rawHosts.map(h => ({
+      ...h,
+      pubkeyHex: normalizePubkeyToHex(h.npub) || h.npub,
+      npub: hexToNpub(normalizePubkeyToHex(h.npub) || h.npub)
+    }));
+
     res.json({
       success: true,
-      earlyHosts: Array.isArray(config.earlyHosts) ? config.earlyHosts : [],
+      earlyHosts: formattedHosts,
       earlyHostFeeRatePcm: typeof config.earlyHostFeeRatePcm === "number" ? config.earlyHostFeeRatePcm : 100,
-      maxEarlyHosts: 20
+      maxEarlyHosts: typeof config.maxEarlyHosts === "number" ? config.maxEarlyHosts : 20,
+      earlyHostDurationDays: typeof config.earlyHostDurationDays === "number" ? config.earlyHostDurationDays : 365
     });
+  });
+
+  // API: Update Early Host Parameters (Round 13) - Guarded by NIP-98
+  app.patch("/api/protocol/early-hosts", async (req, res) => {
+    try {
+      const auth = await verifyNip98Auth(req, "/api/protocol/early-hosts", "PATCH", (req as any).rawBody);
+      if (!auth.authorized) {
+        return res.status(auth.status).json({ success: false, error: auth.error });
+      }
+
+      const { durationDays, maxEnrolled } = req.body || {};
+      const val = validateEarlyHostParameters({ durationDays, maxEnrolled });
+      if (!val.valid) {
+        return res.status(400).json({ success: false, error: val.error });
+      }
+
+      const currentConfig = await getProtocolConfig();
+      const updatedConfig = {
+        ...currentConfig,
+        ...(durationDays !== undefined ? { earlyHostDurationDays: val.durationDays } : {}),
+        ...(maxEnrolled !== undefined ? { maxEarlyHosts: val.maxEnrolled } : {}),
+        updatedAt: Date.now(),
+        updatedBy: auth.pubkey || "admin"
+      };
+
+      const saved = await saveProtocolConfig(updatedConfig);
+      if (!saved) {
+        return res.status(500).json({ success: false, error: "Failed to persist early host parameters." });
+      }
+
+      return res.json({
+        success: true,
+        earlyHostDurationDays: updatedConfig.earlyHostDurationDays,
+        maxEarlyHosts: updatedConfig.maxEarlyHosts
+      });
+    } catch (e: any) {
+      console.error("Error updating early host parameters:", e);
+      return res.status(500).json({ success: false, error: e.message || "Internal server error" });
+    }
   });
 
   // API: Enroll Early Host (RFC-0002) - Guarded by NIP-98
@@ -196,7 +246,14 @@ async function startServer() {
       const currentConfig = await getProtocolConfig();
       const currentHosts = Array.isArray(currentConfig.earlyHosts) ? currentConfig.earlyHosts : [];
 
-      const validation = validateEarlyHostEnrollment(npub, currentHosts);
+      const durationDays = typeof currentConfig.earlyHostDurationDays === "number" ? currentConfig.earlyHostDurationDays : 365;
+      const maxEnrolled = typeof currentConfig.maxEarlyHosts === "number" ? currentConfig.maxEarlyHosts : 20;
+
+      const validation = validateEarlyHostEnrollment(npub, currentHosts, {
+        durationDays,
+        maxEnrolled,
+        now: Date.now()
+      });
       if (!validation.valid) {
         return res.status(400).json({ success: false, error: validation.error });
       }
@@ -223,7 +280,7 @@ async function startServer() {
       }
 
       const newEnrollment: EarlyHostEnrollment = {
-        npub: validation.cleanNpub!,
+        npub: validation.cleanHex!,
         enrolledAt: Date.now(),
         enrolledBy: auth.pubkey || "admin",
         auditEventId: auditEventId || "",
@@ -246,8 +303,14 @@ async function startServer() {
 
       return res.json({
         success: true,
-        enrollment: newEnrollment,
-        earlyHosts: updatedHosts
+        enrollment: {
+          ...newEnrollment,
+          npub: validation.cleanNpub!
+        },
+        earlyHosts: updatedHosts.map(h => ({
+          ...h,
+          npub: hexToNpub(h.npub)
+        }))
       });
     } catch (e: any) {
       console.error("Error enrolling early host:", e);
@@ -265,14 +328,22 @@ async function startServer() {
 
       const { npub, auditEvent } = req.body || {};
       if (!npub || typeof npub !== "string") {
-        return res.status(400).json({ success: false, error: "Host npub is required for removal." });
+        return res.status(400).json({ success: false, error: "Host npub or pubkey is required for removal." });
+      }
+
+      const hexToRemove = normalizePubkeyToHex(npub);
+      if (!hexToRemove) {
+        return res.status(400).json({ success: false, error: "Invalid host npub or pubkey format." });
       }
 
       const currentConfig = await getProtocolConfig();
       const currentHosts = Array.isArray(currentConfig.earlyHosts) ? currentConfig.earlyHosts : [];
-      const trimmedNpub = npub.trim();
 
-      const exists = currentHosts.some(h => h.npub === trimmedNpub);
+      const exists = currentHosts.some(h => {
+        const hHex = normalizePubkeyToHex(h.npub);
+        return hHex === hexToRemove;
+      });
+
       if (!exists) {
         return res.status(404).json({ success: false, error: "Early host not found in enrolled list." });
       }
@@ -296,7 +367,11 @@ async function startServer() {
         }
       }
 
-      const updatedHosts = currentHosts.filter(h => h.npub !== trimmedNpub);
+      const updatedHosts = currentHosts.filter(h => {
+        const hHex = normalizePubkeyToHex(h.npub);
+        return hHex !== hexToRemove;
+      });
+
       const now = Date.now();
       const updatedConfig = {
         ...currentConfig,
@@ -312,8 +387,12 @@ async function startServer() {
 
       return res.json({
         success: true,
-        removedNpub: trimmedNpub,
-        earlyHosts: updatedHosts
+        removedHex: hexToRemove,
+        removedNpub: hexToNpub(hexToRemove),
+        earlyHosts: updatedHosts.map(h => ({
+          ...h,
+          npub: hexToNpub(h.npub)
+        }))
       });
     } catch (e: any) {
       console.error("Error removing early host:", e);

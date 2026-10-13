@@ -105,6 +105,8 @@ export interface Listing {
   status: 'available' | 'occupied';
   reviews: Review[];
   editHistory?: EditHistoryEntry[]; // Audit trail of changes
+  hostPubkey?: string; // Khóa công khai hex 64 ký tự của chủ nhà tạo listing (RFC-0019)
+  listingSignature?: string; // Chữ ký Nostr Schnorr JSON xác thực nội dung listing của chủ nhà (RFC-0019)
 }
 
 export interface KycAttestationRecord {

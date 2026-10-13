@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import nodeCrypto from 'crypto';
 import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE } from '../src/utils/dynamicFee';
 import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, nip19 } from 'nostr-tools';
 import { bytesToHex } from '../src/utils/crypto';
@@ -809,7 +810,9 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     process.env.TEST_ADMIN_PUBKEY = testAdminPk;
     const testAdminSkHex = bytesToHex(testAdminSk);
 
-    const targetNpub = 'npub10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
+    const validTargetSk = generateSecretKey();
+    const validTargetPk = getPublicKey(validTargetSk);
+    const targetNpub = nip19.npubEncode(validTargetPk);
     const postBody = { npub: targetNpub, notes: 'Early pioneer host 1' };
     const postBodyStr = JSON.stringify(postBody);
     const authHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'POST', testAdminSkHex, postBodyStr);
@@ -860,6 +863,155 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     expect(validDeleteRes.data.removedNpub).toBe(targetNpub);
     expect(validDeleteRes.data.earlyHosts.some((h: any) => h.npub === targetNpub)).toBe(false);
 
+    // 6. Task 3 Test: DELETE without payload tag is rejected with 401
+    await new Promise(r => setTimeout(r, 1050));
+    // Header signed without body -> lacks 'payload' tag
+    const noPayloadDeleteAuthHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'DELETE', testAdminSkHex);
+    const noPayloadDeleteReq = {
+      method: 'DELETE',
+      headers: { authorization: noPayloadDeleteAuthHeader },
+      rawBody: deleteBodyStr,
+      body: deleteBody
+    };
+    const noPayloadDeleteRes = createMockRes();
+    await earlyHostsHandler(noPayloadDeleteReq, noPayloadDeleteRes);
+    expect(noPayloadDeleteRes.statusCode).toBe(401);
+    expect(noPayloadDeleteRes.data.error).toContain("missing required 'payload' tag");
+
+    // 7. Task 3 Test: DELETE with tampered body after signing is rejected with 401
+    await new Promise(r => setTimeout(r, 1050));
+    const tamperedDeleteReq = {
+      method: 'DELETE',
+      headers: { authorization: deleteAuthHeader }, // signed for deleteBodyStr
+      rawBody: JSON.stringify({ npub: 'npub1tampered000000000000000000000000000000000000000000000000000' }),
+      body: { npub: 'npub1tampered000000000000000000000000000000000000000000000000000' }
+    };
+    const tamperedDeleteRes = createMockRes();
+    await earlyHostsHandler(tamperedDeleteReq, tamperedDeleteRes);
+    expect(tamperedDeleteRes.statusCode).toBe(401);
+    expect(tamperedDeleteRes.data.error).toContain('payload tag hash mismatch');
+
+    // 8. Task 2 Test: Host enrolled as npub, removed by hex format (or vice versa)
+    const pioneerSk = generateSecretKey();
+    const pioneerPkHex = bytesToHex(pioneerSk);
+    const pioneerNpub = nip19.npubEncode(pioneerPkHex);
+
+    await new Promise(r => setTimeout(r, 1050));
+    const enrollNpubBody = JSON.stringify({ npub: pioneerNpub });
+    const enrollNpubAuth = await createNip98AuthHeader('/api/protocol/early-hosts', 'POST', testAdminSkHex, enrollNpubBody);
+    const enrollNpubRes = createMockRes();
+    await earlyHostsHandler({ method: 'POST', headers: { authorization: enrollNpubAuth }, rawBody: enrollNpubBody, body: { npub: pioneerNpub } }, enrollNpubRes);
+    expect(enrollNpubRes.statusCode).toBe(200);
+
+    // Delete using hex format instead of npub format
+    await new Promise(r => setTimeout(r, 1050));
+    const removeHexBody = JSON.stringify({ npub: pioneerPkHex });
+    const removeHexAuth = await createNip98AuthHeader('/api/protocol/early-hosts', 'DELETE', testAdminSkHex, removeHexBody);
+    const removeHexRes = createMockRes();
+    await earlyHostsHandler({ method: 'DELETE', headers: { authorization: removeHexAuth }, rawBody: removeHexBody, body: { npub: pioneerPkHex } }, removeHexRes);
+    expect(removeHexRes.statusCode).toBe(200);
+    expect(removeHexRes.data.removedHex).toBe(pioneerPkHex);
+
+    // 9. Task 4 Test: Admin dynamically updates maxEarlyHosts and earlyHostDurationDays via PATCH
+    await new Promise(r => setTimeout(r, 1050));
+    const patchBody = JSON.stringify({ durationDays: 180, maxEnrolled: 50 });
+    const patchAuth = await createNip98AuthHeader('/api/protocol/early-hosts', 'PATCH', testAdminSkHex, patchBody);
+    const patchRes = createMockRes();
+    await earlyHostsHandler({ method: 'PATCH', headers: { authorization: patchAuth }, rawBody: patchBody, body: { durationDays: 180, maxEnrolled: 50 } }, patchRes);
+    expect(patchRes.statusCode).toBe(200);
+    expect(patchRes.data.earlyHostDurationDays).toBe(180);
+    expect(patchRes.data.maxEarlyHosts).toBe(50);
+
+    // Out of bounds parameter rejected
+    await new Promise(r => setTimeout(r, 1050));
+    const badPatchBody = JSON.stringify({ durationDays: 2000 }); // > 1095 max
+    const badPatchAuth = await createNip98AuthHeader('/api/protocol/early-hosts', 'PATCH', testAdminSkHex, badPatchBody);
+    const badPatchRes = createMockRes();
+    await earlyHostsHandler({ method: 'PATCH', headers: { authorization: badPatchAuth }, rawBody: badPatchBody, body: { durationDays: 2000 } }, badPatchRes);
+    expect(badPatchRes.statusCode).toBe(400);
+
     delete process.env.TEST_ADMIN_PUBKEY;
+  }, 30000);
+
+  it('enforces Task 1b: prevents spoofing coOwners npub and verifies host signature strictly', async () => {
+    const { isEarlyHostEligible, verifyListingHostSignature } = await import('../src/utils/dynamicFee');
+
+    // Host 1: Genuine enrolled early host
+    const host1Sk = generateSecretKey();
+    const host1PkHex = getPublicKey(host1Sk);
+    const host1Npub = nip19.npubEncode(host1PkHex);
+
+    // Host 2: Attacker
+    const attackerSk = generateSecretKey();
+    const attackerPkHex = getPublicKey(attackerSk);
+    const attackerNpub = nip19.npubEncode(attackerPkHex);
+
+    const enrolledList = [
+      { npub: host1PkHex, enrolledAt: Date.now() - 1000, enrolledBy: 'admin' }
+    ];
+
+    // Case 1: Attacker spoofs host1Npub inside coOwners with 100% share, but does not have host1's signature
+    const spoofedListing = {
+      id: 'list_SPOOF01',
+      title: 'Attacker Villa',
+      priceSats: 50000,
+      coOwners: [{ npub: host1Npub, share: 100, name: 'Spoofed Host' }]
+    };
+    // Because there is no hostPubkey or signature, isEarlyHostEligible returns false
+    expect(isEarlyHostEligible(spoofedListing, enrolledList)).toBe(false);
+
+    // Case 2: Genuine listing signed by Host 1
+    const genuineListingId = 'list_GENUINE01';
+    const genuineTitle = 'Pioneer Cypher Haven';
+    const genuinePrice = 60000;
+    const genuineCoOwners = [{ npub: host1Npub, share: 100, name: 'Pioneer Host' }];
+    const coOwnersDigest = `${host1PkHex}:100`;
+
+    const signPayload = `register_${genuineListingId}_${genuineTitle}_${genuinePrice}_coOwners:${coOwnersDigest}_${Date.now()}`;
+    const signHash = nodeCrypto.createHash('sha256').update(signPayload).digest('hex');
+    const validEventTemplate = {
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: signPayload
+    };
+    const signedEvent = finalizeEvent(validEventTemplate, host1Sk);
+
+    const genuineListing = {
+      id: genuineListingId,
+      title: genuineTitle,
+      priceSats: genuinePrice,
+      coOwners: genuineCoOwners,
+      hostPubkey: host1PkHex,
+      listingSignature: JSON.stringify(signedEvent)
+    };
+
+    expect(verifyListingHostSignature(genuineListing).valid).toBe(true);
+    expect(isEarlyHostEligible(genuineListing, enrolledList)).toBe(true);
+
+    // Case 3: Tampering listing metadata after signing (e.g. changing title or coOwners) revokes eligibility
+    const tamperedListing = {
+      ...genuineListing,
+      title: 'Hacked Title After Signing'
+    };
+    expect(isEarlyHostEligible(tamperedListing, enrolledList)).toBe(false);
+
+    // Case 4: Attacker signs their own listing with attacker key, but tries to claim Host 1 identity
+    const attackerSignedEvent = finalizeEvent({
+      ...validEventTemplate,
+      content: `register_list_ATTACK_Attacker Villa_10000_coOwners:${attackerPkHex}:100_${Date.now()}`
+    }, attackerSk);
+
+    const attackerListing = {
+      id: 'list_ATTACK',
+      title: 'Attacker Villa',
+      priceSats: 10000,
+      coOwners: [{ npub: host1Npub, share: 100, name: 'Pioneer Host' }], // still trying to put host1 in coOwners
+      hostPubkey: attackerPkHex,
+      listingSignature: JSON.stringify(attackerSignedEvent)
+    };
+
+    // Valid signature, but attackerPkHex is NOT in enrolledList -> ineligible!
+    expect(isEarlyHostEligible(attackerListing, enrolledList)).toBe(false);
   });
 });

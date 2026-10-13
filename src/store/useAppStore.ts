@@ -94,6 +94,8 @@ interface AppState {
   baseFeeRatePcm: number;
   earlyHostFeeRatePcm: number;
   earlyHosts: EarlyHostEnrollment[];
+  earlyHostDurationDays: number;
+  maxEarlyHosts: number;
   feeUpdatedAt: number;
   feeUpdatedBy: string;
   feeAuditNostrEventId: string;
@@ -107,6 +109,7 @@ interface AppState {
   updateDevLnAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
   updateInfraIncentiveTreasuryLightningAddress: (address: string, npub?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
   updateProtocolFee: (newPcm: number, reason?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
+  updateEarlyHostParameters: (params: { durationDays?: number; maxEnrolled?: number }) => Promise<{ success: boolean; error?: string }>;
   enrollEarlyHost: (npub: string, notes?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
   removeEarlyHost: (npub: string, reason?: string) => Promise<{ success: boolean; error?: string; eventId?: string }>;
 
@@ -160,6 +163,8 @@ export const useAppStore = create<AppState>()(
       baseFeeRatePcm: 200,
       earlyHostFeeRatePcm: 100,
       earlyHosts: [],
+      earlyHostDurationDays: 365,
+      maxEarlyHosts: 20,
       feeUpdatedAt: 1787826600000,
       feeUpdatedBy: 'npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qaj4e2jrutzpdh83usafqxmh',
       feeAuditNostrEventId: '',
@@ -191,6 +196,12 @@ export const useAppStore = create<AppState>()(
             }
             if (Array.isArray(data.earlyHosts)) {
               set({ earlyHosts: data.earlyHosts });
+            }
+            if (typeof data.earlyHostDurationDays === 'number') {
+              set({ earlyHostDurationDays: data.earlyHostDurationDays });
+            }
+            if (typeof data.maxEarlyHosts === 'number') {
+              set({ maxEarlyHosts: data.maxEarlyHosts });
             }
             if (typeof data.earlyHostFeeRatePcm === 'number') {
               set({ earlyHostFeeRatePcm: data.earlyHostFeeRatePcm });
@@ -300,6 +311,49 @@ export const useAppStore = create<AppState>()(
           }
         } catch (e: any) {
           return { success: false, error: e.message || translate('store.errFeeNetworkFailed') };
+        }
+      },
+
+      updateEarlyHostParameters: async (params: { durationDays?: number; maxEnrolled?: number }) => {
+        try {
+          const state = get();
+          const identity = state.identity;
+          let privKeyHex = '';
+          if (identity?.nsec) {
+            privKeyHex = nsecToHex(identity.nsec) || '';
+          }
+
+          const bodyString = JSON.stringify(params);
+          const authHeader = await createNip98AuthHeader('/api/protocol/early-hosts', 'PATCH', privKeyHex, bodyString);
+          if (!authHeader) {
+            return { success: false, error: translate('store.errNoNip98Admin') };
+          }
+
+          const res = await fetch('/api/protocol/early-hosts', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': authHeader
+            },
+            body: bodyString,
+            signal: AbortSignal.timeout(8000)
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            if (typeof data.earlyHostDurationDays === 'number') {
+              set({ earlyHostDurationDays: data.earlyHostDurationDays });
+            }
+            if (typeof data.maxEarlyHosts === 'number') {
+              set({ maxEarlyHosts: data.maxEarlyHosts });
+            }
+            return { success: true };
+          } else {
+            return { success: false, error: data.error || 'Failed to update early host parameters' };
+          }
+        } catch (e: any) {
+          return { success: false, error: e.message || 'Failed to update early host parameters' };
         }
       },
 

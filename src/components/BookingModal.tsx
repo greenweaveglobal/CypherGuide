@@ -44,7 +44,13 @@ export default function BookingModal({ listing, preselectedRoomTypeId, onClose, 
   }, [fetchProtocolConfig]);
 
   const primaryHostNpub = useMemo(() => getPrimaryHostNpub(effectiveListing), [effectiveListing]);
-  const isEarlyHost = useMemo(() => isEarlyHostEligible(primaryHostNpub, earlyHosts), [primaryHostNpub, earlyHosts]);
+  const isEarlyHost = useMemo(() => {
+    // Ưu tiên xác thực chữ ký của listing theo RFC-0019 nếu có
+    if (effectiveListing && (effectiveListing.hostPubkey || effectiveListing.listingSignature)) {
+      return isEarlyHostEligible(effectiveListing, earlyHosts);
+    }
+    return isEarlyHostEligible(primaryHostNpub, earlyHosts);
+  }, [effectiveListing, primaryHostNpub, earlyHosts]);
 
   const activeFeeStructure = useMemo(() => {
     return createFeeStructureFromPcm(

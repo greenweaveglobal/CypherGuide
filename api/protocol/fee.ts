@@ -121,14 +121,16 @@ export default async function handler(req: any, res: any) {
           const isValidAuditSig = verifyEvent(auditEvent);
           if (isValidAuditSig && auditEvent.pubkey === auth.pubkey) {
             auditEventId = auditEvent.id;
-            const pool = new SimplePool();
-            try {
-              const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
-              Promise.allSettled(pubPromises).then(() => {
-                pool.close(PROTOCOL_RELAYS);
-              }).catch(() => {});
-            } catch (pErr) {
-              console.warn("Failed to broadcast audit event to relays:", pErr);
+            if (process.env.NODE_ENV !== "test") {
+              const pool = new SimplePool();
+              try {
+                const pubPromises = pool.publish(PROTOCOL_RELAYS, auditEvent);
+                Promise.allSettled(pubPromises).then(() => {
+                  pool.close(PROTOCOL_RELAYS);
+                }).catch(() => {});
+              } catch (pErr) {
+                console.warn("Failed to broadcast audit event to relays:", pErr);
+              }
             }
           } else {
             console.warn("Audit event signature invalid or pubkey mismatch with NIP-98 event.");

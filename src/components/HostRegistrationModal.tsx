@@ -427,9 +427,9 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
 
     try {
       const listingId = 'list_' + safeRandomUUID().split('-')[0].toUpperCase();
-      const payload = `register_${listingId}_${title}_${priceSats}_${identity.npub}`;
-      const payloadHash = await sha256(payload);
-      const signature = await signMessage(payloadHash, identity);
+      const coOwnersSummary = coOwners.map(o => `${o.npub.trim()}:${Number(o.share)}`).join('|');
+      const canonicalPayload = `register_${listingId}_${title}_${priceSats}_coOwners:${coOwnersSummary}_${Date.now()}`;
+      const signature = await signMessage(canonicalPayload, identity);
 
       // Batch-sign images: exactly 1 real signature for the whole batch
       const validUrls = nip94Urls.filter(url => url.trim() !== '');
@@ -505,7 +505,9 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
         coOwners: coOwners.map(owner => ({
           ...owner,
           share: Number(owner.share)
-        }))
+        })),
+        hostPubkey: identity.pubKeyHex,
+        listingSignature: signature
       };
 
       onAddListing(newListing);

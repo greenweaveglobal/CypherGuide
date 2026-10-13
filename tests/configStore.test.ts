@@ -52,30 +52,53 @@ describe("Protocol Config Store & Validation (RFC-0002 / RFC-0016)", () => {
     expect(validateBaseFeeRatePcm(undefined).valid).toBe(false);
   });
 
-  it("validates early host enrollment per RFC-0002", () => {
-    const validNpub = "npub10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
-    expect(validateEarlyHostEnrollment(validNpub, []).valid).toBe(true);
-    expect(validateEarlyHostEnrollment(validNpub, []).cleanNpub).toBe(validNpub);
+  it("validates early host enrollment per RFC-0002 / Round 13", () => {
+    // Valid npub with authentic bech32 checksum
+    const validNpub = "npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqshp52w2";
+    const res = validateEarlyHostEnrollment(validNpub, []);
+    expect(res.valid).toBe(true);
+    expect(res.cleanNpub).toBe(validNpub);
+    expect(res.cleanHex).toBeTruthy();
 
-    // Invalid npub
+    // Valid 64-char hex pubkey
+    const validHex = "0000000000000000000000000000000000000000000000000000000000000000";
+    const hexRes = validateEarlyHostEnrollment(validHex, []);
+    expect(hexRes.valid).toBe(true);
+    expect(hexRes.cleanHex).toBe(validHex);
+
+    // Invalid npub (bad checksum or invalid format)
     expect(validateEarlyHostEnrollment("invalid", []).valid).toBe(false);
+    expect(validateEarlyHostEnrollment("npub10qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqx", []).valid).toBe(false);
     expect(validateEarlyHostEnrollment("", []).valid).toBe(false);
     expect(validateEarlyHostEnrollment(null, []).valid).toBe(false);
 
-    // Duplicate enrollment
-    const existing: EarlyHostEnrollment[] = [{ npub: validNpub, enrolledAt: Date.now(), enrolledBy: "admin" }];
+    // Duplicate enrollment: matching hex or matching npub
+    const existing: EarlyHostEnrollment[] = [{ npub: res.cleanHex!, enrolledAt: Date.now(), enrolledBy: "admin" }];
+    // Re-enrolling with npub or hex is recognized as duplicate
     expect(validateEarlyHostEnrollment(validNpub, existing).valid).toBe(false);
+    expect(validateEarlyHostEnrollment(res.cleanHex!, existing).valid).toBe(false);
     expect(validateEarlyHostEnrollment(validNpub, existing).error).toContain("already enrolled");
 
-    // Max 20 early hosts
-    const twentyHosts: EarlyHostEnrollment[] = Array.from({ length: 20 }, (_, i) => ({
-      npub: `npub1host${i}qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq`,
-      enrolledAt: Date.now(),
+    // Max 20 early hosts: active limit enforced, expired does not consume quota
+    const now = Date.now();
+    const twentyActiveHosts: EarlyHostEnrollment[] = Array.from({ length: 20 }, (_, i) => ({
+      npub: `00000000000000000000000000000000000000000000000000000000000000${i.toString(16).padStart(2, '0')}`,
+      enrolledAt: now - 1000,
       enrolledBy: "admin"
     }));
-    const newHost = "npub1newhostqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
-    expect(validateEarlyHostEnrollment(newHost, twentyHosts).valid).toBe(false);
-    expect(validateEarlyHostEnrollment(newHost, twentyHosts).error).toContain("maximum 20 hosts");
+    const newHost = "1111111111111111111111111111111111111111111111111111111111111111";
+    expect(validateEarlyHostEnrollment(newHost, twentyActiveHosts, { maxEnrolled: 20, now }).valid).toBe(false);
+
+    // If 1 host is expired (> 365 days), active quota is 19 -> new host is accepted!
+    const hostsWithOneExpired = [
+      ...twentyActiveHosts.slice(0, 19),
+      {
+        npub: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        enrolledAt: now - 400 * 24 * 60 * 60 * 1000, // 400 days ago
+        enrolledBy: "admin"
+      }
+    ];
+    expect(validateEarlyHostEnrollment(newHost, hostsWithOneExpired, { maxEnrolled: 20, durationDays: 365, now }).valid).toBe(true);
   });
 
   it("reads and parses protocol config with 200 pcm default and early host fields", async () => {

@@ -58,6 +58,8 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
     configAuditNostrEventId,
     devLnAddress,
     infraIncentiveTreasuryLightningAddress,
+    earlyHostDurationDays,
+    maxEarlyHosts,
     updateProtocolFee,
     enrollEarlyHost,
     removeEarlyHost,
@@ -1005,7 +1007,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                       {t('governance.earlyHostTitle')}
                     </span>
                     <span className="text-emerald-400 font-bold text-xs">
-                      {earlyHosts.length}/20
+                      {earlyHosts.length}/{maxEarlyHosts || 20}
                     </span>
                   </div>
                   <p className="text-[10px] text-gray-400 leading-tight">
@@ -1021,9 +1023,10 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                     ) : (
                       earlyHosts.map((host) => {
                         const now = Date.now();
+                        const durationMs = (earlyHostDurationDays || 365) * 24 * 60 * 60 * 1000;
                         const elapsedMs = now - host.enrolledAt;
-                        const isExpired = elapsedMs > 365 * 24 * 60 * 60 * 1000;
-                        const remainingDays = Math.max(0, Math.ceil((365 * 24 * 60 * 60 * 1000 - elapsedMs) / (24 * 60 * 60 * 1000)));
+                        const isExpired = elapsedMs > durationMs;
+                        const remainingDays = Math.max(0, Math.ceil((durationMs - elapsedMs) / (24 * 60 * 60 * 1000)));
 
                         return (
                           <div 
@@ -1061,7 +1064,7 @@ export default function GovernancePanel({ proposals, listings, bookings, payouts
                   </div>
 
                   {/* Admin Enrollment Form */}
-                  {isAdminUser && earlyHosts.length < 20 && (
+                  {isAdminUser && earlyHosts.length < (maxEarlyHosts || 20) && (
                     <div className="pt-2 border-t border-white/5 space-y-1.5">
                       <div className="flex gap-1.5">
                         <input

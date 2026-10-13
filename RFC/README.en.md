@@ -26,8 +26,9 @@ Each document has a parallel `.en.md` version (e.g. `0003-....md` + `0003-....en
 | 0016 | Infrastructure Node Incentive (Proof-of-Relay + Lightning Payout Flow) | Draft | `src/utils/infraContribution.ts`, `src/store/useAppStore.ts`, `src/components/MeshNeighborhood.tsx` |
 | 0017 | Stay Assistant Agents — Phase 1 (Non-Custodial) | Draft | Proposes `agents/` (extends RFC-0005, consumes RFC-0003, adheres to RFC-0011/0012) |
 | 0018 | Standardized Accommodation Schema & Privacy-Preserving Listing Metadata | Draft | `src/types.ts`, `src/components/LodgingListings.tsx`, `src/components/ListingDetail.tsx`, `src/components/HostRegistrationModal.tsx` |
+| 0019 | Listing Host Authentication | Draft | `src/types.ts`, `src/components/HostRegistrationModal.tsx`, `src/utils/dynamicFee.ts`, `api/protocol/early-hosts.ts` |
 
-Next RFC number: **0019**.
+Next RFC number: **0020**.
 
 ## Naming Convention
 
