@@ -1,5 +1,5 @@
 // Client-side fallback lookup for Cypher Guide RFC Documentation
-import docsKnowledgeBase from '../locales/docsKnowledgeBase.json';
+import { DOCS_KNOWLEDGE_BASE, KnowledgeTopic } from '../../lib/docsKnowledgeBase';
 import { translate } from '../hooks/useTranslation';
 
 export interface DocsQueryResult {
@@ -7,13 +7,7 @@ export interface DocsQueryResult {
   success: boolean;
 }
 
-interface KnowledgeTopic {
-  keywords?: string[];
-  vi: string;
-  en: string;
-}
-
-const RFC_KNOWLEDGE_BASE = docsKnowledgeBase as Record<string, KnowledgeTopic>;
+const RFC_KNOWLEDGE_BASE = DOCS_KNOWLEDGE_BASE as Record<string, KnowledgeTopic>;
 
 export async function clientDocsLookup(question: string, locale: string = 'vi'): Promise<DocsQueryResult> {
   const isEn = locale === 'en';

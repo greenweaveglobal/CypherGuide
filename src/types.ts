@@ -107,6 +107,7 @@ export interface Listing {
   editHistory?: EditHistoryEntry[]; // Audit trail of changes
   hostPubkey?: string; // Khóa công khai hex 64 ký tự của chủ nhà tạo listing (RFC-0019)
   listingSignature?: string; // Chữ ký Nostr Schnorr JSON xác thực nội dung listing của chủ nhà (RFC-0019)
+  createdAt?: number; // Dấu thời gian tạo hoặc ký listing (ms)
 }
 
 export interface KycAttestationRecord {

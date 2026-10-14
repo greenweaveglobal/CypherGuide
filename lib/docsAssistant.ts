@@ -1,9 +1,32 @@
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import path from "path";
+import { DOCS_KNOWLEDGE_BASE } from "./docsKnowledgeBase.js";
 
 // In-memory cache for documentation content (H5 - read once on cold start)
 let cachedDocs: string | null = null;
+let warnedMissingApiKey = false;
+
+/**
+ * Tra cứu kho kiến thức tĩnh nội bộ (static local index)
+ */
+export function searchLocalKnowledgeBase(question: string, userLocale: 'vi' | 'en'): { matched: boolean; answer: string } {
+  const qLower = question.toLowerCase();
+  for (const topic of Object.values(DOCS_KNOWLEDGE_BASE)) {
+    if (topic.keywords && topic.keywords.some((kw: string) => qLower.includes(kw.toLowerCase()))) {
+      return {
+        matched: true,
+        answer: userLocale === 'en' ? topic.en : topic.vi
+      };
+    }
+  }
+  return {
+    matched: false,
+    answer: userLocale === 'en' 
+      ? "There is no documentation about this yet" 
+      : "Chưa có tài liệu về việc này"
+  };
+}
 
 export function loadProjectDocs(): string {
   if (cachedDocs !== null) {
@@ -66,6 +89,7 @@ export interface DocsQueryResult {
   answer: string;
   success: boolean;
   source?: "gemini" | "local-index";
+  degraded?: boolean;
   error?: string;
 }
 
@@ -81,30 +105,26 @@ export async function queryDocsAssistant(question: string, rawLocale?: string): 
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    // Seamless offline fallback to built-in RFC knowledge base if GEMINI_API_KEY is not configured
-    try {
-      const kbPath = path.join(process.cwd(), "src", "locales", "docsKnowledgeBase.json");
-      if (fs.existsSync(kbPath)) {
-        const kb = JSON.parse(fs.readFileSync(kbPath, "utf-8"));
-        const qLower = question.toLowerCase();
-        for (const topic of Object.values(kb) as any[]) {
-          if (topic.keywords && topic.keywords.some((kw: string) => qLower.includes(kw))) {
-            return {
-              answer: userLocale === 'en' ? topic.en : topic.vi,
-              success: true,
-              source: "local-index"
-            };
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("[DocsAssistant] Local knowledge base read error:", err);
+    if (!warnedMissingApiKey) {
+      console.warn("[DocsAssistant] GEMINI_API_KEY is not configured. Falling back to static local RFC index in degraded mode.");
+      warnedMissingApiKey = true;
+    }
+
+    const { matched, answer } = searchLocalKnowledgeBase(question, userLocale);
+    if (matched) {
+      return {
+        answer,
+        success: true,
+        source: "local-index",
+        degraded: true
+      };
     }
 
     return {
-      answer: fallbackPhrase,
-      success: true,
-      source: "local-index"
+      answer,
+      success: false,
+      source: "local-index",
+      degraded: true
     };
   }
 
@@ -146,37 +166,28 @@ ${docsContent}`;
     const rawOutput = (response as any).text ?? "";
     const trimmed = rawOutput.trim();
 
-    if (!trimmed) {
-      return { answer: fallbackPhrase, success: true, source: "gemini" };
+    if (!trimmed || trimmed === fallbackPhrase) {
+      return { answer: fallbackPhrase, success: false, source: "gemini", degraded: true };
     }
 
     return { answer: trimmed, success: true, source: "gemini" };
   } catch (err: any) {
-    console.error("[DocsAssistant] Gemini query error, falling back to built-in RFC index:", err);
-    // Graceful offline fallback to built-in RFC knowledge base if Gemini service fails
-    try {
-      const kbPath = path.join(process.cwd(), "src", "locales", "docsKnowledgeBase.json");
-      if (fs.existsSync(kbPath)) {
-        const kb = JSON.parse(fs.readFileSync(kbPath, "utf-8"));
-        const qLower = question.toLowerCase();
-        for (const topic of Object.values(kb) as any[]) {
-          if (topic.keywords && topic.keywords.some((kw: string) => qLower.includes(kw))) {
-            return {
-              answer: userLocale === 'en' ? topic.en : topic.vi,
-              success: true,
-              source: "local-index"
-            };
-          }
-        }
-      }
-    } catch (fallbackErr) {
-      console.warn("[DocsAssistant] Fallback KB error:", fallbackErr);
+    console.error("[DocsAssistant] Gemini query error, falling back to static RFC index:", err);
+    const { matched, answer } = searchLocalKnowledgeBase(question, userLocale);
+    if (matched) {
+      return {
+        answer,
+        success: true,
+        source: "local-index",
+        degraded: true
+      };
     }
 
     return {
-      answer: fallbackPhrase,
-      success: true,
-      source: "local-index"
+      answer,
+      success: false,
+      source: "local-index",
+      degraded: true
     };
   }
 }

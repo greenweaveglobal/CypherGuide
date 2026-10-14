@@ -1,0 +1,225 @@
+/**
+ * CypherGuide RFC Knowledge Base
+ * Single static TypeScript source of truth for both server-side docs assistant
+ * and client-side fallback lookup.
+ * Eliminates filesystem read dependencies on Vercel and serverless edge runtimes.
+ */
+
+export interface KnowledgeTopic {
+  vi: string;
+  en: string;
+  keywords?: string[];
+}
+
+export const DOCS_KNOWLEDGE_BASE: Record<string, KnowledgeTopic> = {
+  "donation": {
+    "vi": "Theo tài liệu kỹ thuật Cypher Guide (RFC-0005 & ARCHITECTURE.md), dự án chỉ có duy nhất MỘT địa chỉ quyên góp chính thức được xác thực:\n\n`npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qa...`\n\nLưu ý: Mọi tài khoản hay địa chỉ npub khác tự xưng là địa chỉ quyên góp chính thức của Cypher Guide đều là giả mạo.",
+    "en": "According to the official Cypher Guide documentation (RFC-0005 & ARCHITECTURE.md), Cypher Guide has exactly ONE verified official donation address:\n\n`npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qa...`\n\nNote: Any other npub claiming to be the donation address is impersonation.",
+    "keywords": [
+      "donation",
+      "quyên góp",
+      "địa chỉ",
+      "address",
+      "donate"
+    ]
+  },
+  "fee": {
+    "vi": "Theo **RFC-0002 (Curves Phí Chiết Khấu Dựa Trên Uy Tín)**, phí nền tảng động được tính toán dựa trên đường cong chiết khấu logarit. Phí sẽ giảm dần khi điểm uy tín (Reputation Score) của người dùng tăng lên (được tính từ Proof of Stay), với giới hạn phí cơ sở và mức phí tối thiểu (floor fee).",
+    "en": "Based on **RFC-0002 (Reputation-Based Fee Discount Curve)**, the dynamic platform fee is calculated using a logarithmic discount curve that decreases as a user's reputation score (derived from Proof-of-Stay) increases, bounded by a base fee and a minimum floor.",
+    "keywords": [
+      "fee",
+      "phí",
+      "rfc-0002",
+      "discount"
+    ]
+  },
+  "guardian": {
+    "vi": "Theo **RFC-0001 (Quy Trình Chọn Hội Đồng Bảo Vệ - Guardian Council)**, các thành viên Hội đồng được đề xuất và bình chọn dựa trên thời gian vận hành node liên tục (Proof of Stay), đóng góp uy tín cho mạng lưới và cơ chế đồng thuận không cấp phép.",
+    "en": "According to **RFC-0001 (Guardian Council Selection Process)**, council members are nominated and selected based on continuous node operation longevity (Proof of Stay), reputation contributions, and permissionless consensus mechanisms.",
+    "keywords": [
+      "guardian",
+      "bảo vệ",
+      "council",
+      "hội đồng",
+      "rfc-0001"
+    ]
+  },
+  "stay": {
+    "vi": "Theo **RFC-0003 (Bằng Chứng Lưu Trú - Proof of Stay)**, cơ chế này xác thực sự hiện diện và duy trì hoạt động lâu dài của các nút (nodes) trong mạng lưới Cypher Guide mà không phụ thuộc vào Staking vốn. Điểm Proof of Stay được tích lũy theo thời gian Uptime và dùng để tính toán điểm uy tín khả di chuyển (Portable Reputation).",
+    "en": "According to **RFC-0003 (Proof of Stay)**, this mechanism verifies the long-term presence and operation of nodes in the Cypher Guide network without relying on capital staking. Proof of Stay points accumulate over uptime and are used to calculate portable reputation.",
+    "keywords": [
+      "stay",
+      "lưu trú",
+      "rfc-0003",
+      "proof of stay"
+    ]
+  },
+  "i18n": {
+    "vi": "Theo **RFC-0004 (Đa Ngôn Ngữ & Bản Địa Hóa - i18n)**, Cypher Guide hỗ trợ giao diện đa ngôn ngữ linh hoạt (mặc định là Tiếng Việt và Tiếng Anh) với cấu trúc tệp JSON bản địa hóa tĩnh.",
+    "en": "According to **RFC-0004 (Internationalization - i18n)**, Cypher Guide supports dynamic multi-language interface (defaulting to Vietnamese and English) with static JSON localization files.",
+    "keywords": [
+      "i18n",
+      "ngôn ngữ",
+      "language",
+      "rfc-0004"
+    ]
+  },
+  "dana": {
+    "vi": "Theo **RFC-0008 (Lưu Trú Dựa Trên Tùy Tâm - Dana-Based Stay)**, các homestay hoặc thiền viện có thể đăng ký mô hình `priceModel: 'dana'`, không thu phí cố định ban đầu và cho phép khách lưu trú gửi cúng dường tự nguyện sau kỳ nghỉ.",
+    "en": "According to **RFC-0008 (Dana-Based Stay)**, retreats and monasteries can operate under `priceModel: 'dana'` without upfront fixed pricing, enabling voluntary Lightning offerings after the stay.",
+    "keywords": [
+      "dana",
+      "tùy tâm",
+      "rfc-0008"
+    ]
+  },
+  "edgeAI": {
+    "vi": "Theo **RFC-0009 (AI Phi Tập Trung Chạy Trên Thiết Bị Ngoại Biên)**, đây là tầm nhìn tách biệt node LoRa (chỉ truyền tải dữ liệu) và thiết bị biên mạnh hơn (SBC/Raspberry Pi/điện thoại) để chạy mô hình ngôn ngữ nhỏ (SLM) hoàn toàn cục bộ không cần internet.",
+    "en": "According to **RFC-0009 (Decentralized AI on Edge Devices)**, this visionary spec separates LoRa transport nodes from compute-capable edge devices (SBCs/phones) running small quantized language models locally without cloud APIs.",
+    "keywords": [
+      "edge",
+      "ngoại biên",
+      "rfc-0009"
+    ]
+  },
+  "stillness": {
+    "vi": "Theo **RFC-0010 (Nghi Thức Tĩnh Tâm - Zen Stillness Ritual)**, nghi thức 369 giây cùng vòng tròn Ensō (0), nén nhang (1) và chuông Keisu đồng thau được thiết kế thuần túy client-side, chủ động từ chối phát hành Proof-of-Stillness hay gamification để giữ trọn tinh thần buông bỏ vô ngã.",
+    "en": "According to **RFC-0010 (Zen Stillness Ritual)**, the 369-second ritual with Ensō (0), incense (1), and Keisu bronze bell is strictly client-side and deliberately refuses proof generation or gamification to honor non-attachment.",
+    "keywords": [
+      "stillness",
+      "tĩnh tâm",
+      "enso",
+      "nhang",
+      "rfc-0010"
+    ]
+  },
+  "boundary": {
+    "vi": "Theo **RFC-0011 (Ranh Giới Tài Chính Hóa - Financialization Boundary Principle)**, mọi hành vi trước khi sinh proof/uy tín/phí phải vượt qua 3 bài kiểm tra: 1. Khả năng xác minh khách quan (Verifiability), 2. Phục vụ tính toàn vẹn giao thức (Protocol-purpose), 3. Tương thích ý nghĩa gốc phi giao dịch (Original-meaning).",
+    "en": "According to **RFC-0011 (Financialization Boundary Principle)**, any behavior must pass 3 tests before generating proofs, reputation, or fee effects: 1. Verifiability Test, 2. Protocol-Purpose Test, and 3. Original-Meaning Test.",
+    "keywords": [
+      "boundary",
+      "financialization",
+      "tài chính hóa",
+      "rfc-0011"
+    ]
+  },
+  "sovereignty": {
+    "vi": "Theo **RFC-0012 (Ranh Giới Chủ Quyền - Sovereignty Boundary Principle)** và tài liệu `HOST_LEGAL_REALITY.md`: Thanh toán bằng Lightning/Cashu chỉ giải quyết tầng công nghệ/thông tin, hoàn toàn KHÔNG miễn trừ host khỏi nghĩa vụ khai báo tạm trú, thuế, giấy phép an ninh trật tự hay PCCC theo chủ quyền pháp lý nước sở tại. Giao thức không đóng vai trò xác minh pháp lý mà cung cấp tài liệu chia sẻ kinh nghiệm thực tế do cộng đồng đóng góp.",
+    "en": "According to **RFC-0012 (Sovereignty Boundary Principle)** and `HOST_LEGAL_REALITY.md`: Paying through Lightning/Cashu operates strictly at the digital network layer and does NOT exempt hosts from residency declaration, tax, public order, or fire safety obligations under local national sovereignty. The protocol does not act as a compliance intermediary; rather, it maintains a non-authoritative, community-contributed legal reality reference.",
+    "keywords": [
+      "sovereignty",
+      "chủ quyền",
+      "pháp lý",
+      "legal",
+      "tạm trú",
+      "thuế",
+      "282",
+      "rfc-0012"
+    ]
+  },
+  "nip46": {
+    "vi": "Theo **RFC-0003 Phụ lục (Addendum 2026-08-26 & Cập nhật 2026-08-28)**: Trình duyệt di động hệ thống (Chrome/Safari) thiếu NIP-07 extension, nhưng **trình duyệt tích hợp trong các app ví Nostr (như Amethyst)** đã tự động tiêm `window.nostr` cho phép dùng NIP-07 trực tiếp trên di động không cần dán NSEC. Đối với trình duyệt thông thường, hướng đi dài hạn vẫn là hỗ trợ NIP-46 (remote signer / bunker như Amber, nsec.app).",
+    "en": "According to **RFC-0003 Addendum (2026-08-26 & 2026-08-28 Update)**: Standard mobile browsers lack NIP-07, but **built-in in-app browsers inside mobile Nostr wallets (like Amethyst)** inject `window.nostr`, allowing full NIP-07 signing directly on mobile without raw NSEC. For standard browsers, the long-term roadmap remains NIP-46 (remote signers / bunkers like Amber, nsec.app).",
+    "keywords": [
+      "nip-46",
+      "nip46",
+      "bunker",
+      "remote signer",
+      "amber",
+      "mobile signing"
+    ]
+  },
+  "agentReady": {
+    "vi": "Theo **RFC-0013 (Lưu Trú Sẵn Sàng Cho Agent - Agent-Ready Stay)** (thay thế hoàn toàn bản nháp Compute-as-a-Stay cũ): CypherGuide khẳng định **khách luôn luôn là con người**, AI agent chỉ là hạ tầng/hành lý họ mang theo. Giao thức không trở thành chợ compute đối đầu với Akash hay io.net và không tạo danh tính/uy tín riêng cho bot. Thay vào đó, RFC-0013 chuẩn hóa tag tiện nghi **`AGENT-READY`** dành cho homestay đáp ứng đủ 3 tiêu chí kỹ thuật: 1. Có compute node riêng (SBC/mini-PC) không chia sẻ chung trong kỳ lưu trú; 2. Có Nostr relay riêng do host tự vận hành; 3. Cam kết sàn băng thông tối thiểu (Mbps) rõ ràng. Xác minh thông qua đo lường máy móc khách quan (uptime, ping) tương tự `VERIFIED_NODE`.",
+    "en": "According to **RFC-0013 (Agent-Ready Stay — An Amenity for the Cypher/Personal Business Crowd)** (fully replacing the earlier Compute-as-a-Stay draft): CypherGuide affirms that **the guest is always human**, while the AI agent is merely infrastructure/luggage brought along. The protocol avoids turning into a compute marketplace competing with Akash or io.net and creates no separate identity/reputation for bots. Instead, RFC-0013 defines a standardized **`AGENT-READY`** amenity tag requiring 3 mandatory criteria: 1. Dedicated, unshared compute node (SBC/mini-PC); 2. Host's own private Nostr relay; 3. Guaranteed sustained bandwidth floor (Mbps). Verified through objective machine metrics (uptime, ping) similar to `VERIFIED_NODE`.",
+    "keywords": [
+      "agent-ready",
+      "agent ready",
+      "agentready",
+      "agent",
+      "compute",
+      "rfc-0013",
+      "rfc0013",
+      "moltbook",
+      "astra",
+      "băng thông sàn",
+      "bandwidth floor"
+    ]
+  },
+  "positioning": {
+    "vi": "Theo **Bản Định Vị AI Cục Bộ (POSITIONING.md)**: CypherGuide không tham gia cuộc đua AI tập trung hóa nghìn tỷ đô. Dự án thử nghiệm câu hỏi: liệu một mô hình nhỏ (SLM như Qwen2.5 1.5B chạy trên Raspberry Pi - RFC-0009) có thể trả lời đủ tốt cho đúng nhu cầu hẹp của người dùng mà không cần đám mây trung gian. Như TS. Phạm Hy Hiếu (Head of AI Transformation tại Techcombank, cựu Google Brain/OpenAI/xAI) nhận định, compute là 'bài toán tầm quốc gia' — do đó CypherGuide không cố xây chợ compute phi tập trung mà tập trung giúp cá nhân làm chủ phần cứng nhỏ của chính họ (RFC-0009, RFC-0013), kiểm chứng bằng thử nghiệm công khai.",
+    "en": "According to the **Local AI Positioning Statement (POSITIONING.md)**: CypherGuide is not entering the trillion-dollar centralized AI race. Instead, it tests whether small language models (like Qwen2.5 1.5B on Raspberry Pi - RFC-0009) running on cheap user-owned hardware can answer well enough for narrow purposes without clouds. As independently noted by Dr. Phạm Hy Hiếu (Head of AI Transformation at Techcombank, ex-Google Brain/OpenAI/xAI), large-scale compute is a 'national-scale problem' — thus CypherGuide avoids building a compute marketplace and instead focuses on personal sovereignty over edge hardware, proven via public experiments.",
+    "keywords": [
+      "positioning",
+      "định vị",
+      "grant",
+      "tài trợ",
+      "phạm hy hiếu",
+      "hạ tầng ai",
+      "local ai",
+      "ai cục bộ",
+      "tiếng nói nhỏ"
+    ]
+  },
+  "nodeIncentive": {
+    "vi": "Theo **RFC-0016 (Khuyến Khích Nút Hạ Tầng - Infrastructure Node Incentive)**: Cơ chế thưởng cho relay/mesh node chuyển từ mô phỏng sang thực tế bằng cách giải quyết 2 bài toán:\n1. **Oracle đo lường chống gian lận**: Kết hợp Proof-of-Usage (D - client thật ghi nhận và ký báo cáo bằng Nostr) trong giai đoạn đầu và Witness Network (C - thách thức ngẫu nhiên đa bên) khi mạng lớn hơn. Loại bỏ PoW vì sai bản chất.\n2. **Dòng chảy thanh khoản Lightning**: Thưởng Sats được phân phối lại từ quỹ treasury (trích % phí booking theo RFC-0002) qua LNURL-pay / NWC, tích hợp circuit breaker ngắt nút claim khi quỹ không đủ.\n3. **Cảnh báo tập trung hóa kinh tế**: Giống bài học Helium/Filecoin, kẻ có vốn có thể lập trang trại node để độc chiếm thưởng; RFC đề xuất nghiên cứu hàm giảm biên tế (declining marginal returns) cho cluster node cùng chủ.\n4. **Rủi ro riêng tư qua phân tích đồ thị thanh toán (Payment Graph Analysis)**: Dùng địa chỉ treasury tĩnh lặp lại làm lộ nhịp độ và quy mô mạng lưới; RFC-0016 đề xuất hướng xoay vòng LNURL / BOLT12 offer theo chu kỳ và thanh toán theo lô (batch payouts).",
+    "en": "According to **RFC-0016 (Infrastructure Node Incentive — Proof-of-Relay + Lightning Payout Flow)**: The node incentive mechanism transitions from simulation to production by solving two distinct problems:\n1. **Fraud-Resistant Oracle**: Combines crowdsourced Proof-of-Usage (D - real clients logging and signing with Nostr keys) initially with Witness Networks (C - random challenges with quorum) as the network grows. Bitcoin-style PoW is rejected as a mismatch.\n2. **Lightning Payout Liquidity**: Sats rewards are redistributed from a dedicated treasury funded by a % of booking fees (RFC-0002) via LNURL-pay / NWC, with mandatory circuit breakers disabling claims when treasury funds are low.\n3. **Economic Centralization Risk**: Learning from Helium/Filecoin farming, well-capitalized actors could capture the reward pool; RFC proposes researching declining marginal returns per node cluster.\n4. **Payment Graph Analysis Privacy Risk**: Reusing a static treasury address leaks network activity maps and transaction cadence; RFC-0016 proposes rotating LNURL / BOLT12 offers per cycle and batch payouts.",
+    "keywords": [
+      "rfc-0016",
+      "rfc0016",
+      "incentive",
+      "khuyến khích",
+      "proof-of-relay",
+      "proof of relay",
+      "proof-of-usage",
+      "proof of usage",
+      "witness network",
+      "node reward",
+      "thưởng node",
+      "tập trung hóa kinh tế",
+      "economic centralization",
+      "payment graph",
+      "đồ thị thanh toán",
+      "bolt12 offer"
+    ]
+  },
+  "stayAssistant": {
+    "vi": "Theo **RFC-0017 (Agent Hỗ Trợ Lưu Trú — Giai Đoạn 1: Không Giữ Tiền, Cập nhật 2026-10-12)**: CypherGuide đề xuất mô hình AI agent phi lưu ký (Non-Custodial) hoạt động độc lập trên Nostr và Lightning, gồm 3 module độc lập:\n1. **Module 1 - Concierge (Hỏi đáp lưu trú)**: Mở rộng RFC-0005, giải đáp từ tài liệu CypherGuide và listing công khai, tuyệt đối KHÔNG nắm giữ mã cửa, Wi-Fi hay thông tin truy cập (host gửi trực tiếp cho khách sau khi đặt).\n2. **Module 2 - Điểm tín nhiệm WoT xác định & Chống thông đồng (Collusion Resistance)**: Thuật toán công khai tính bằng mã (không dùng LLM) ưu tiên Proof-of-Stay đồng ký 2 bên (RFC-0003); hạ trọng số cụm npub khép kín (dùng trọng số liên tục, không ngưỡng cứng) kèm trần uy tín tự sinh; 2 bài test hồi quy bắt buộc: mô phỏng tấn công khóa giả và đo tỷ lệ phạt nhầm cụm thật (benign clusters); điểm chỉ là gợi ý, không tự động chặn/cấm ai; bảo đảm quyền riêng tư không lưu vết truy vấn; tùy chọn bản ghi đầu vào có ký & timestamp.\n3. **Module 3 - Gợi ý phòng qua NIP-90**: Lắng nghe yêu cầu tìm phòng, đối chiếu listing công khai và trả về liên kết; KHÔNG tạo invoice, KHÔNG giữ cọc, KHÔNG đại diện thanh toán. Yêu cầu tìm phòng mặc định được mã hóa (NIP-44/NIP-17) hoặc làm mờ thông tin để bảo vệ quyền riêng tư hành trình của khách.\n- **Giới hạn an toàn cốt lõi**: Agent dùng cặp khóa Nostr riêng (không dùng khóa chính thức của dự án), chạy trên VPS cách ly, không có quyền shell/ghi file/sửa mã, có policy engine chống prompt injection, công khai là AI, marketing có người duyệt, trần chi phí suy luận và công tắc ngắt khẩn cấp. Phí giao thức giữ nguyên ở tầng giao thức (RFC-0002), không đi qua ví agent.",
+    "en": "According to **RFC-0017 (Stay Assistant Agents — Phase 1: Non-Custodial, Updated 2026-10-12)**: CypherGuide adopts a non-custodial autonomous AI agent architecture operating independently over Nostr and Lightning across 3 modular capabilities:\n1. **Module 1 - Concierge (Stay Q&A)**: Extends RFC-0005 using documentation and public listings; strictly NEVER handles door codes, Wi-Fi passwords, or access credentials (hosts transfer these directly post-booking).\n2. **Module 2 - Deterministic WoT Trust Score & Collusion Resistance**: Public code-based formula (zero LLM hallucination) prioritizing dual-signed Proof-of-Stay (RFC-0003); down-weights closed clusters using continuous weighting (no arbitrary hard cutoffs) with reputation caps; requires dual regression tests: attack simulation and benign cluster false-positive calibration; displayed as hint only; zero lookup tracking; optional signed timestamped inputs.\n3. **Module 3 - Room Suggestions via NIP-90**: Matches room search requests against public listings and returns links; NO invoice creation, NO deposit custody, and NO payment on anyone's behalf. Search requests are encrypted by default (NIP-44/NIP-17) or blurred for privacy.\n- **Core Safety Limits**: Dedicated agent keypair (never the project's official npub), infrastructure isolation on separate VPS, zero shell/file write/code edit tools, prompt-injection defense with tool-call policy engine, disclosed as AI, human-approved proactive posts, daily inference cost cap, and one-command kill switch. Protocol fees stay at the protocol layer (RFC-0002) without flowing through agent wallets.",
+    "keywords": [
+      "rfc-0017",
+      "rfc0017",
+      "stay assistant",
+      "trợ lý lưu trú",
+      "concierge",
+      "wot",
+      "automaton",
+      "nip-90",
+      "nip90",
+      "không giữ tiền",
+      "non-custodial agent",
+      "collusion",
+      "thông đồng",
+      "halhermes",
+      "remora",
+      "blindoracle"
+    ]
+  },
+  "accommodationSchema": {
+    "vi": "Theo **RFC-0018 (Chuẩn Hóa Lược Đồ Listing & Siêu Dữ Liệu Bảo Vệ Quyền Riêng Tư)**: CypherGuide thiết kế lại thẻ phòng và lược đồ listing tham chiếu Booking.com nhưng bảo vệ chủ quyền và quyền riêng tư:\n1. **4 Cấp độ hủy phòng chuẩn hóa**: `flexible` (hủy miễn phí trước 24h), `moderate` (hủy miễn phí trước 5 ngày), `strict` (hủy miễn phí trước 14 ngày), `nonrefundable` (không hoàn tiền phòng). Tiền cọc hoàn lại 10% LUÔN được hoàn 100% cho khách nếu hủy trước giờ nhận phòng.\n2. **Vị trí thô bảo vệ quyền riêng tư**: Chỉ công khai tên khu vực cấp thành phố/quận (`locationLabel`); địa chỉ chính xác và mã cửa chỉ gửi qua tin nhắn mã hóa E2EE sau khi thanh toán.\n3. **Thông số phòng rõ ràng**: Bổ sung `bedType` (loại giường), `areaM2` (diện tích), `checkInTime`/`checkOutTime` (giờ nhận/trả phòng).\n4. **Minh bạch tài chính & Chống áp lực giả tạo (Anti-Dark-Patterns)**: Thẻ hiển thị rõ giá gốc kèm dòng phụ 'Chưa gồm phí protocol và cọc hoàn lại 10% khi đặt phòng'. Nghiêm cấm các chiêu trò khan hiếm giả (như 'chỉ còn 1 phòng') hay đồng hồ đếm ngược.",
+    "en": "According to **RFC-0018 (Standardized Accommodation Schema & Privacy-Preserving Listing Metadata)**: CypherGuide standardizes listing cards and accommodation schemas referencing Booking.com clarity while upholding sovereign privacy:\n1. **4 Standardized Cancellation Tiers**: `flexible` (free cancellation up to 24h prior), `moderate` (up to 5 days prior), `strict` (up to 14 days prior), `nonrefundable` (room rate non-refundable). The 10% refundable security deposit is ALWAYS 100% refunded to guests on pre-check-in cancellations.\n2. **Coarse Privacy-Preserving Location**: Only coarse regional descriptors (`locationLabel`, City/District) are published publicly; exact physical addresses and access codes are dispatched strictly via E2EE messaging post-booking.\n3. **Clear Physical Metrics**: Extends schema with `bedType`, `areaM2`, and standard `checkInTime`/`checkOutTime`.\n4. **Financial Transparency & Anti-Dark-Patterns**: Displays baseline nightly rates with upfront notices of the protocol fee and 10% refundable deposit. Prohibits artificial scarcity tags ('only 1 left') and countdown pressure clocks.",
+    "keywords": [
+      "rfc-0018",
+      "rfc0018",
+      "thẻ phòng",
+      "listing card",
+      "chính sách hủy",
+      "cancellation policy",
+      "booking.com",
+      "vị trí thô",
+      "coarse location",
+      "quy đổi tiền",
+      "fiat estimation"
+    ]
+  }
+};

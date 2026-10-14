@@ -526,5 +526,29 @@ describe('Media Server Resilience & NIP-96 / NIP-98 Suite (Round 5 & 6)', () => 
       expect(isSelfHostedUrl('https://nostr.build')).toBe(false);
       expect(isSelfHostedUrl('https://nostpic.com')).toBe(false);
     });
+
+    it('does not display fake 1ms latency when descriptor is retrieved from cache (Round 14 Task 3)', async () => {
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('.well-known/nostr/nip96.json')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ api_url: 'https://nostr.build/api/v2/nip96/upload' })
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+
+      // First call fetches from network
+      const freshResult = await probeMediaServer('https://nostr.build', 500);
+      expect(freshResult.online).toBe(true);
+      expect(freshResult.fromCache).toBe(false);
+
+      // Second call hits descriptorCache -> MUST NOT report fake 1ms
+      const cachedResult = await probeMediaServer('https://nostr.build', 500);
+      expect(cachedResult.online).toBe(true);
+      expect(cachedResult.fromCache).toBe(true);
+      expect(cachedResult.latency).toBeUndefined();
+    });
   });
 });

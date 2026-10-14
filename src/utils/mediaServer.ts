@@ -71,6 +71,16 @@ export function clearNip96DescriptorCache(): void {
   descriptorCache.clear();
 }
 
+export function isDescriptorCached(serverUrl: string): boolean {
+  try {
+    const parsed = new URL(serverUrl, typeof window !== 'undefined' ? window.location?.href : 'http://localhost');
+    const cached = descriptorCache.get(parsed.origin);
+    return Boolean(cached && Date.now() - cached.cachedAt < 10 * 60 * 1000);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Fetch NIP-96 descriptor document from <origin>/.well-known/nostr/nip96.json
  */
@@ -226,7 +236,7 @@ export function getSimulatePrimaryOffline(): boolean {
 export async function probeMediaServer(
   serverUrl: string,
   timeoutMs: number = 3000
-): Promise<{ online: boolean; latency: number }> {
+): Promise<{ online: boolean; latency?: number; fromCache?: boolean }> {
   // If this is the primary server and simulation is active, immediately fail
   if ((serverUrl === PRIMARY_MEDIA_SERVER_URL || serverUrl === '/api/media') && _simulatePrimaryOffline) {
     _isLocalBackendAvailable = false;
@@ -257,7 +267,8 @@ export async function probeMediaServer(
             const data = await res.json();
             if (data && data.status === 'ok') {
               _isLocalBackendAvailable = true;
-              const latency = Math.max(1, Math.round(performance.now() - start));
+              const rawElapsed = performance.now() - start;
+              const latency = rawElapsed > 0 ? Math.round(rawElapsed) : undefined;
               return { online: true, latency };
             }
           } catch {
@@ -275,13 +286,20 @@ export async function probeMediaServer(
   }
 
   // 2. External NIP-96 server check via discovery document
+  const wasCached = isDescriptorCached(cleanUrl);
   const descriptor = await fetchNip96Descriptor(cleanUrl, timeoutMs);
   if (!descriptor || !descriptor.apiUrl) {
     return { online: false, latency: -1 };
   }
 
-  const latency = Math.max(1, Math.round(performance.now() - start));
-  return { online: true, latency };
+  // If descriptor was retrieved from cache, do NOT report a fake ms latency and do not use for latency ranking
+  if (wasCached) {
+    return { online: true, latency: undefined, fromCache: true };
+  }
+
+  const rawElapsed = performance.now() - start;
+  const latency = rawElapsed > 0 ? Math.round(rawElapsed) : undefined;
+  return { online: true, latency, fromCache: false };
 }
 
 /**
@@ -314,7 +332,7 @@ export async function selectBestMediaServer(): Promise<SelectedServerResult> {
     return {
       server: { ...primaryItem, latency: primaryResult.latency, status: 'online' },
       isFallback: false,
-      latency: primaryResult.latency
+      latency: primaryResult.latency ?? 0
     };
   }
 
@@ -336,11 +354,21 @@ export async function selectBestMediaServer(): Promise<SelectedServerResult> {
   const testedFallbacks = await Promise.all(probePromises);
   const onlineFallbacks = testedFallbacks
     .filter(fb => fb.status === 'online')
-    .sort((a, b) => (a.latency ?? 9999) - (b.latency ?? 9999));
+    .sort((a, b) => {
+      // Servers with real measured latency (> 0) rank first, sorted ascending
+      const aReal = typeof a.latency === 'number' && a.latency > 0;
+      const bReal = typeof b.latency === 'number' && b.latency > 0;
+      if (aReal && bReal) {
+        return (a.latency as number) - (b.latency as number);
+      }
+      if (aReal) return -1;
+      if (bReal) return 1;
+      return 0;
+    });
 
   if (onlineFallbacks.length > 0) {
     const chosen = onlineFallbacks[0];
-    const latencyStr = chosen.latency ? ` (${chosen.latency}ms)` : '';
+    const latencyStr = (typeof chosen.latency === 'number' && chosen.latency > 0) ? ` (${chosen.latency}ms)` : '';
     const warning = isPrimaryLocal
       ? translate('mediaServer.warningVercelFallback', { name: chosen.name, latency: latencyStr })
       : translate('mediaServer.warningTimeoutFallback', { primary: primaryItem.name, name: chosen.name, latency: latencyStr });
