@@ -34,7 +34,7 @@ export const DEFAULT_FEE_STRUCTURE: FeeStructure = {
   baseFeeRatePcm: 200,
   earlyHostFeeRatePcm: 100,
   congestionMultiplier: 1.0,
-  minFeeSats: 100,
+  minFeeSats: 10,
   maxFeeSats: 10000,
   earlyHosts: [],
 };
@@ -48,7 +48,7 @@ export function createFeeStructureFromPcm(
     baseFeeRatePcm,
     earlyHostFeeRatePcm,
     congestionMultiplier: 1.0,
-    minFeeSats: 100,
+    minFeeSats: 10,
     maxFeeSats: 10000,
     earlyHosts,
   };
@@ -244,15 +244,9 @@ export function verifyListingHostSignature(listing: {
     return { valid: false, error: 'Invalid hostPubkey format' };
   }
 
-  const sig = listing.listingSignature.trim();
-
-  // Chữ ký định dạng cũ (register_...) không còn được chấp nhận cho ưu đãi
-  if (sig.startsWith('register_')) {
+  const sig = listing.listingSignature;
+  if (typeof sig !== 'string' || !sig.startsWith('{')) {
     return { valid: false, error: 'Legacy signature format no longer accepted. Re-signing required.' };
-  }
-
-  if (!sig.startsWith('{')) {
-    return { valid: false, error: 'Unsupported signature format' };
   }
 
   try {
@@ -268,18 +262,27 @@ export function verifyListingHostSignature(listing: {
       return { valid: false, error: 'Invalid Schnorr signature on Nostr event' };
     }
 
-    // 3. Nếu là sự kiện ký register_ (từ signMessage / HostRegistrationModal)
+    // Nhánh A: Hỗ trợ sự kiện Nostr chứa nội dung đăng ký register_
     if (typeof event.content === 'string' && event.content.startsWith('register_')) {
-      const expectedPrefix = `register_${listing.id}_${listing.title}_${listing.priceSats}_coOwners:`;
+      const expectedPrefix = `register_${listing.id}_${listing.title}_${listing.priceSats ?? 0}_coOwners:`;
       if (!event.content.startsWith(expectedPrefix)) {
-        return { valid: false, error: 'Listing data does not match signed payload prefix' };
+        return { valid: false, error: 'Listing details (id/title/price) do not match signed registration payload' };
       }
-      return { valid: true, hostHex: expectedHex, canonicalHash: event.id };
+      const rest = event.content.slice(expectedPrefix.length);
+      const lastUnderscore = rest.lastIndexOf('_');
+      const digest = lastUnderscore !== -1 ? rest.slice(0, lastUnderscore) : rest;
+      const expectedCoOwnersDigest = (listing.coOwners || [])
+        .map((o: any) => `${normalizeToHexPubkey(o.npub) || o.npub}:${o.share}`)
+        .join('|');
+      if (digest !== expectedCoOwnersDigest) {
+        return { valid: false, error: 'Co-owners do not match signed registration payload' };
+      }
+      return { valid: true, hostHex: expectedHex };
     }
 
-    // 4. Nếu là sự kiện NIP-78 kind 30078
+    // Nhánh B: Chuẩn NIP-78 kind 30078 (RFC-0019)
     if (event.kind !== LISTING_SIGNATURE_KIND) {
-      return { valid: false, error: `Invalid event kind: expected ${LISTING_SIGNATURE_KIND}, got ${event.kind}` };
+      return { valid: false, error: `Invalid event kind: expected ${LISTING_SIGNATURE_KIND}, got ${event.kind}. Legacy signatures must be re-signed.` };
     }
 
     // 4. Kiểm tra tag định danh 'd'

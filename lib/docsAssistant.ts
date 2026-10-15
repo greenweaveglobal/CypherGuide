@@ -106,7 +106,7 @@ export async function queryDocsAssistant(question: string, rawLocale?: string): 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     if (!warnedMissingApiKey) {
-      console.warn("[DocsAssistant] GEMINI_API_KEY is not configured. Falling back to static local RFC index in degraded mode.");
+      console.warn("[docs-assistant] GEMINI_API_KEY is not configured. Falling back to static local RFC index in degraded mode.");
       warnedMissingApiKey = true;
     }
 
@@ -172,7 +172,7 @@ ${docsContent}`;
 
     return { answer: trimmed, success: true, source: "gemini" };
   } catch (err: any) {
-    console.error("[DocsAssistant] Gemini query error, falling back to static RFC index:", err);
+    console.error("[docs-assistant] Gemini query error, falling back to static RFC index:", err);
     const { matched, answer } = searchLocalKnowledgeBase(question, userLocale);
     if (matched) {
       return {

@@ -10,6 +10,7 @@ import { Listing, NostrIdentity, CoOwner, Nip94Image, CancellationPolicy } from 
 import { signMessage, sha256, npubToHex } from '../utils/crypto';
 import { safeRandomUUID } from '../utils/uuid';
 import { isValidNpub } from '../utils/kycAttestation';
+import { createListingSignedEvent } from '../utils/dynamicFee';
 import {
   selectBestMediaServer,
   uploadFileWithFallback,
@@ -427,9 +428,7 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
 
     try {
       const listingId = 'list_' + safeRandomUUID().split('-')[0].toUpperCase();
-      const coOwnersSummary = coOwners.map(o => `${o.npub.trim()}:${Number(o.share)}`).join('|');
-      const canonicalPayload = `register_${listingId}_${title}_${priceSats}_coOwners:${coOwnersSummary}_${Date.now()}`;
-      const signature = await signMessage(canonicalPayload, identity);
+      const createdAt = Date.now();
 
       // Batch-sign images: exactly 1 real signature for the whole batch
       const validUrls = nip94Urls.filter(url => url.trim() !== '');
@@ -507,11 +506,15 @@ export default function HostRegistrationModal({ identity, onClose, onAddListing,
           share: Number(owner.share)
         })),
         hostPubkey: identity.pubKeyHex,
-        listingSignature: signature
+        createdAt: createdAt
       };
 
+      // Ký xác thực listing theo chuẩn NIP-78 kind 30078 (RFC-0019)
+      const { signedEventJson } = await createListingSignedEvent(newListing, identity);
+      newListing.listingSignature = signedEventJson;
+
       onAddListing(newListing);
-      onAddLog('relay', t('sysLogs.registeredListing', { title }), signature);
+      onAddLog('relay', t('sysLogs.registeredListing', { title }), signedEventJson);
       onAddLog('governance', t('sysLogs.setupMultisig', { count: coOwners.length, title }));
       
       onClose();

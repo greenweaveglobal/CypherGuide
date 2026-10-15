@@ -5,6 +5,7 @@ import { translate } from '../hooks/useTranslation';
 export interface DocsQueryResult {
   answer: string;
   success: boolean;
+  source?: "gemini" | "local-index" | "fallback-default";
 }
 
 const RFC_KNOWLEDGE_BASE = DOCS_KNOWLEDGE_BASE as Record<string, KnowledgeTopic>;
@@ -17,7 +18,8 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
     if (topic.keywords && topic.keywords.some((kw) => qLower.includes(kw))) {
       return {
         answer: isEn ? topic.en : topic.vi,
-        success: true
+        success: true,
+        source: 'local-index'
       };
     }
   }
@@ -26,6 +28,7 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
     answer: isEn 
       ? "There is no documentation about this yet" 
       : translate('docs.noDocYet'),
-    success: true
+    success: false,
+    source: 'fallback-default'
   };
 }
