@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import nodeCrypto from 'crypto';
 import { calculateDynamicFee, createFeeStructureFromPcm, DEFAULT_FEE_STRUCTURE } from '../src/utils/dynamicFee';
 import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, nip19 } from 'nostr-tools';
 import { bytesToHex } from '../src/utils/crypto';
@@ -960,58 +959,101 @@ describe('Protocol Fee Single Source of Truth & NIP-98 Audit Trail (RFC-0016)', 
     // Because there is no hostPubkey or signature, isEarlyHostEligible returns false
     expect(isEarlyHostEligible(spoofedListing, enrolledList)).toBe(false);
 
-    // Case 2: Genuine listing signed by Host 1
+    // Case 2: Genuine listing signed by Host 1 with NIP-78 kind 30078 (RFC-0019)
     const genuineListingId = 'list_GENUINE01';
     const genuineTitle = 'Pioneer Cypher Haven';
     const genuinePrice = 60000;
-    const genuineCoOwners = [{ npub: host1Npub, share: 100, name: 'Pioneer Host' }];
-    const coOwnersDigest = `${host1PkHex}:100`;
+    const genuineCoOwners = [{ npub: host1Npub, share: 100, name: 'Pioneer Host', lightningAddress: 'host1@zaps.lol' }];
 
-    const signPayload = `register_${genuineListingId}_${genuineTitle}_${genuinePrice}_coOwners:${coOwnersDigest}_${Date.now()}`;
-    const signHash = nodeCrypto.createHash('sha256').update(signPayload).digest('hex');
-    const validEventTemplate = {
-      kind: 1,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [],
-      content: signPayload
-    };
-    const signedEvent = finalizeEvent(validEventTemplate, host1Sk);
-
-    const genuineListing = {
+    const genuineListingBase = {
       id: genuineListingId,
       title: genuineTitle,
+      description: 'Cypherpunk safehaven in the mountains',
       priceSats: genuinePrice,
+      roomTypes: [{ id: 'rt-1', name: 'Standard Room', priceSats: genuinePrice }],
       coOwners: genuineCoOwners,
-      hostPubkey: host1PkHex,
-      listingSignature: JSON.stringify(signedEvent)
+      createdAt: 1770000000000,
+      hostPubkey: host1PkHex
     };
 
-    expect(verifyListingHostSignature(genuineListing).valid).toBe(true);
+    const { createListingSignedEvent } = await import('../src/utils/dynamicFee');
+    const { signedEventJson } = await createListingSignedEvent(genuineListingBase, {
+      pubKeyHex: host1PkHex,
+      privKeyHex: bytesToHex(host1Sk)
+    });
+
+    const genuineListing = {
+      ...genuineListingBase,
+      listingSignature: signedEventJson
+    };
+
+    const verifyResult = verifyListingHostSignature(genuineListing);
+    expect(verifyResult.valid).toBe(true);
+    expect(verifyResult.hostHex).toBe(host1PkHex);
     expect(isEarlyHostEligible(genuineListing, enrolledList)).toBe(true);
 
-    // Case 3: Tampering listing metadata after signing (e.g. changing title or coOwners) revokes eligibility
-    const tamperedListing = {
+    // Case 3: Tampering listing metadata after signing (e.g. changing title, price, or lightning address) revokes eligibility
+    const tamperedListingTitle = {
       ...genuineListing,
       title: 'Hacked Title After Signing'
     };
-    expect(isEarlyHostEligible(tamperedListing, enrolledList)).toBe(false);
+    expect(verifyListingHostSignature(tamperedListingTitle).valid).toBe(false);
+    expect(isEarlyHostEligible(tamperedListingTitle, enrolledList)).toBe(false);
 
-    // Case 4: Attacker signs their own listing with attacker key, but tries to claim Host 1 identity
-    const attackerSignedEvent = finalizeEvent({
-      ...validEventTemplate,
-      content: `register_list_ATTACK_Attacker Villa_10000_coOwners:${attackerPkHex}:100_${Date.now()}`
-    }, attackerSk);
+    const tamperedListingLn = {
+      ...genuineListing,
+      coOwners: [{ npub: host1Npub, share: 100, name: 'Pioneer Host', lightningAddress: 'attacker@evil.com' }]
+    };
+    expect(verifyListingHostSignature(tamperedListingLn).valid).toBe(false);
+    expect(isEarlyHostEligible(tamperedListingLn, enrolledList)).toBe(false);
 
-    const attackerListing = {
+    // Case 4: Attacker signs their own listing with attacker key (valid kind 30078), but tries to claim Host 1 in coOwners
+    const attackerListingBase = {
       id: 'list_ATTACK',
       title: 'Attacker Villa',
+      description: 'Phishing villa',
       priceSats: 10000,
-      coOwners: [{ npub: host1Npub, share: 100, name: 'Pioneer Host' }], // still trying to put host1 in coOwners
-      hostPubkey: attackerPkHex,
-      listingSignature: JSON.stringify(attackerSignedEvent)
+      roomTypes: [{ id: 'rt-att', name: 'Fake Room', priceSats: 10000 }],
+      coOwners: [{ npub: host1Npub, share: 100, name: 'Pioneer Host', lightningAddress: 'host1@zaps.lol' }],
+      createdAt: 1770000000000,
+      hostPubkey: attackerPkHex
+    };
+    const { signedEventJson: attackerSignedEventJson } = await createListingSignedEvent(attackerListingBase, {
+      pubKeyHex: attackerPkHex,
+      privKeyHex: bytesToHex(attackerSk)
+    });
+    const attackerListing = {
+      ...attackerListingBase,
+      listingSignature: attackerSignedEventJson
     };
 
-    // Valid signature, but attackerPkHex is NOT in enrolledList -> ineligible!
+    // Attacker signature is cryptographically valid for attackerPkHex, but attackerPkHex is NOT in enrolledList -> ineligible!
+    expect(verifyListingHostSignature(attackerListing).valid).toBe(true);
     expect(isEarlyHostEligible(attackerListing, enrolledList)).toBe(false);
+
+    // Case 5: Legacy signatures using register_ prefix are strictly REJECTED (both raw string and JSON event)
+    const rawLegacyListing = {
+      ...genuineListingBase,
+      listingSignature: `register_${genuineListingId}_${genuineTitle}_${genuinePrice}_coOwners:${host1PkHex}:100_${Date.now()}`
+    };
+    const rawLegacyRes = verifyListingHostSignature(rawLegacyListing);
+    expect(rawLegacyRes.valid).toBe(false);
+    expect(rawLegacyRes.error).toContain('cần ký lại bằng định dạng mới');
+    expect(isEarlyHostEligible(rawLegacyListing, enrolledList)).toBe(false);
+
+    const legacyEvent = finalizeEvent({
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: `register_${genuineListingId}_${genuineTitle}_${genuinePrice}_coOwners:${host1PkHex}:100_${Date.now()}`
+    }, host1Sk);
+    const jsonLegacyListing = {
+      ...genuineListingBase,
+      listingSignature: JSON.stringify(legacyEvent)
+    };
+    const jsonLegacyRes = verifyListingHostSignature(jsonLegacyListing);
+    expect(jsonLegacyRes.valid).toBe(false);
+    expect(jsonLegacyRes.error).toContain('cần ký lại bằng định dạng mới');
+    expect(isEarlyHostEligible(jsonLegacyListing, enrolledList)).toBe(false);
   });
 });

@@ -33,8 +33,9 @@ Identity/Proof/Reputation** — code có thể refactor/đổi framework, nhưng
 | 0017 | Agent Hỗ Trợ Lưu Trú — Giai Đoạn 1 (Không Giữ Tiền) (Stay Assistant Agents — Phase 1) | Draft | Đề xuất `agents/` (mở rộng RFC-0005, tiêu thụ RFC-0003, tuân thủ RFC-0011/0012) |
 | 0018 | Chuẩn Hóa Lược Đồ Listing & Siêu Dữ Liệu Bảo Vệ Quyền Riêng Tư (Standardized Accommodation Schema & Privacy-Preserving Listing Metadata) | Draft | `src/types.ts`, `src/components/LodgingListings.tsx`, `src/components/ListingDetail.tsx`, `src/components/HostRegistrationModal.tsx` |
 | 0019 | Xác thực chủ nhà của listing (Listing Host Authentication) | Draft | `src/types.ts`, `src/components/HostRegistrationModal.tsx`, `src/utils/dynamicFee.ts`, `api/protocol/early-hosts.ts` |
+| 0020 | Cơ chế thu phí giao thức (Protocol Fee Enforcement Mechanism) | Draft | `src/utils/dynamicFee.ts`, `src/components/BookingModal.tsx`, `src/utils/depositEscrow.ts`, `docs/FEE_ENFORCEMENT_ANALYSIS.md` |
 
-Số RFC tiếp theo: **0020**.
+Số RFC tiếp theo: **0021**.
 
 ## Quy ước đặt tên (đã thống nhất lại)
 

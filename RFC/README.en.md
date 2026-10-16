@@ -27,8 +27,9 @@ Each document has a parallel `.en.md` version (e.g. `0003-....md` + `0003-....en
 | 0017 | Stay Assistant Agents — Phase 1 (Non-Custodial) | Draft | Proposes `agents/` (extends RFC-0005, consumes RFC-0003, adheres to RFC-0011/0012) |
 | 0018 | Standardized Accommodation Schema & Privacy-Preserving Listing Metadata | Draft | `src/types.ts`, `src/components/LodgingListings.tsx`, `src/components/ListingDetail.tsx`, `src/components/HostRegistrationModal.tsx` |
 | 0019 | Listing Host Authentication | Draft | `src/types.ts`, `src/components/HostRegistrationModal.tsx`, `src/utils/dynamicFee.ts`, `api/protocol/early-hosts.ts` |
+| 0020 | Protocol Fee Enforcement Mechanism | Draft | `src/utils/dynamicFee.ts`, `src/components/BookingModal.tsx`, `src/utils/depositEscrow.ts`, `docs/FEE_ENFORCEMENT_ANALYSIS.md` |
 
-Next RFC number: **0020**.
+Next RFC number: **0021**.
 
 ## Naming Convention
 

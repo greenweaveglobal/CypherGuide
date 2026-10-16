@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Home, Plus, ShieldCheck, Coins, Key, Users, CheckCircle, Clock, AlertTriangle, FileText, ArrowUpRight, Calendar as CalendarIcon, Sliders } from 'lucide-react';
+import { Home, Plus, ShieldCheck, Coins, Key, Users, CheckCircle, Clock, AlertTriangle, FileText, ArrowUpRight, Calendar as CalendarIcon, Sliders, RefreshCw } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Listing, Booking, NostrIdentity, Proposal } from '../types';
 import HostRegistrationModal from './HostRegistrationModal';
 import HostCalendarPricing from './HostCalendarPricing';
 import { calculateRequiredDeposit, canReleaseDeposit } from '../utils/depositEscrow';
-import { calculateDynamicFee } from '../utils/dynamicFee';
+import { calculateDynamicFee, verifyListingHostSignature, createListingSignedEvent, normalizeToHexPubkey } from '../utils/dynamicFee';
+import { useAppStore } from '../store/useAppStore';
 
 interface Props {
   listings: Listing[];
@@ -37,6 +38,60 @@ export default function HostDashboard({
   const [simAmountSats, setSimAmountSats] = useState<number>(100000);
   const [simCongestion, setSimCongestion] = useState<number>(1.0);
   const [simSecurity, setSimSecurity] = useState<'relaxed' | 'strict' | 'paranoid'>('strict');
+
+  const [signingListingId, setSigningListingId] = useState<string | null>(null);
+  const [reSignErrors, setReSignErrors] = useState<Record<string, string>>({});
+  const [reSignSuccesses, setReSignSuccesses] = useState<Record<string, string>>({});
+
+  const handleReSign = async (targetListing: Listing) => {
+    if (!identity) {
+      setReSignErrors(prev => ({ ...prev, [targetListing.id]: t('hostDashboard.reSignNoIdentity') }));
+      return;
+    }
+    setSigningListingId(targetListing.id);
+    setReSignErrors(prev => ({ ...prev, [targetListing.id]: '' }));
+    setReSignSuccesses(prev => ({ ...prev, [targetListing.id]: '' }));
+
+    try {
+      const pubKeyHex = identity.pubKeyHex || normalizeToHexPubkey(identity.npub);
+      if (!pubKeyHex) {
+        throw new Error(t('hostDashboard.reSignInvalidPubkey'));
+      }
+
+      const signResult = await createListingSignedEvent(targetListing, {
+        pubKeyHex,
+        privKeyHex: identity.privKeyHex,
+      });
+
+      const updatedListing: Listing = {
+        ...targetListing,
+        hostPubkey: pubKeyHex,
+        listingSignature: signResult.signedEventJson,
+      };
+
+      if (onUpdateListing) {
+        onUpdateListing(updatedListing);
+      }
+      useAppStore.getState().updateListing(updatedListing);
+
+      setReSignSuccesses(prev => ({ ...prev, [targetListing.id]: t('hostDashboard.reSignSuccess') }));
+      if (onAddLog) {
+        onAddLog('relay', t('hostDashboard.reSignLogSuccess', { id: targetListing.id }), signResult.hash);
+      }
+    } catch (err: any) {
+      console.error('Re-signing failed in HostDashboard:', err);
+      const msg = err?.message || String(err);
+      const isUserRejection = /reject|denied|cancel|user/i.test(msg);
+      setReSignErrors(prev => ({
+        ...prev,
+        [targetListing.id]: isUserRejection
+          ? t('hostDashboard.reSignRejected')
+          : t('hostDashboard.reSignFailed', { error: msg })
+      }));
+    } finally {
+      setSigningListingId(null);
+    }
+  };
 
   const simResult = calculateDynamicFee(simAmountSats, undefined, simCongestion, simSecurity);
 
@@ -159,49 +214,91 @@ export default function HostDashboard({
       {/* Sub Tab Contents */}
       {activeSubTab === 'my_listings' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {hostListings.map(listing => (
-            <div key={listing.id} className="glass-panel p-4 rounded-xl border border-border bg-surface flex flex-col justify-between space-y-3">
-              <div className="flex gap-3">
-                <img
-                  src={listing.imageUrl}
-                  alt={listing.title}
-                  className="w-20 h-20 rounded-lg object-cover border border-border shrink-0"
-                />
-                <div className="space-y-1 overflow-hidden">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] bg-primary/20 text-primary px-2 py-0.5 rounded font-mono font-bold">
-                      {listing.id}
-                    </span>
-                    <span className="text-[10px] text-text-secondary font-mono truncate">{listing.meshCoordinates}</span>
+          {hostListings.map(listing => {
+            const sigCheck = verifyListingHostSignature(listing);
+            return (
+              <div key={listing.id} className="glass-panel p-4 rounded-xl border border-border bg-surface flex flex-col justify-between space-y-3">
+                <div className="flex gap-3">
+                  <img
+                    src={listing.imageUrl}
+                    alt={listing.title}
+                    className="w-20 h-20 rounded-lg object-cover border border-border shrink-0"
+                  />
+                  <div className="space-y-1 overflow-hidden">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] bg-primary/20 text-primary px-2 py-0.5 rounded font-mono font-bold">
+                        {listing.id}
+                      </span>
+                      <span className="text-[10px] text-text-secondary font-mono truncate">{listing.meshCoordinates}</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-white truncate">{listing.title}</h3>
+                    <p className="text-xs text-text-secondary line-clamp-2">{listing.description}</p>
                   </div>
-                  <h3 className="text-sm font-bold text-white truncate">{listing.title}</h3>
-                  <p className="text-xs text-text-secondary line-clamp-2">{listing.description}</p>
                 </div>
-              </div>
 
-              <div className="pt-2 border-t border-border/50 flex justify-between items-center text-xs font-mono">
-                <div>
-                  <span className="text-text-secondary">Price: </span>
-                  <span className="text-warning font-bold">{t('hostDashboard.priceSatsPerNight', { sats: listing.priceSats.toLocaleString() })}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 text-primary">
-                    <Users className="w-3.5 h-3.5" />
-                    <span>{t('hostDashboard.coOwnersCount', { count: listing.coOwners?.length || 1 })}</span>
+                {/* Signature status banner & re-sign button */}
+                <div className={`p-2.5 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                  sigCheck.valid
+                    ? 'bg-cyber-green/5 border-cyber-green/20'
+                    : 'bg-amber-500/10 border-amber-500/30'
+                }`}>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className={`w-2 h-2 rounded-full ${sigCheck.valid ? 'bg-cyber-green' : 'bg-amber-400 animate-pulse'}`} />
+                      <span className={sigCheck.valid ? 'text-cyber-green text-[11px]' : 'text-amber-300 text-[11px]'}>
+                        {sigCheck.valid ? t('hostDashboard.signatureValid') : t('hostDashboard.signatureInvalidPrompt')}
+                      </span>
+                    </div>
+                    {!sigCheck.valid && (
+                      <p className="text-[10px] text-text-secondary leading-tight">
+                        {t('hostDashboard.signatureInvalidNotice')}
+                      </p>
+                    )}
+                    {reSignErrors[listing.id] && (
+                      <p className="text-[10px] text-rose-400 font-mono font-bold">{reSignErrors[listing.id]}</p>
+                    )}
+                    {reSignSuccesses[listing.id] && (
+                      <p className="text-[10px] text-cyber-green font-mono font-bold">{reSignSuccesses[listing.id]}</p>
+                    )}
                   </div>
                   <button
-                    onClick={() => {
-                      setSelectedExtranetListingId(listing.id);
-                      setActiveSubTab('calendar_pricing');
-                    }}
-                    className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-mono font-bold border border-primary/30 flex items-center gap-1 transition-colors"
+                    onClick={() => handleReSign(listing)}
+                    disabled={signingListingId === listing.id}
+                    className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold flex items-center justify-center gap-1 shrink-0 transition-colors border ${
+                      sigCheck.valid
+                        ? 'bg-surface text-text-secondary hover:text-white border-border hover:bg-surface/80'
+                        : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border-amber-500/40'
+                    }`}
                   >
-                    <Sliders className="w-3 h-3" /> Extranet
+                    <RefreshCw className={`w-3 h-3 ${signingListingId === listing.id ? 'animate-spin' : ''}`} />
+                    <span>{signingListingId === listing.id ? t('hostDashboard.reSigning') : t('hostDashboard.reSignButton')}</span>
                   </button>
                 </div>
+
+                <div className="pt-2 border-t border-border/50 flex justify-between items-center text-xs font-mono">
+                  <div>
+                    <span className="text-text-secondary">Price: </span>
+                    <span className="text-warning font-bold">{t('hostDashboard.priceSatsPerNight', { sats: listing.priceSats.toLocaleString() })}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 text-primary">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>{t('hostDashboard.coOwnersCount', { count: listing.coOwners?.length || 1 })}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedExtranetListingId(listing.id);
+                        setActiveSubTab('calendar_pricing');
+                      }}
+                      className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-mono font-bold border border-primary/30 flex items-center gap-1 transition-colors"
+                    >
+                      <Sliders className="w-3 h-3" /> Extranet
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

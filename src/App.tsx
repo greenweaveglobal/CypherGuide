@@ -298,6 +298,10 @@ export default function App() {
                   onBookingSuccess={handleBookingSuccess}
                   onAddReply={handleAddReply}
                   onAddLog={addLog}
+                  onUpdateListing={(updated) => {
+                    updateListing(updated);
+                    setSelectedListingForBooking(updated);
+                  }}
                 />
               </React.Suspense>
             ) : (

@@ -221,6 +221,9 @@ export function getPrimaryHostNpub(listing: { coOwners?: Array<{ npub: string; s
  * Xác thực chữ ký listing của chủ nhà theo chuẩn NIP-78 (RFC-0019).
  * Xác minh bằng so khớp chính xác mã băm SHA-256 của JSON chuẩn hóa.
  */
+// Legacy re-signing message required for legacy signature rejection
+const RE_SIGN_REQUIRED = '\u0063\u1ea7\u006e\u0020\u006b\u00fd\u0020\u006c\u1ea1\u0069\u0020\u0062\u1eb1\u006e\u0067\u0020\u0111\u1ecb\u006e\u0068\u0020\u0064\u1ea1\u006e\u0067\u0020\u006d\u1edb\u0069';
+
 export function verifyListingHostSignature(listing: {
   id?: string;
   title?: string;
@@ -245,8 +248,8 @@ export function verifyListingHostSignature(listing: {
   }
 
   const sig = listing.listingSignature;
-  if (typeof sig !== 'string' || !sig.startsWith('{')) {
-    return { valid: false, error: 'Legacy signature format no longer accepted. Re-signing required.' };
+  if (typeof sig !== 'string' || !sig.trim().startsWith('{')) {
+    return { valid: false, error: `Legacy signature format no longer accepted, ${RE_SIGN_REQUIRED}` };
   }
 
   try {
@@ -262,27 +265,9 @@ export function verifyListingHostSignature(listing: {
       return { valid: false, error: 'Invalid Schnorr signature on Nostr event' };
     }
 
-    // Nhánh A: Hỗ trợ sự kiện Nostr chứa nội dung đăng ký register_
-    if (typeof event.content === 'string' && event.content.startsWith('register_')) {
-      const expectedPrefix = `register_${listing.id}_${listing.title}_${listing.priceSats ?? 0}_coOwners:`;
-      if (!event.content.startsWith(expectedPrefix)) {
-        return { valid: false, error: 'Listing details (id/title/price) do not match signed registration payload' };
-      }
-      const rest = event.content.slice(expectedPrefix.length);
-      const lastUnderscore = rest.lastIndexOf('_');
-      const digest = lastUnderscore !== -1 ? rest.slice(0, lastUnderscore) : rest;
-      const expectedCoOwnersDigest = (listing.coOwners || [])
-        .map((o: any) => `${normalizeToHexPubkey(o.npub) || o.npub}:${o.share}`)
-        .join('|');
-      if (digest !== expectedCoOwnersDigest) {
-        return { valid: false, error: 'Co-owners do not match signed registration payload' };
-      }
-      return { valid: true, hostHex: expectedHex };
-    }
-
-    // Nhánh B: Chuẩn NIP-78 kind 30078 (RFC-0019)
+    // 3. Chuẩn NIP-78 kind 30078 (RFC-0019)
     if (event.kind !== LISTING_SIGNATURE_KIND) {
-      return { valid: false, error: `Invalid event kind: expected ${LISTING_SIGNATURE_KIND}, got ${event.kind}. Legacy signatures must be re-signed.` };
+      return { valid: false, error: `Invalid event kind: expected ${LISTING_SIGNATURE_KIND}, got ${event.kind}. ${RE_SIGN_REQUIRED}` };
     }
 
     // 4. Kiểm tra tag định danh 'd'
@@ -295,25 +280,25 @@ export function verifyListingHostSignature(listing: {
     // 5. Kiểm tra tag phiên bản 'v'
     const vTag = event.tags?.find((t: any) => t[0] === 'v')?.[1];
     if (vTag !== '1') {
-      return { valid: false, error: `Unsupported signature version tag: ${vTag}` };
+      return { valid: false, error: `Unsupported signature version tag: ${vTag}. ${RE_SIGN_REQUIRED}` };
     }
 
-    // 6. Kiểm tra tag mã băm nội dung ('x' hoặc 'payload_hash')
-    const hashTag = event.tags?.find((t: any) => t[0] === 'x')?.[1] || event.tags?.find((t: any) => t[0] === 'payload_hash')?.[1];
+    // 6. Kiểm tra tag mã băm nội dung ('x')
+    const hashTag = event.tags?.find((t: any) => t[0] === 'x')?.[1];
     if (!hashTag) {
       return { valid: false, error: 'Missing content hash tag (x)' };
     }
 
     // 7. So khớp chính xác nội dung JSON chuẩn hóa
-    if (!event.content || typeof event.content !== 'string') {
-      return { valid: false, error: 'Event content is empty or invalid' };
+    if (!event.content || typeof event.content !== 'string' || !event.content.trim().startsWith('{')) {
+      return { valid: false, error: `Event content is invalid or legacy format, ${RE_SIGN_REQUIRED}` };
     }
 
     let parsedContent: any = null;
     try {
       parsedContent = JSON.parse(event.content);
     } catch {
-      return { valid: false, error: 'Event content is not valid JSON' };
+      return { valid: false, error: `Event content is not valid JSON, ${RE_SIGN_REQUIRED}` };
     }
 
     // Trích xuất createdAt từ nội dung ký để đảm bảo tính thời điểm nhất quán

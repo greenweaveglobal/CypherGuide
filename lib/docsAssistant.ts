@@ -85,10 +85,12 @@ export function loadProjectDocs(): string {
   return cachedDocs;
 }
 
+export type DocsAssistantSource = "gemini" | "local-index" | "fallback-default";
+
 export interface DocsQueryResult {
   answer: string;
   success: boolean;
-  source?: "gemini" | "local-index";
+  source?: DocsAssistantSource;
   degraded?: boolean;
   error?: string;
 }
@@ -123,7 +125,7 @@ export async function queryDocsAssistant(question: string, rawLocale?: string): 
     return {
       answer,
       success: false,
-      source: "local-index",
+      source: "fallback-default",
       degraded: true
     };
   }
@@ -167,7 +169,7 @@ ${docsContent}`;
     const trimmed = rawOutput.trim();
 
     if (!trimmed || trimmed === fallbackPhrase) {
-      return { answer: fallbackPhrase, success: false, source: "gemini", degraded: true };
+      return { answer: fallbackPhrase, success: false, source: "fallback-default", degraded: true };
     }
 
     return { answer: trimmed, success: true, source: "gemini" };
@@ -186,7 +188,7 @@ ${docsContent}`;
     return {
       answer,
       success: false,
-      source: "local-index",
+      source: "fallback-default",
       degraded: true
     };
   }

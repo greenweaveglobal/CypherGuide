@@ -27,7 +27,7 @@ export async function clientDocsLookup(question: string, locale: string = 'vi'):
   return {
     answer: isEn 
       ? "There is no documentation about this yet" 
-      : translate('docs.noDocYet'),
+      : translate('docs.noDocYet', undefined, 'vi'),
     success: false,
     source: 'fallback-default'
   };

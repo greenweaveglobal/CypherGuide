@@ -134,9 +134,9 @@ describe("Vercel Serverless ESM Module Resolution & Smoke Test (Round 4)", () =>
       expect(enMatch.degraded).toBe(true);
       expect(enMatch.answer).toContain("npub1jm0uzazghhqn9s3xy0rla0ufckr6303xn4qa");
 
-      // 3. Unmatched query -> source: local-index, success: false, degraded: true
+      // 3. Unmatched query -> source: fallback-default, success: false, degraded: true
       const unmatchRes = await queryDocsAssistant("Thời tiết Sao Hỏa hôm nay thế nào?", "vi");
-      expect(unmatchRes.source).toBe("local-index");
+      expect(unmatchRes.source).toBe("fallback-default");
       expect(unmatchRes.success).toBe(false);
       expect(unmatchRes.degraded).toBe(true);
       expect(unmatchRes.answer).toBe("Chưa có tài liệu về việc này");

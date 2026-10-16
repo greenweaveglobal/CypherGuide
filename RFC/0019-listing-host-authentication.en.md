@@ -1,93 +1,98 @@
 # RFC-0019: Listing Host Authentication
 
 - **Status:** Draft
-- **Author:** Project Lead + Drafting AI
-- **Date:** 2026-10-13
-- **Related Modules:** `src/types.ts`, `src/components/HostRegistrationModal.tsx`, `src/utils/dynamicFee.ts`, `api/protocol/early-hosts.ts`
+- **Author:** Project Lead + AI drafting assistant
+- **Date:** 2026-10-13 (Standardization update: 2026-10-16)
+- **Related Modules:** `src/types.ts`, `src/components/HostRegistrationModal.tsx`, `src/components/HostDashboard.tsx`, `src/components/ListingDetail.tsx`, `src/utils/dynamicFee.ts`, `api/protocol/early-hosts.ts`
 
 ## Problem
 
-Currently, the mechanism determining whether a host qualifies for the "Early Host Incentive" discount (RFC-0002: 1.0% / 100 pcm instead of the default 2.0% / 200 pcm) relies on `getPrimaryHostNpub(listing)`. This function extracts the `coOwners[].npub` holding the highest ownership share (`share`) from the listing's co-owners list.
+Previously, determining whether a host was eligible for the "Early Host Incentive" discount (RFC-0002: 1.0% / 100 pcm instead of the default 2.0% / 200 pcm) relied solely on `getPrimaryHostNpub(listing)`. This helper extracted the `coOwners[].npub` holding the highest ownership share (`share`).
 
-However, in `HostRegistrationModal.tsx`, the `coOwners` list is freely editable by the user creating the listing (`npub: ''`), with zero verification of private key ownership for that `npub` at registration time.
+However, the `coOwners` array could be populated arbitrarily by anyone creating a listing without proving private key ownership at the time of submission.
 
-Consequently, a security vulnerability exists:
-- Anyone who knows the public `npub` of an enrolled Early Host can simply create a new listing, input that host's `npub` with `share: 100%`, and claim the 1% fee discount without the actual host's knowledge, consent, or signature.
-- In essence, `getPrimaryHostNpub` is an unauthenticated, self-asserted string attribute.
+This introduced a vulnerability:
+- Anyone knowing the public `npub` of an approved Early Host could create a fake listing, populate `coOwners` with that host's `npub` at `share: 100%`, and claim the 1% fee discount without the legitimate host's consent.
+- `getPrimaryHostNpub` was merely a self-asserted string lacking cryptographic authentication.
+- The legacy prefix-based signature format (`register_<id>_<title>_<price>_coOwners:...`) only verified basic parameters and omitted room types, descriptions, image hashes, and crucially, payout Lightning addresses. An attacker could clone a signed listing, modify the payout address, and retain discount eligibility.
 
-Why is the status quo inadequate?
-The Early Host Incentive was established to reward and onboard genuine pioneer hosts into CypherGuide. Allowing unverified npub spoofing undermines protocol fairness, violates the core Cypherpunk tenet ("Don't Trust, Verify"), and bypasses administrator cohort limits.
+## Installed Specification: NIP-78 Kind 30078 Signature Format
 
-## Considered Alternatives
+The system enforces Nostr event signatures per NIP-78 Kind 30078:
 
-### Alternative A (Proposed): Cryptographic Host Listing Signature
-When a Host submits a listing in `HostRegistrationModal`, the application uses the logged-in host's cryptographic key (in-vault key or NIP-07 browser extension) to sign a canonical listing payload (including `id`, `title`, `priceSats`, `coOwners`, and timestamp). The listing stores optional fields `hostPubkey` (64-char hex pubkey) and `listingSignature` (Schnorr / Nostr event signature).
-- **Pros:**
-  - Direct cryptographic verification of key ownership: An attacker cannot forge the signature without possessing the private key (nsec or NIP-07).
-  - Tamper-proofing: Any post-signing tampering with listing content (e.g. swapping co-owners or price) invalidates the signature.
-  - Seamless support for local vault keys and NIP-07 browser extensions (Alby, nos2x).
-  - Discount is only activated if the signature is valid AND `hostPubkey` is present in the active early hosts enrollment list.
-- **Cons:**
-  - Requires a cryptographic signing step at listing registration. If the user lacks a key or refuses NIP-07 signing, the listing cannot be signed and thus cannot qualify for the Early Host discount.
+### 1. Nostr Event Structure
+- **Kind:** `30078` (NIP-78 Arbitrary Custom App Data).
+- **Pubkey:** Must strictly match `hostPubkey` in 64-character lowercase hexadecimal format.
+- **Created_at:** Signature timestamp (seconds).
+- **Mandatory Tags:**
+  - `["d", "cypherguide:listing:<id>"]`: Unique listing identifier.
+  - `["v", "1"]`: Signature schema version.
+  - `["x", "<sha256_hash>"]`: SHA-256 hash of the canonicalized listing JSON (`canonicalizeListingForSigning`).
+  - `["client", "cypherguide"]`: Client identifier tag.
+- **Content:** The exact canonicalized JSON string (`canonicalJson`), deterministically serialized with alphabetically sorted keys (`deterministicStringify`) and no superfluous whitespace.
 
-### Alternative B: Enrolling Individual Listing IDs Instead of Host Pubkeys
-Instead of enrolling a host's pubkey/npub, administrators directly whitelist individual listing IDs (`list_ABC123`) via the admin API.
-- **Pros:**
-  - Minimal implementation complexity: Simple membership check on `listing.id`.
-  - Avoids adding Schnorr signing logic to the listing modal.
-- **Cons:**
-  - Rigid and non-scalable: If a pioneer host creates 5 listings, an administrator must review and whitelist all 5 individually.
-  - Centralized dependency on admin whitelisting, degrading host self-sovereignty.
+### 2. Fields Covered by Canonicalization (`canonicalizeListingForSigning`)
+The cryptographic hash covers 9 critical fields:
+1. `version`: Data schema version (currently `1`).
+2. `id`: Listing ID.
+3. `title`: Listing title.
+4. `description`: Listing description.
+5. `priceSats`: Base nightly room rate.
+6. `roomTypes`: Array of room types (`id`, `name`, `priceSats`).
+7. `coOwners`: Normalized co-owner array (bech32 `npub` decoded to 64-char lowercase hex, `share`, and lowercase `lightningAddress`). The array is lexicographically sorted by `npub` to ensure determinism regardless of input order.
+8. `batchPayloadHash`: SHA-256 hash of the image gallery (URLs and NIP-94 image hashes).
+9. `createdAt`: Listing creation timestamp.
 
-### Alternative C: Interactive Challenge-Response at Discount Redemption + Alternative A
-When a guest initiates booking, the guest client or relay sends an ephemeral challenge to the host via Nostr DM or an ephemeral event, requiring real-time signature proof of liveness and key ownership.
-- **Pros:**
-  - Proves the host is actively online and controlling the key at the moment of booking.
-- **Cons:**
-  - Severe UX degradation: If the host is offline, booking fee calculation and checkout block.
-  - High latency and vulnerability to network/mesh partitions.
+### 3. Exact Matching Verification Workflow
+`verifyListingHostSignature(listing)` executes rigorous checks:
+1. Verifies presence of `hostPubkey` and `listingSignature`. Normalizes `hostPubkey` to lowercase hex.
+2. Parses JSON in `listingSignature`. Rejects legacy raw strings with a clear error: `"cần ký lại bằng định dạng mới"`.
+3. Verifies `event.pubkey === hostPubkey` (hex).
+4. Verifies Schnorr signature with `verifyEvent(event)`.
+5. Verifies `event.kind === 30078`.
+6. Validates tags: `d` tag matches `cypherguide:listing:<listing.id>`, `v === '1'`, and `x` tag exists.
+7. Recomputes canonical JSON via `canonicalizeListingForSigning` and derives SHA-256 hash.
+8. Asserts exact match: `computedHash === hashTag` AND `event.content === expectedCanonical`. Any discrepancy returns `valid: false`.
 
-## Proposal
+The legacy `register_` prefix verification branch has been completely removed from production code.
 
-Adopt **Alternative A**:
-1. The `Listing` schema in `src/types.ts` is extended with optional fields:
-   - `hostPubkey?: string;` (64-character hex string)
-   - `listingSignature?: string;` (Schnorr / Nostr event signature JSON)
-2. In `HostRegistrationModal.tsx`, when registering a listing:
-   - The application computes a canonical listing payload string (incorporating `listingId`, `title`, `priceSats`, `coOwners`, and timestamp).
-   - The host's identity key (`identity`) cryptographically signs the payload.
-   - Sets `hostPubkey = identity.pubKeyHex` and `listingSignature = signature`.
-   - If the host lacks a key or signing fails, a clear warning is displayed and the listing is flagged as ineligible for the Early Host incentive.
-3. In `src/utils/dynamicFee.ts`:
-   - `isEarlyHostEligible` accepts the `listing` as a parameter.
-   - Qualification criteria for 1.0% fee:
-     - The listing must contain valid `hostPubkey` and `listingSignature` matching the listing content.
-     - The recovered `hostPubkey` must match an active enrolled host pubkey within its 365-day validity period.
-     - Tampered listings immediately lose discount eligibility.
-   - `getPrimaryHostNpub` is retained for UI display purposes but is **no longer a source of truth** for fee calculation.
+## Attack Vector Analysis Matrix
+
+| Attack Scenario | Attacker Action | Cryptographic Defense | Verification Outcome |
+|---|---|---|---|
+| **1. Payout Address Substitution (Lightning Address Swapping)** | Attacker copies a genuine signed listing of a reputable host, but replaces `coOwners[].lightningAddress` with their own wallet address to intercept guest booking funds. | The `lightningAddress` of every co-owner is locked into the canonical JSON and the SHA-256 digest (`x` tag). | **Rejected (Invalid):** Data hash mismatch (`Listing data does not match signed hash`). Early Host incentive is immediately revoked. |
+| **2. Price / Room Tampering** | Attacker or host modifies prices (e.g., 50,000 to 500 Sats), edits description, alters room types, or tampers with image URLs/hashes post-signing. | `priceSats`, `roomTypes`, `description`, and `batchPayloadHash` are all included in the signed payload. | **Rejected (Invalid):** Any modification alters the SHA-256 digest and breaks integrity. |
+| **3. Verbatim Replay Attack** | Attacker copies the exact listing content and valid signature to publish on another relay. | Because the signature cryptographically binds the genuine host's Lightning address and co-owners, payments route exclusively to the legitimate host. | **Zero Economic Incentive:** Attacker receives no funds; booking revenue flows to the genuine host's wallet. |
+| **4. Key Spoofing / Impersonation** | Attacker generates a listing, signs it with their own private key, but sets `hostPubkey` to the pubkey of an enrolled Early Host. | Verification asserts `event.pubkey === hostPubkey`. | **Rejected (Invalid):** Event signer does not match the claimed `hostPubkey`. |
+| **5. Legacy Signature Replay** | Attacker submits a raw string `register_...` or legacy JSON event to claim discounts. | Legacy verification branches have been eliminated; only NIP-78 Kind 30078 is accepted. | **Rejected (Invalid):** Returns clear error requiring re-signing with the current format. |
 
 ## Known Residual Limitations
 
-Two residual limitations remain by design:
-1. **Client-Side Dynamic Fee Calculation:**
-   - Fees are currently computed and settled client-side by the guest's browser calling `calculateDynamicFee` and paying the Treasury invoice. A modified client could theoretically bypass or underpay the Treasury fee (see in-depth architectural breakdown in Task 5 - `docs/FEE_ENFORCEMENT_ANALYSIS.md`).
-2. **Sybil Resistance (Multiple npubs per person):**
-   - Nostr is permissionless; any actor can generate multiple keypairs.
-   - Mitigation: Managed via administrator vetting via NIP-98 authenticated APIs, combined with strict cohort limits (`maxEarlyHosts` / `maxEnrolled`) and enrollment duration (`durationDays`).
+Three structural limitations are acknowledged:
+1. **Verbatim Replay:** While the attacker cannot redirect payments, duplicate listings could pollute search results if relays lack deduplication policies on the `d` tag.
+2. **Fresh Fraudulent Listings:** Digital signatures authenticate content integrity by the key holder; they do not prevent a stranger from signing an entirely fabricated property with their own private key. Real-world veracity relies on portable reputation (RFC-0003), Proof-of-Stay reviews, and community audits.
+3. **Enrollment Authority:** Enrolling hosts into `earlyHosts` remains under the authority of protocol guardians/admins via NIP-98 audit logs (RFC-0016), rather than fully automated on-chain consensus.
 
 ## Security & Decentralization Trade-offs
 
 - **Who is trusted:**
-  - Trust in standard Nostr secp256k1 Schnorr cryptography: No entity can forge a listing signature without the host's private key.
-  - Trust in protocol administrators (Guardian Council / Admin) to properly vet enrolled host pubkeys.
+  - Standard Nostr Schnorr cryptography (secp256k1).
+  - Protocol administrators when reviewing host eligibility before enrollment.
 - **Failure mode if trusted party misbehaves:**
-  - If an admin improperly enrolls an unauthorized pubkey, that key only benefits from a 1-year fee discount and is publicly recorded via NIP-98 Audit Trail events on Nostr relays (Kind 27235).
-  - No malicious third party can impersonate another host to siphon fee benefits.
+  - If an admin erroneously enrolls a non-eligible host, the discount applies for a maximum of 12 months, and the enrollment action is immutably recorded on public relays via NIP-98 Kind 27235 audit trails.
+  - No party can forge another host's signature to steal discounts or hijack payments.
+
+## Host Experience & Re-signing Workflow
+
+- When a host edits listing details (Extranet / Calendar / Rates), the previous signature expires by design.
+- The interface provides a **"Re-verify Listing"** button in `ListingDetail` (for host view) and `HostDashboard` (My Listings tab).
+- Warning banners are shown exclusively to the host. Guests do not see warning badges, and unverified listings do not receive the discounted fee rate.
+- If a host rejects a NIP-07 extension prompt, a clear notification is displayed without altering or discarding the listing.
 
 ## Proposed Maturity Tier
 
-**Beta** (Applied across all newly created listings and covered by end-to-end regression tests).
+**Beta** (Code implementation complete, covered by 26 regression test cases, awaiting project lead sign-off before actual host enrollments).
 
 ## Discussion
 
-*(Awaiting Project Lead review and formal approval before implementing Task 1b codebase modifications).*
+*(Awaiting feedback and final approval from Project Lead).*

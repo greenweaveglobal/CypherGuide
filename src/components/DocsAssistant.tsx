@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Bot, Search, AlertTriangle, X, Sparkles, Send, Loader2, BookOpen, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Bot, Search, AlertTriangle, X, Sparkles, Send, Loader2, BookOpen, ShieldCheck, CheckCircle2, HelpCircle } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
-import { clientDocsLookup } from '../services/docsSearchService';
+import { clientDocsLookup, DocsQueryResult } from '../services/docsSearchService';
 
 interface DocsAssistantProps {
   isOpen: boolean;
@@ -12,9 +12,8 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
   const { t, locale } = useTranslation();
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
+  const [result, setResult] = useState<DocsQueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isGemini, setIsGemini] = useState(false);
 
   if (!isOpen) return null;
 
@@ -34,7 +33,7 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
     }
 
     setLoading(true);
-    setResponse(null);
+    setResult(null);
     setError(null);
 
     try {
@@ -50,9 +49,12 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
 
         if (res.ok) {
           const data = await res.json();
-          if (data.success && data.answer) {
-            setResponse(data.answer);
-            setIsGemini(data.source === 'gemini');
+          if (data && typeof data.answer === 'string') {
+            setResult({
+              answer: data.answer,
+              success: Boolean(data.success),
+              source: (data.source as any) || (data.success ? 'local-index' : 'fallback-default')
+            });
             isSuccess = true;
           }
         }
@@ -62,13 +64,12 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
 
       if (!isSuccess) {
         // Fallback to client-side RFC search
-        setIsGemini(false);
         const fallbackResult = await clientDocsLookup(q, locale);
-        if (fallbackResult.answer) {
-          setResponse(fallbackResult.answer);
-        } else {
-          setResponse(t('docsAssistant.noDocResponse'));
-        }
+        setResult({
+          answer: fallbackResult.answer || t('docsAssistant.noDocResponse'),
+          success: Boolean(fallbackResult.success),
+          source: fallbackResult.source || 'fallback-default'
+        });
       }
     } catch (err: any) {
       console.error('Error querying docs assistant:', err);
@@ -188,20 +189,52 @@ export const DocsAssistant: React.FC<DocsAssistantProps> = ({ isOpen, onClose })
           )}
 
           {/* Answer Output */}
-          {response && (
-            <div className="p-3.5 sm:p-5 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3 animate-in fade-in duration-300 max-w-full overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800/80 pb-2 gap-1">
-                <div className="flex items-center gap-2 text-xs font-mono text-primary font-bold">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{t('docsAssistant.resultTitle')}</span>
+          {result && (
+            <div className="space-y-3 animate-in fade-in duration-300 max-w-full overflow-hidden">
+              {result.success ? (
+                /* Successful Lookup */
+                <div className="p-3.5 sm:p-5 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800/80 pb-2 gap-1">
+                    <div className="flex items-center gap-2 text-xs font-mono text-primary font-bold">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>{t('docsAssistant.resultTitle')}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-400 uppercase font-semibold">
+                      {result.source === 'gemini'
+                        ? t('docsAssistant.modelBadge')
+                        : t('docsAssistant.localIndexBadge')}
+                    </span>
+                  </div>
+                  <div className="text-xs sm:text-sm font-mono text-zinc-200 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] selection:bg-primary selection:text-black min-w-0 max-w-full overflow-x-auto">
+                    {result.answer}
+                  </div>
                 </div>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase">
-                  {isGemini ? t('docsAssistant.modelBadge') : t('docsAssistant.localIndexBadge')}
-                </span>
-              </div>
-              <div className="text-xs sm:text-sm font-mono text-zinc-200 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] selection:bg-primary selection:text-black min-w-0 max-w-full overflow-x-auto">
-                {response}
-              </div>
+              ) : (
+                /* Unsuccessful Lookup: "Chưa có câu trả lời cục bộ cho câu này" */
+                <div className="p-3.5 sm:p-5 bg-zinc-950/80 border border-amber-500/30 rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-amber-500/20 pb-2 gap-1">
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-300">
+                      <HelpCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>{t('docsAssistant.noLocalAnswerTitle')}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-400 uppercase font-semibold">
+                      {result.source === 'gemini'
+                        ? t('docsAssistant.modelBadge')
+                        : result.source === 'local-index'
+                        ? t('docsAssistant.localIndexBadge')
+                        : t('docsAssistant.sourceNone')}
+                    </span>
+                  </div>
+                  <div className="text-xs sm:text-sm font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                    {result.answer}
+                  </div>
+                  <div className="p-3 bg-zinc-900/90 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-400 space-y-1.5">
+                    <p className="text-amber-200/90 font-medium">
+                      💡 {t('docsAssistant.noLocalAnswerSuggestion')}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

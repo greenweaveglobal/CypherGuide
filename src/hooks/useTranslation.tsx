@@ -95,8 +95,8 @@ function formatTranslation(
 /**
  * Non-hook translation function for utils, background services, and error handlers
  */
-export function translate(key: string, params?: Record<string, string | number>): string {
-  return formatTranslation(currentLocale, key, params);
+export function translate(key: string, params?: Record<string, string | number>, targetLocale?: SupportedLocale): string {
+  return formatTranslation(targetLocale || currentLocale, key, params);
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {

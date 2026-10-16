@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp, Bed, Scale, Clock, Maximize2, AlertCircle } from 'lucide-react';
+import { MapPin, Users, Coins, Star, ShieldCheck, Check, Copy, Calendar as CalendarIcon, ArrowLeft, Zap, ExternalLink, ArrowRight, MessageSquare, QrCode, Camera, Sparkles, Flame, Flower2, Bot, Share2, History, ChevronDown, ChevronUp, Bed, Scale, Clock, Maximize2, AlertCircle, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Listing, NostrIdentity, Booking } from '../types';
 import { calculateStayPrice, getRoomType, migrateListingToRoomTypes } from '../utils/pricing';
@@ -9,7 +9,7 @@ import { Card, CardHeader, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { sha256, signMessage, hexToBytes, bytesToHex, npubToHex } from '../utils/crypto';
 import { generateBolt11, isWebLNAvailable, payViaWebLN, resolveLightningAddressToInvoice } from '../utils/lightning';
-import { calculateDynamicFee } from '../utils/dynamicFee';
+import { calculateDynamicFee, verifyListingHostSignature, createListingSignedEvent, normalizeToHexPubkey } from '../utils/dynamicFee';
 import { generateEscrowMultisigAddress, calculateRequiredDeposit } from '../utils/depositEscrow';
 import { DEFAULT_ARBITRATOR_POOL } from '../utils/insuranceFund';
 import { useAppStore } from '../store/useAppStore';
@@ -31,9 +31,10 @@ interface Props {
   onBookingSuccess: (booking: Booking) => void;
   onAddReply?: (listingId: string, reviewId: string, reply: any) => void;
   onAddLog: (type: any, msg: string, hash?: string) => void;
+  onUpdateListing?: (listing: Listing) => void;
 }
 
-export default function ListingDetail({ listing, identity, onBack, onBookingSuccess, onAddReply, onAddLog }: Props) {
+export default function ListingDetail({ listing, identity, onBack, onBookingSuccess, onAddReply, onAddLog, onUpdateListing }: Props) {
   const { t } = useTranslation();
   const { kycAttestations, addKycAttestation } = useAppStore();
 
@@ -168,7 +169,65 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
-  const isOwner = identity && listing.coOwners.some(o => o.npub === identity.npub);
+  const isOwner = Boolean(
+    identity &&
+    (listing.coOwners.some(o => o.npub === identity.npub || (identity.pubKeyHex && normalizeToHexPubkey(o.npub) === normalizeToHexPubkey(identity.pubKeyHex))) ||
+     (listing.hostPubkey && identity.pubKeyHex && normalizeToHexPubkey(listing.hostPubkey) === normalizeToHexPubkey(identity.pubKeyHex)))
+  );
+
+  const sigCheck = verifyListingHostSignature(listing);
+  const [isSigning, setIsSigning] = useState(false);
+  const [reSignError, setReSignError] = useState<string | null>(null);
+  const [reSignSuccess, setReSignSuccess] = useState<string | null>(null);
+
+  const handleReSignListing = async () => {
+    if (!identity) {
+      setReSignError(t('listingDetail.reSignNoIdentity'));
+      return;
+    }
+    setIsSigning(true);
+    setReSignError(null);
+    setReSignSuccess(null);
+
+    try {
+      const pubKeyHex = identity.pubKeyHex || normalizeToHexPubkey(identity.npub);
+      if (!pubKeyHex) {
+        throw new Error(t('listingDetail.reSignInvalidPubkey'));
+      }
+
+      const signResult = await createListingSignedEvent(listing, {
+        pubKeyHex,
+        privKeyHex: identity.privKeyHex,
+      });
+
+      const updatedListing: Listing = {
+        ...listing,
+        hostPubkey: pubKeyHex,
+        listingSignature: signResult.signedEventJson,
+      };
+
+      if (onUpdateListing) {
+        onUpdateListing(updatedListing);
+      }
+      useAppStore.getState().updateListing(updatedListing);
+
+      setReSignSuccess(t('listingDetail.reSignSuccess'));
+      if (onAddLog) {
+        onAddLog('relay', t('listingDetail.reSignLogSuccess', { id: listing.id }), signResult.hash);
+      }
+    } catch (err: any) {
+      console.error('Re-signing failed in ListingDetail:', err);
+      const msg = err?.message || String(err);
+      const isUserRejection = /reject|denied|cancel|user/i.test(msg);
+      setReSignError(
+        isUserRejection
+          ? t('listingDetail.reSignRejected')
+          : t('listingDetail.reSignFailed', { error: msg })
+      );
+    } finally {
+      setIsSigning(false);
+    }
+  };
 
   const handleReplySubmit = async (reviewId: string) => {
     if (!identity || !onAddReply || !replyText.trim()) return;
@@ -507,6 +566,53 @@ export default function ListingDetail({ listing, identity, onBack, onBookingSucc
               )}
             </div>
           </div>
+
+          {isOwner && (
+            <div className={`p-4 rounded-xl border mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+              sigCheck.valid
+                ? 'bg-cyber-green/5 border-cyber-green/30'
+                : 'bg-amber-500/10 border-amber-500/30'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg mt-0.5 ${sigCheck.valid ? 'bg-cyber-green/10 text-cyber-green' : 'bg-amber-500/20 text-amber-400'}`}>
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-bold flex items-center gap-2">
+                    <span className={sigCheck.valid ? 'text-cyber-green' : 'text-amber-300'}>
+                      {sigCheck.valid ? t('listingDetail.signatureValidTitle') : t('listingDetail.signatureInvalidTitle')}
+                    </span>
+                    {sigCheck.valid && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyber-green/20 text-cyber-green border border-cyber-green/30">
+                        NIP-78
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    {sigCheck.valid
+                      ? t('listingDetail.signatureValidDesc')
+                      : t('listingDetail.signatureInvalidDesc')}
+                  </p>
+                  {reSignError && (
+                    <p className="text-xs text-rose-400 font-mono font-bold mt-1">{reSignError}</p>
+                  )}
+                  {reSignSuccess && (
+                    <p className="text-xs text-cyber-green font-mono font-bold mt-1">{reSignSuccess}</p>
+                  )}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant={sigCheck.valid ? 'outline' : 'primary'}
+                disabled={isSigning}
+                onClick={handleReSignListing}
+                className="shrink-0 font-mono text-xs whitespace-nowrap"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSigning ? 'animate-spin' : ''}`} />
+                {isSigning ? t('listingDetail.reSigning') : t('listingDetail.reSignButton')}
+              </Button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-8">
