@@ -72,7 +72,7 @@ Theo quy chuẩn Nostr, Kind 30078 là một sự kiện có thể thay thế th
 - **Các hướng giải quyết (đặt dưới dạng câu hỏi mở, không tự ý chọn hay cài đặt):**
   1. *Thêm trường thời hạn hết hiệu lực:* Bổ sung trường `expiresAt` (hoặc `validUntil`) vào JSON chuẩn hóa và thẻ `expiration` (NIP-40), buộc chủ nhà phải ký lại định kỳ (ví dụ sau 30 hoặc 90 ngày).
   2. *Sự kiện thu hồi (Revocation / Tombstone Event):* Phát sóng một sự kiện Nostr đặc biệt do chính chủ nhà ký để tuyên bố hủy hiệu lực của một mã băm listing cụ thể.
-  3. *Chấp nhận rủi ro có điều kiện:* Chấp nhận rủi ro này trong giai đoạn thử nghiệm vì tiền phòng vẫn chuyển về ví cũ của chủ nhà (không rơi vào tay kẻ tấn công), và giải quyết triệt để khi xây dựng hạ tầng phân phối qua relay.
+  3. *Chấp nhận rủi ro có điều kiện:* Chấp nhận rủi ro này chỉ trong giai đoạn thử nghiệm khi chưa có tiền thật, hoặc trong trường hợp chủ nhà vẫn kiểm soát được địa chỉ cũ (ví dụ đổi ví vì lý do quản lý nội bộ, không phải do lộ khóa); nếu địa chỉ cũ thực sự đã bị lộ khóa thì bắt buộc phải có cơ chế thu hồi hoặc thời hạn chữ ký (hướng 1 hoặc 2) để ngăn chặn kẻ tấn công rút tiền từ ví cũ đã chiếm đoạt.
 
 ## Bảng ma trận kịch bản tấn công đã xem xét
 

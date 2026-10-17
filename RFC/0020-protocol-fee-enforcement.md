@@ -1,9 +1,34 @@
 # RFC-0020: Cơ chế thu phí giao thức (Protocol Fee Enforcement Mechanism)
 
-- **Trạng thái:** Draft
+- **Trạng thái:** Draft (Giai đoạn 1 theo Phương án C đã được chọn; Giai đoạn 2 theo Phương án B là hướng đích, chưa cam kết)
 - **Tác giả:** Chủ dự án + AI hỗ trợ soạn thảo
 - **Ngày:** 2026-10-16 (Cập nhật chuẩn hóa: 2026-10-16)
 - **Module liên quan:** `src/utils/dynamicFee.ts`, `src/components/BookingModal.tsx`, `src/utils/depositEscrow.ts`, `src/utils/proofOfStay.ts`, `docs/FEE_ENFORCEMENT_ANALYSIS.md`
+
+## Quyết định của Chủ dự án (Project Lead Decision - 2026-10)
+
+Vào tháng 10/2026, sau khi xem xét phân tích kỹ thuật tại `docs/FEE_ENFORCEMENT_ANALYSIS.md` và các phương án kiến trúc trong tài liệu này, Chủ dự án đã chính thức thông qua quyết định chiến lược về cơ chế thu phí:
+
+1. **Giai đoạn 1 (Hiện hành):** Áp dụng **Phương án C (Đóng góp giao thức tự nguyện, có ghi nhận)**.
+   - Bản chất của khoản phí là **đóng góp tự nguyện** nhằm duy trì các node relay và tài trợ phát triển hạ tầng mã nguồn mở (RFC-0016, RFC-0015).
+   - Giao thức tôn trọng quyền tự do của người dùng: Khách có toàn quyền giữ nguyên mức gợi ý, chỉnh về 0 sats, hoặc nhập số sats tùy tâm.
+   - Thao tác đặt về 0 sats chỉ tốn một lần chạm/nhấp chuột, tuyệt đối không có dark patterns (không dùng từ ngữ gây áp lực, không có đồng hồ đếm ngược, không hiện hộp thoại cản trở). Giao dịch đặt phòng vẫn hoàn tất thành công khi khoản này bằng 0.
+2. **Giai đoạn 2 (Hướng đích tương lai):** Hướng tới **Phương án B (Phí gắn liền với giá trị dịch vụ)** khi hệ thống đã đáp ứng đầy đủ 4 điều kiện tiên quyết (trọng tài thật, quỹ bảo hiểm cọc BFT, mạng lưới attester Proof-of-Stay độc lập, và cơ chế hiển thị listing).
+3. **Các phương án bị loại bỏ:** **Phương án A và Phương án D không được triển khai**.
+   - Phương án A bị loại bỏ vì dễ dàng bị vô hiệu hóa khi khách và chủ nhà thông đồng bỏ cọc ngoài luồng, trong khi tiền phòng vẫn đi thẳng cho chủ nhà.
+   - Phương án D bị loại bỏ vì biến relay thành điểm nghẽn tập trung và đi ngược lại nguyên tắc chống kiểm duyệt của Nostr.
+4. **Ý nghĩa của mức ưu đãi 1% cho chủ nhà tiên phong:**
+   - Mức ưu đãi 1% (100 pcm) cho chủ nhà tiên phong (Early Host quy định tại RFC-0002) được định nghĩa là **mức đóng góp gợi ý thấp hơn** (1% thay vì mức cơ sở 2%) dành cho các listing của chủ nhà đã được ghi danh hợp lệ, hoàn toàn **không phải là giảm giá dịch vụ**.
+   - **Phân tích ý nghĩa theo từng phương án kiến trúc:**
+     - *Trong Phương án B (Phí dịch vụ):* Ưu đãi 1% đóng vai trò là chính sách giảm giá phí dịch vụ (Service Fee Discount) đối với các dịch vụ bảo chứng (ví dụ giảm phí chứng nhận Proof-of-Stay hoặc giảm phí thụ lý trọng tài).
+     - *Trong Phương án C (Đóng góp tự nguyện - Giai đoạn 1):* Ưu đãi 1% thể hiện qua **mức đóng góp gợi ý mặc định thấp hơn** (1% thay vì 2%) được hiển thị cho khách khi đặt phòng tại listing của host tiên phong; khách vẫn giữ toàn quyền điều chỉnh.
+     - *Trong Phương án D (Relay Validator):* Ưu đãi 1% là tỷ lệ thu phí tối thiểu thấp hơn được cài đặt trên cổng relay kiểm định trước khi chấp nhận chuyển tiếp sự kiện booking.
+5. **Phạm vi cam kết:**
+   - Đây là quyết định về **hướng đi chiến lược** của giao thức, **chưa phải là cam kết về thời hạn cụ thể** để kích hoạt Giai đoạn 2 (Phương án B).
+
+> **Ghi chú pháp lý quan trọng:** Mọi nhận định liên quan đến khía cạnh pháp lý, trung gian tài chính và thuế trong tài liệu này là đánh giá kỹ thuật ban đầu của nhóm phát triển phần mềm, tuyệt đối không phải là tư vấn pháp lý và chưa có ý kiến của luật sư độc lập. Mức độ an toàn pháp lý của từng phương án có thể giảm thiểu rủi ro nhưng vẫn phụ thuộc vào cách cơ quan quản lý tại từng khu vực tài phán phân loại mô hình.
+
+---
 
 ## Vấn đề
 
@@ -17,21 +42,21 @@ Trong kiến trúc hiện hành (RFC-0016):
 3. Một client bị can thiệp mã nguồn độc hại (modified client / custom script) hoặc một bot tự tạo có thể dễ dàng bỏ qua hóa đơn Treasury (đặt `protocolFeeSats = 0` hoặc không thanh toán hóa đơn 2) trong khi vẫn thanh toán đủ tiền phòng cho chủ nhà.
 4. Chủ nhà nhận đủ 100% tiền phòng trên ví cá nhân và sẵn sàng đón tiếp khách. Giao dịch vẫn diễn ra bình thường ngoài đời thực, nhưng Quỹ Hạ Tầng của giao thức không thu được một satoshi nào.
 
-Nguyên nhân cốt lõi là hệ thống hiện tại đang vận hành dựa trên giả định "Client lương thiện" (Honest Client Assumption). Cần một thiết kế cơ chế (mechanism design) thực tế, phù hợp với bản chất phi tập trung của Bitcoin/Lightning/Nostr, thay vì áp đặt các giả định không thể thực thi bằng mật mã học.
+Nguyên nhân cốt lõi là hệ thống trước đây vận hành dựa trên giả định "Client lương thiện" (Honest Client Assumption). Cần một thiết kế cơ chế (mechanism design) thực tế, phù hợp với bản chất phi tập trung của Bitcoin/Lightning/Nostr, thay vì áp đặt các giả định không thể thực thi bằng mật mã học.
 
 ## Hiện trạng đang chạy (Current Operating Reality)
 
-- Trong phiên bản hiện tại của CypherGuide, giao thức vận hành theo mô hình 2 hóa đơn Lightning độc lập (Dual-Invoice Model). Việc thanh toán hóa đơn phí Treasury hoàn toàn phụ thuộc vào việc client của người dùng có trung thực thực hiện lệnh thanh toán hay không.
+- Trong phiên bản hiện tại của CypherGuide, giao thức vận hành theo mô hình 2 hóa đơn Lightning độc lập (Dual-Invoice Model). Việc thanh toán hóa đơn phí Treasury hoàn toàn phụ thuộc vào việc client của người dùng có thực hiện lệnh thanh toán hay không.
 - Về mặt bản chất thực tế, hệ thống hiện đang vận hành theo cơ chế **khách tự nguyện thanh toán trên tinh thần trung thực của client (honest client)** — hiệu quả vận hành thực tế tương đương với **Phương án C** (đóng góp tự nguyện).
-- Khi Chủ dự án đưa ra quyết định lựa chọn phương án chính thức, các nhãn hiển thị trên giao diện người dùng (ví dụ nhãn "Phí giao thức" trong hóa đơn đặt phòng) cần được cập nhật để phản ánh đúng bản chất (ví dụ: "Đóng góp phát triển giao thức (không bắt buộc)" nếu chọn C, hoặc "Phí dịch vụ bảo chứng" nếu chọn B) nhằm đảm bảo tính minh bạch và trung thực với người dùng. Việc đổi nhãn giao diện không thuộc phạm vi đợt này.
+- Khi triển khai theo quyết định của Chủ dự án, các nhãn hiển thị trên giao diện người dùng (ví dụ nhãn "Phí giao thức" trong hóa đơn đặt phòng) phải được cập nhật thành **"Đóng góp giao thức (không bắt buộc)"** nhằm phản ánh đúng bản chất, đảm bảo tính minh bạch và trung thực với người dùng.
 
 ## Các phương án đã cân nhắc
 
-Tài liệu này trình bày 4 phương án kiến trúc khác nhau để Chủ dự án xem xét và đưa ra quyết định chiến lược. Tài liệu KHÔNG tự ý chọn phương án thay cho Chủ dự án.
+Tài liệu này ghi nhận 4 phương án kiến trúc đã được phân tích và đánh giá:
 
 ---
 
-### Phương án A: Gộp một hóa đơn và ràng buộc hoàn cọc theo bằng chứng nộp phí (Escrow Proof-of-Fee Lock)
+### Phương án A: Gộp một hóa đơn và ràng buộc hoàn cọc theo bằng chứng nộp phí (Escrow Proof-of-Fee Lock) - *[Đã bị loại bỏ]*
 
 - **Cơ chế hoạt động:**
   - Khách chỉ thanh toán 1 hóa đơn tổng (tiền phòng + tiền cọc ký quỹ Escrow).
@@ -39,14 +64,14 @@ Tài liệu này trình bày 4 phương án kiến trúc khác nhau để Chủ 
 - **Ưu điểm:**
   - Tận dụng cơ chế ký quỹ sẵn có của RFC-0003/RFC-0008.
   - Sử dụng ràng buộc toán học bằng mật mã học (cryptographic condition): Không có preimage nộp phí thì hợp đồng escrow không thể mở khóa.
-- **Nhược điểm và Chỗ hở nghiêm trọng:**
+- **Nhược điểm và Chỗ hở nghiêm trọng khiến phương án bị loại bỏ:**
   - **Khách và Chủ nhà thông đồng:** Nếu khách và chủ nhà thỏa thuận ngoài luồng (collusion) hoặc tự thỏa thuận "đặt phòng không qua cọc", thì không bên nào báo cáo giao dịch lên escrow và không ai nộp phí Treasury.
   - **Tiền phòng đi thẳng:** Do tiền phòng là giao dịch P2P trực tiếp từ khách sang ví của chủ nhà, giao thức không thể phong tỏa hay thu giữ tiền phòng nếu chủ nhà đã cầm tiền.
   - Tăng độ phức tạp cho luồng giải ngân cọc của người dùng bình thường.
 
 ---
 
-### Phương án B: Phí là giá của dịch vụ, không phải thuế trên giao dịch (Fee as Service Price, not Transaction Tax)
+### Phương án B: Phí là giá của dịch vụ, không phải thuế trên giao dịch (Fee as Service Price, not Transaction Tax) - *[Hướng đích Giai đoạn 2]*
 
 - **Cơ chế hoạt động:**
   - Từ bỏ tư duy xem phí giao thức là một khoản "thuế bắt buộc" đánh lên toàn bộ giao dịch P2P (vốn không thể cưỡng chế trong mạng mở).
@@ -71,46 +96,45 @@ Phương án B chỉ có thể vận hành trên thực tế khi các hạ tần
 
 ---
 
-### Phương án C: Đóng góp tự nguyện, có ghi nhận (Voluntary Contribution with On-Chain Recognition)
+### Phương án C: Đóng góp tự nguyện, có ghi nhận (Voluntary Contribution with On-Chain Recognition) - *[Đã chọn cho Giai đoạn 1]*
 
 - **Cơ chế hoạt động:**
-  - Phí giao thức được chuyển thành khoản đóng góp tự nguyện (Voluntary Donation / Protocol Tip).
+  - Phí giao thức được chuyển đổi hoàn toàn thành khoản **đóng góp tự nguyện** (Voluntary Donation / Protocol Contribution).
+  - Khách hàng được hiển thị mức gợi ý mặc định (tính toán dựa trên công thức RFC-0002), kèm theo các lựa chọn tức thời: giữ mức gợi ý, đặt về 0 sats (1 chạm), hoặc nhập số sats tùy chỉnh.
+  - Khi khách chọn mức 0 sats, giao thức không sinh hóa đơn Treasury và giao dịch đặt phòng vẫn hoàn tất bình thường.
   - Mọi khoản đóng góp vào Quỹ Hạ Tầng (Treasury) được ghi nhận công khai trên relay Nostr qua sự kiện NIP-57 (Zaps) hoặc NIP-58 (Badges).
-  - Cung cấp bảng xếp hạng "Top Benefactors" và trao quyền biểu quyết quản trị (Governance Voting Weight) tương ứng với mức satoshi đã đóng góp.
+- **Lưu ý bảo mật về quyền biểu quyết:**
+  - Trong một số tài liệu sơ khởi có đề xuất trao quyền biểu quyết quản trị theo số tiền đóng góp. Cần ghi chú rõ ràng rằng việc gắn quyền biểu quyết trực tiếp với số satoshi đóng góp tiềm ẩn rủi ro nghiêm trọng về việc người giàu mua ảnh hưởng (plutocracy) hoặc kẻ tấn công tạo nhiều danh tính giả mạo (Sybil attack) để thâu tóm phiếu bầu.
+  - Do đó, **tính năng quyền biểu quyết theo số sats đóng góp KHÔNG được triển khai trong Giai đoạn 1**, và được giữ lại như một câu hỏi mở cần quyết định riêng.
 - **Ưu điểm:**
-  - Cực kỳ minh bạch, giảm thiểu các rủi ro pháp lý phức tạp liên quan đến hoạt động môi giới thu phí trung gian tài chính.
-  - UX đơn giản nhất: Khách có thể tùy chọn đóng góp 1%, 2% hoặc tự chọn số sats ủng hộ đội ngũ phát triển hạ tầng.
+  - Cực kỳ minh bạch; được một số ý kiến kỹ thuật đánh giá là có thể giảm thiểu rủi ro môi giới tài chính trung gian, nhưng mức độ an toàn vẫn phụ thuộc vào cách cơ quan quản lý tại từng khu vực tài phán phân loại mô hình.
+  - UX đơn giản nhất, hoàn toàn tôn trọng quyền tự quyết của người dùng.
 - **Nhược điểm:**
-  - Doanh thu không ổn định và có thể rất thấp (hiệu ứng "người đi nhờ xe" - free-rider problem).
-  - Không thể dự phóng ngân sách duy trì các node hạ tầng relay và dev fund.
+  - Doanh thu không ổn định và có thể thấp (hiệu ứng "người đi nhờ xe" - free-rider problem).
 
 ---
 
-### Phương án D: Máy chủ hoặc Relay xác minh tập trung hơn (Relay / Server-Enforced Validation)
+### Phương án D: Máy chủ hoặc Relay xác minh tập trung hơn (Relay / Server-Enforced Validation) - *[Đã bị loại bỏ]*
 
 - **Cơ chế hoạt động:**
   - Sử dụng mạng lưới Relay có cổng thanh toán (Gated/Validating Relays) hoặc Server trung chuyển của CypherGuide.
-  - Khi một sự kiện Booking (Kind 30078 hoặc Ephemeral Booking Event) được gửi lên relay, Relay Validator kết nối trực tiếp với node Lightning của Treasury qua webhook/gRPC để xác nhận hóa đơn phí đã thanh toán thành công (settled).
-  - Nếu hóa đơn phí chưa thanh toán, Relay sẽ từ chối lưu trữ và phát sóng sự kiện booking, khiến booking không xuất hiện trên hệ thống quản lý của chủ nhà và khách.
-- **Ưu điểm:**
-  - Ràng buộc kỹ thuật gần như tuyệt đối: Không nộp phí thì booking không được mạng lưới ghi nhận.
-  - Không phụ thuộc vào sự hợp tác hay trung thực của client.
-- **Nhược điểm:**
+  - Khi một sự kiện Booking được gửi lên relay, Relay Validator kết nối trực tiếp với node Lightning của Treasury qua webhook/gRPC để xác nhận hóa đơn phí đã thanh toán thành công.
+  - Nếu hóa đơn phí chưa thanh toán, Relay sẽ từ chối lưu trữ và phát sóng sự kiện booking.
+- **Lý do bị loại bỏ:**
   - **Mất tính phi tập trung (Decentralization Compromise):** Đưa Relay/Server trở thành điểm nghẽn tập trung (chokepoint). Nếu server/node Treasury ngừng hoạt động, toàn bộ hệ thống đặt phòng bị tê liệt.
   - Đi ngược lại nguyên tắc chống kiểm duyệt của Nostr (người dùng có thể chuyển sang relay khác không kiểm tra phí).
-  - Chi phí vận hành node và hạ tầng relay validator cao hơn đáng kể.
 
 ---
 
 ## So sánh tổng hợp các phương án
 
-| Tiêu chí | Phương án A (Cọc Escrow) | Phương án B (Giá dịch vụ) | Phương án C (Tự nguyện) | Phương án D (Relay Validator) |
+| Tiêu chí | Phương án A (Cọc Escrow) | Phương án B (Giá dịch vụ) | Phương án C (Tự nguyện - Giai đoạn 1) | Phương án D (Relay Validator) |
 |---|---|---|---|---|
 | **Mức độ phi tập trung** | Cao | Rất cao | Tối đa | Trung bình - Thấp |
-| **Tính khả thi kỹ thuật** | Trung bình (Dễ bị lách khi thông đồng) | Phụ thuộc 4 điều kiện tiên quyết (Hiện chưa triển khai) | Rất cao (Khả thi ngay) | Trung bình (Cần node chuyên dụng) |
-| **Khả năng chống lách luật** | Kém (Thông đồng ngoài luồng) | Tự nhiên (Không trả phí = Không có quyền lợi) | Không chống (Chấp nhận tự do) | Rất cao trên relay chính |
-| **Trải nghiệm người dùng (UX)** | Phức tạp (Nhiều bước giải ngân cọc) | Mượt mà, rõ ràng về quyền lợi | Đơn giản, nhẹ nhàng | Bị phụ thuộc trạng thái relay |
-| **Đánh giá pháp lý sơ bộ (chưa có ý kiến chuyên gia)** | Trung bình (Liên quan giữ cọc) | Tùy thuộc cấu trúc bán dịch vụ phần mềm | Ít rủi ro môi giới trung gian nhất | Phức tạp (Kiểm duyệt giao dịch) |
+| **Tính khả thi kỹ thuật** | Trung bình (Dễ bị lách khi thông đồng) | Phụ thuộc 4 điều kiện tiên quyết (Hiện chưa triển khai) | Rất cao (Khả thi ngay, trung thực với hiện trạng) | Trung bình (Cần node chuyên dụng) |
+| **Khả năng chống lách luật** | Kém (Thông đồng ngoài luồng) | Tự nhiên (Không trả phí = Không có quyền lợi) | Không chống (Chấp nhận tự do, khuyến khích tự nguyện) | Rất cao trên relay chính |
+| **Trải nghiệm người dùng (UX)** | Phức tạp (Nhiều bước giải ngân cọc) | Mượt mà, rõ ràng về quyền lợi | Đơn giản, nhẹ nhàng, 1 chạm đặt về 0 | Bị phụ thuộc trạng thái relay |
+| **Đánh giá pháp lý sơ bộ (đánh giá kỹ thuật, chưa có ý kiến luật sư)** | Trung bình (Liên quan giữ cọc) | Tùy thuộc cấu trúc bán dịch vụ phần mềm | Được đánh giá là giảm thiểu rủi ro môi giới nhất | Phức tạp (Kiểm duyệt giao dịch) |
 
 ## Đánh đổi bảo mật / phi tập trung
 
@@ -123,37 +147,43 @@ Phương án B chỉ có thể vận hành trên thực tế khi các hạ tần
   - Nếu chỉ có 1 attester duy nhất: Tạo thành điểm nghẽn tập trung và điểm lỗi đơn lẻ (single point of failure / censorship risk).
   - Hậu quả nếu attester bị tấn công hoặc hành xử xấu: Nếu khóa attester bị kẻ xấu chiếm quyền, chúng có thể ký khống chứng nhận cho các booking không hề nộp phí; ngược lại, nếu attester bị tấn công từ chối dịch vụ (DoS) hoặc từ chối phục vụ, những khách hàng đã nộp phí đầy đủ sẽ không thể nhận được chứng nhận lưu trú hợp lệ.
   - Do đó, Phương án B đòi hỏi phải có mạng lưới nhiều attester độc lập vận hành theo cơ chế ngưỡng đồng thuận đa chữ ký (m-of-n threshold signatures). RFC này không tự ý ấn định số lượng attester cụ thể khi chưa có quyết định của Chủ dự án.
-- **Điều gì xảy ra nếu bên được tin tưởng hành xử xấu:**
-  - Ở Phương án D, nếu relay kiểm định bị tấn công hoặc kiểm duyệt ác ý, nó có thể từ chối các booking hợp lệ của người dùng. Ở Phương án B, người dùng luôn giữ trọn quyền tự do giao dịch P2P, chỉ có quyền lợi gia tăng (bảo chứng/Proof-of-Stay) là gắn liền với đóng góp phí.
+
+## Lộ trình đã chọn (Adopted Roadmap)
+
+Căn cứ theo Quyết định của Chủ dự án (tháng 10/2026), lộ trình thực thi được xác lập như sau:
+1. **Giai đoạn 1 (Hiện hành): Thực hiện Phương án C (Đóng góp tự nguyện có ghi nhận):**
+   - Tôn trọng hiện trạng kỹ thuật: Giao thức không có khả năng ép nộp phí khi tiền phòng chuyển thẳng P2P cho chủ nhà.
+   - Phần mềm, giao diện và tài liệu nói đúng bản chất: Khoản thanh toán Treasury là đóng góp tự nguyện (không bắt buộc), mức mặc định hiển thị là mức gợi ý tính toán theo RFC-0002.
+   - Cho phép khách hàng tùy chỉnh linh hoạt: chọn mức gợi ý, đặt về 0 sats (1 chạm), hoặc nhập số sats tùy tâm mà không có dark patterns.
+   - Khi khách chọn 0 sats, hệ thống không tạo hóa đơn Treasury, luồng thanh toán và đối soát hoàn tất chỉ với hóa đơn của chủ nhà.
+2. **Giai đoạn 2 (Hướng đích tương lai): Chuyển sang Phương án B (Phí gắn liền với dịch vụ):**
+   - Giao thức chỉ chuyển sang Giai đoạn 2 khi hội đủ 4 điều kiện tiên quyết đã khảo sát:
+     1. Đã onboard Hội đồng Trọng tài thật nắm giữ các private key độc lập (thay thế 3 key placeholder hiện tại).
+     2. Đã triển khai Quỹ bảo hiểm BFT và hợp đồng giữ cọc thực tế (FROST / Cashu mint).
+     3. Đã xây dựng mạng lưới attester độc lập vận hành cơ chế đa chữ ký (m-of-n) để chứng thực Proof-of-Stay.
+     4. Đã phát triển cơ chế relay lập chỉ mục và xếp hạng listing.
+3. **Không triển khai Phương án A và D:** Phương án A bị loại bỏ do lỗ hổng thông đồng bỏ cọc; Phương án D bị loại bỏ do tạo điểm nghẽn tập trung trái tinh thần Nostr.
 
 ## Chỉ số thành công (Success Metrics)
 
-Nếu một phương án được thông qua và triển khai, các chỉ số sau sẽ đo lường hiệu quả:
-1. **Tỷ lệ tuân thủ nộp phí (Fee Compliance Rate):** Tỷ lệ số booking có đóng góp phí trên tổng số booking phát sinh.
+1. **Tỷ lệ đóng góp tự nguyện (Voluntary Contribution Ratio):** Tỷ lệ số booking có đóng góp phí (khác 0) trên tổng số booking phát sinh.
 2. **Doanh thu bền vững của Quỹ Hạ Tầng (Treasury Inflow):** Đủ bù đắp chi phí vận hành các node relay cộng đồng và bảo hiểm rủi ro.
-3. **Tỷ lệ chuyển đổi Proof-of-Stay:** Tỷ lệ khách hàng mong muốn trả phí để nhận Proof-of-Stay có bảo chứng chính thức.
-
-## Gợi ý lộ trình (Tham khảo, chờ Chủ dự án quyết định)
-
-Dưới đây là gợi ý từ góc độ kỹ thuật của người soạn thảo nhằm cung cấp thêm góc nhìn cho Chủ dự án, tuyệt đối không phải quyết định thay cho Chủ dự án:
-1. **Phương án A và D không khuyến nghị:**
-   - *Phương án A* dễ dàng bị vô hiệu hóa khi khách và chủ nhà thông đồng bỏ qua bước ký quỹ cọc (đặt phòng trực tiếp ngoài luồng), trong khi tiền phòng vẫn chuyển thẳng tới ví của chủ nhà mà giao thức không thể can thiệp.
-   - *Phương án D* đưa relay kiểm định trở thành điểm nghẽn tập trung, đi ngược lại nguyên tắc chống kiểm duyệt và triết lý mở của Nostr.
-2. **Giai đoạn 1 (Ngắn hạn):** Áp dụng cách tiếp cận của **Phương án C** (Đóng góp tự nguyện có ghi nhận công khai). Đây là giải pháp có thể triển khai ngay lập tức, hoàn toàn phù hợp và trung thực với hiện trạng kỹ thuật đang chạy, không tạo ra giả định sai lầm về sự ép buộc.
-3. **Giai đoạn 2 (Dài hạn):** Khi hệ thống đã xây dựng được Hội đồng Trọng tài thực tế (onboard các bên thứ ba nắm private key riêng), triển khai quỹ ký quỹ BFT an toàn và có các dịch vụ bảo chứng mang lại giá trị thực, chuyển dần sang **Phương án B** (gắn phí vào giá trị của từng dịch vụ cụ thể).
+3. **Mức đóng góp trung bình (Average Sats Contributed):** Số lượng sats trung bình mà khách tự nguyện đóng góp trên mỗi giao dịch.
 
 ## Các câu hỏi mở cần Chủ dự án quyết định
 
-Tài liệu này khuyến nghị Chủ dự án xem xét các câu hỏi mở sau trước khi phê duyệt:
-1. **Mức phí hiện hành & hình thức tính phí:** Tỷ lệ phí 2.0% (cơ sở) và 1.0% (ưu đãi) của RFC-0002 có nên giữ nguyên, hay nên chuyển sang phí tính theo tỷ lệ phần trăm hoặc mức giá cố định theo từng dịch vụ (ví dụ: 500 sats cho chứng nhận Proof-of-Stay, 1.000 sats cho bảo hiểm trọng tài Escrow), đặc biệt đối với các phòng có giá trị thấp để tránh mức phí quá cao hoặc quá thấp?
-2. **Ý nghĩa mức ưu đãi 1% cho chủ nhà tiên phong:** Mức ưu đãi 1% cho chủ nhà tiên phong (Early Host) sẽ có ý nghĩa như thế nào theo từng phương án? (Ví dụ: Trong Phương án C, đó là mức đóng góp gợi ý thấp hơn; trong Phương án B, đó là mức giảm giá dịch vụ chứng thực). Quyết định này cần được xác định rõ ràng trước khi ghi danh các chủ nhà thật đầu tiên vào hệ thống.
-3. **Ảnh hưởng tới RFC-0002:** Nếu chọn Phương án B hoặc C, RFC-0002 có cần được cập nhật để định nghĩa lại bản chất của công thức tính phí động?
-4. **Tư vấn pháp lý và thuế:** Khi giao thức tự động thu phí giao dịch, ở một số khu vực tài phán có nguy cơ bị phân loại là đơn vị trung gian thanh toán hoặc sàn giao dịch thương mại điện tử. Tác động pháp lý phụ thuộc vào từng khu vực tài phán và bắt buộc cần có ý kiến tư vấn từ các chuyên gia pháp lý và thuế độc lập; RFC này không đưa ra bất kỳ kết luận hay khẳng định pháp lý nào.
+Tài liệu này khuyến nghị Chủ dự án xem xét các câu hỏi mở sau:
+1. **Cách ghi nhận người đóng góp & Bảo vệ quyền riêng tư:** Phương thức ghi nhận người đóng góp (ví dụ: cấp huy hiệu NIP-58, phát sóng zap công khai, hoặc bảng danh dự trên relay) cần được thiết kế như thế nào để vừa vinh danh vừa bảo vệ quyền riêng tư cá nhân của khách (tránh làm lộ lịch sử du lịch, địa điểm lưu trú hoặc danh tính thật khi công khai dữ liệu thanh toán)?
+2. **Mức đóng góp gợi ý theo giá trị phòng:** Có nên thiết lập mức đóng góp gợi ý phân tầng theo giá trị phòng (ví dụ: phòng bình dân giá thấp có tỷ lệ gợi ý khác so với villa/resort cao cấp) thay vì áp dụng tỷ lệ cố định 2% và 1%?
+3. **Thời điểm và chỉ số chuyển sang Giai đoạn 2:** Khi nào chuyển sang Giai đoạn 2 (Phương án B) và đo bằng những chỉ số cụ thể nào (ví dụ: đạt tối thiểu bao nhiêu trọng tài độc lập, quy mô quỹ bảo hiểm đạt bao nhiêu BTC, hay tỷ lệ khách tự nguyện trả phí trong Giai đoạn 1)?
+4. **Mô hình quản trị phi tập trung và rủi ro Plutocracy:** Thiết kế cơ chế biểu quyết thế nào để không rơi vào bẫy "người giàu mua quyền kiểm soát" nếu sau này cân nhắc gắn đóng góp với tiếng nói quản trị?
+5. **Cấu trúc ưu đãi: Giữ tỷ lệ % hay chuyển sang phí cố định theo dịch vụ?** Khi hệ thống tiến tới Giai đoạn 2 (Phương án B), nên tiếp tục duy trì ưu đãi host tiên phong và mức thu theo tỷ lệ phần trăm (1% vs. 2% giá trị phòng) hay chuyển đổi sang mức phí cố định theo từng loại dịch vụ (ví dụ: 500 sats cho chứng nhận Proof-of-Stay, 1.000 sats cho dịch vụ bảo hiểm cọc Escrow, kèm chính sách miễn/giảm phí cố định cho host tiên phong)?
+6. **Tư vấn pháp lý và thuế:** Khi giao thức chuyển từ mô hình phí sang mô hình đóng góp tự nguyện Value4Value, cần đánh giá từ chuyên gia pháp lý và thuế độc lập tại từng khu vực tài phán; RFC này là đánh giá kỹ thuật ban đầu, không đưa ra bất kỳ kết luận hay khẳng định tư vấn pháp lý nào.
 
 ## Maturity tier đề xuất sau khi triển khai
 
-**Draft** (Tài liệu nghiên cứu kiến trúc định hướng, không triển khai code cho tới khi có quyết định phê duyệt bằng văn bản của Chủ dự án).
+**Draft** (Giai đoạn 1 theo Phương án C đã được chọn; Giai đoạn 2 theo Phương án B là hướng đích, chưa cam kết thời hạn cụ thể).
 
 ## Thảo luận
 
-*(Chờ quyết định chính thức từ Chủ dự án).*
+*(Ghi nhận quyết định chiến lược của Chủ dự án tháng 10/2026).*

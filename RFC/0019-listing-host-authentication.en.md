@@ -72,7 +72,7 @@ Per the Nostr specification, Kind 30078 is a parameterized replaceable event (ke
 - **Potential Directions (framed as open questions, without pre-selecting or implementing):**
   1. *Add an expiration field:* Introduce an `expiresAt` (or `validUntil`) field into the canonical JSON and an `expiration` tag (NIP-40), requiring periodic re-signing (e.g., every 30 or 90 days).
   2. *Revocation / Tombstone Event:* Broadcast a designated host-signed Nostr tombstone event declaring a specific listing hash invalid.
-  3. *Conditional Risk Acceptance:* Accept this risk during experimental phases because booking funds still route to the host's older wallet (not to an attacker), and resolve the issue definitively when relay-based distribution is engineered.
+  3. *Conditional Risk Acceptance:* Accept this risk strictly during experimental testing when real money is not yet at stake, or in scenarios where the host still retains control over the old address (e.g., routine internal operational migrations, not key compromises); if the old address was genuinely compromised, a revocation mechanism or signature expiration (direction 1 or 2) is strictly necessary to prevent attackers from siphoning funds sent to that compromised wallet.
 
 ## Attack Vector Analysis Matrix
 
